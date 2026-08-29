@@ -394,7 +394,15 @@
             return "%" + rate.toFixed(1);
         }
 
-        function getPersistentSignalPlan(coinSymbol, sourceKey, rawSignalType, rawEntry, rawTp, rawSl) {
+        function clearSignalPlan(coinSymbol, sourceKey) {
+            localStorage.removeItem(`signal_type_${coinSymbol}_${sourceKey}`);
+            localStorage.removeItem(`signal_time_${coinSymbol}_${sourceKey}`);
+            localStorage.removeItem(`signal_entry_${coinSymbol}_${sourceKey}`);
+            localStorage.removeItem(`signal_tp_${coinSymbol}_${sourceKey}`);
+            localStorage.removeItem(`signal_sl_${coinSymbol}_${sourceKey}`);
+        }
+
+        function getPersistentSignalPlan(coinSymbol, sourceKey, rawSignalType, rawEntry, rawTp, rawSl, markPrice) {
             let typeKey = `signal_type_${coinSymbol}_${sourceKey}`;
             let timeKey = `signal_time_${coinSymbol}_${sourceKey}`;
             let entryKey = `signal_entry_${coinSymbol}_${sourceKey}`;
@@ -402,21 +410,52 @@
             let slKey = `signal_sl_${coinSymbol}_${sourceKey}`;
 
             let savedType = localStorage.getItem(typeKey);
-            let savedTime = localStorage.getItem(timeKey);
             let savedEntry = localStorage.getItem(entryKey);
             let savedTp = localStorage.getItem(tpKey);
             let savedSl = localStorage.getItem(slKey);
 
+            // Eğer daha önceden mühürlenmiş bir plan varsa, fiyatın TP mi yoksa SL mi olduğunu kontrol et
             if (savedType && savedEntry && savedTp && savedSl) {
-                return {
-                    signalType: savedType,
-                    timeStr: savedTime,
-                    entry: parseFloat(savedEntry),
-                    tp: parseFloat(savedTp),
-                    sl: parseFloat(savedSl)
-                };
+                let sEntry = parseFloat(savedEntry);
+                let sTp = parseFloat(savedTp);
+                let sSl = parseFloat(savedSl);
+
+                let isShortPlan = savedType.includes("SHORT");
+                let isLongPlan = savedType.includes("LONG");
+
+                let hitTp = false;
+                let hitSl = false;
+
+                if (isShortPlan) {
+                    // Short için: Fiyat TP'ye (aşağıya) düştüyse veya SL'ye (yukarıya) çıktıysa hedef vurulmuştur
+                    if (markPrice <= sTp || markPrice >= sSl) {
+                        if (markPrice <= sTp) hitTp = true;
+                        if (markPrice >= sSl) hitSl = true;
+                    }
+                } else if (isLongPlan) {
+                    // Long için: Fiyat TP'ye (yukarıya) çıktıysa veya SL'ye (aşağıya) düştüyse hedef vurulmuştur
+                    if (markPrice >= sTp || markPrice <= sSl) {
+                        if (markPrice >= sTp) hitTp = true;
+                        if (markPrice <= sSl) hitSl = true;
+                    }
+                }
+
+                // Eğer TP veya SL olduysa eski planı tamamen sil ve yeni sinyal mekanizmasına geçmesine izin ver
+                if (hitTp || hitSl) {
+                    clearSignalPlan(coinSymbol, sourceKey);
+                    savedType = null; // Aşağıda yeniden taze plan oluşturulacak
+                } else {
+                    return {
+                        signalType: savedType,
+                        timeStr: localStorage.getItem(timeKey),
+                        entry: sEntry,
+                        tp: sTp,
+                        sl: sSl
+                    };
+                }
             }
 
+            // Hafızada aktif plan yoksa ya da TP/SL olduğu için temizlendiyse yeni planı mühürle
             let now = new Date();
             let dateStr = now.toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' });
             let timeStr = now.toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -572,7 +611,7 @@
                 }
             }
 
-            let plan = getPersistentSignalPlan(coinName, currentSource, rawSignalType, rawEntry, rawTp, rawSl);
+            let plan = getPersistentSignalPlan(coinName, currentSource, rawSignalType, rawEntry, rawTp, rawSl, markPrice);
             activePlanGlobal = plan;
 
             let actionBadge = "";
