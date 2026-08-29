@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cash Control - Likidite & Taktik Paneli</title>
+    <title>Cash Control - Likidite Paneli</title>
     <style>
         body {
             background-color: #121212;
@@ -12,38 +12,48 @@
             margin: 0;
             padding: 20px;
         }
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
         h1 {
-            font-size: 24px;
-            margin-bottom: 5px;
+            font-size: 22px;
+            margin: 0;
             color: #ffffff;
         }
         .subtitle {
             color: #888;
-            font-size: 14px;
-            margin-bottom: 20px;
+            font-size: 13px;
+            margin-top: 2px;
         }
         button.speak-btn {
-            background: linear-gradient(135deg, #00c853, #b2ff59);
+            background-color: #00c853;
             color: #000;
             border: none;
-            padding: 12px 20px;
-            border-radius: 8px;
+            padding: 8px 14px;
+            border-radius: 6px;
             cursor: pointer;
             font-weight: bold;
-            font-size: 14px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            margin-bottom: 20px;
+            font-size: 13px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            transition: opacity 0.2s;
         }
         button.speak-btn:hover {
-            opacity: 0.9;
+            opacity: 0.85;
+        }
+        .table-wrapper {
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            background-color: #1e1e1e;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         }
         th, td {
             padding: 12px 15px;
@@ -61,35 +71,40 @@
         }
         #loading {
             text-align: center;
-            padding: 20px;
+            padding: 30px;
             color: #888;
-            font-size: 16px;
+            font-size: 15px;
         }
     </style>
 </head>
 <body>
 
-    <h1>Cash Control Paneli</h1>
-    <div class="subtitle">Gelişmiş Likidite & Sinyal Takip Sistemi</div>
-
-    <button class="speak-btn" onclick="speakAnalysis()">🔊 Analizi Sesli Söyle</button>
+    <div class="header-container">
+        <div>
+            <h1>Cash Control Paneli</h1>
+            <div class="subtitle">Likidite & Taktik Sinyalleri</div>
+        </div>
+        <button class="speak-btn" onclick="speakAnalysis()">🔊 Analizi Sesli Söyle</button>
+    </div>
 
     <div id="loading">Veriler yükleniyor...</div>
 
-    <table id="coin-table" style="display: none;">
-        <thead>
-            <tr>
-                <th>Coin</th>
-                <th>Fiyat (Mark)</th>
-                <th>Fonlama</th>
-                <th>Açık Poz (OI)</th>
-                <th>Taktik Sinyalleri</th>
-            </tr>
-        </thead>
-        <tbody id="coin-table-body">
-            <!-- Veriler JS ile doldurulacak -->
-        </tbody>
-    </table>
+    <div class="table-wrapper">
+        <table id="coin-table" style="display: none;">
+            <thead>
+                <tr>
+                    <th>Coin</th>
+                    <th>Mark Fiyat</th>
+                    <th>Fonlama</th>
+                    <th>Açık Poz (OI)</th>
+                    <th>Sinyaller</th>
+                </tr>
+            </thead>
+            <tbody id="coin-table-body">
+                <!-- JS verileri buraya dolduracak -->
+            </tbody>
+        </table>
+    </div>
 
     <script>
         let globalMarketData = {};
@@ -110,10 +125,10 @@
                     let signalsHTML = '';
                     if (coin.signals && coin.signals.length > 0) {
                         signalsHTML = coin.signals.map(s => 
-                            `<span style="background-color: ${s.color}; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; margin-right: 4px; display: inline-block; margin-bottom: 2px;" title="${s.desc}">${s.badge}</span>`
+                            `<span style="background-color: ${s.color}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-right: 4px; display: inline-block; margin-bottom: 2px;" title="${s.desc}">${s.badge}</span>`
                         ).join('');
                     } else {
-                        signalsHTML = '<span style="color: #78909c; font-size: 11px;">Nötr</span>';
+                        signalsHTML = '<span style="color: #666; font-size: 11px;">Nötr</span>';
                     }
 
                     html += `
@@ -129,32 +144,32 @@
                 container.innerHTML = html;
             })
             .catch(err => {
-                document.getElementById('loading').innerText = "Veri yüklenirken hata oluştu!";
+                document.getElementById('loading').innerText = "Veri yüklenirken hata oluştu.";
                 console.error(err);
             });
 
         function speakAnalysis() {
             if (!('speechSynthesis' in window)) {
-                alert("Tarayıcınız sesli okuma özelliğini desteklemiyor.");
+                alert("Tarayıcınız sesli okumayı desteklemiyor.");
                 return;
             }
 
-            let textToSpeak = "Güncel piyasa analiz raporu hazırlandı. ";
+            let textToSpeak = "Piyasa analiz raporu. ";
             let hasSignal = false;
 
             for (let key in globalMarketData) {
                 let coin = globalMarketData[key];
                 if (coin.signals && coin.signals.length > 0) {
                     hasSignal = true;
-                    textToSpeak += `${key} coini için; `;
+                    textToSpeak += `${key} için; `;
                     coin.signals.forEach(s => {
-                        textToSpeak += `${s.badge} alarmı aktif. ${s.desc} `;
+                        textToSpeak += `${s.badge}. ${s.desc} `;
                     });
                 }
             }
 
             if (!hasSignal) {
-                textToSpeak = "Şu anda dikkat çekici kritik bir sinyal bulunmuyor, piyasa genel olarak nötr seyrediyor.";
+                textToSpeak = "Şu anda kritik bir sinyal bulunmuyor, piyasa nötr.";
             }
 
             window.speechSynthesis.cancel();
