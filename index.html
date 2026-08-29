@@ -281,7 +281,7 @@
                 <span>⚡ Sabitlenmiş İşlem Stratejisi</span>
                 <span id="plan-time-label" style="font-size: 11px; font-weight: normal; color: var(--text-muted);">🕒 Bekleniyor...</span>
             </div>
-            <div id="scenario-text" style="margin-top: 6px;">Veriler analiz ediliyor...</div>
+            <div id="scenario-text" style="margin-top: 6px;">Yeni işlem sinyali bekleniyor...</div>
             <div class="backtest-row">
                 <span>🎯 Geçmiş Backtest Başarısı (Son 50 Sinyal):</span>
                 <strong id="win-rate-val" style="color: var(--long-color);">%0.0</strong>
@@ -414,7 +414,6 @@
             let savedTp = localStorage.getItem(tpKey);
             let savedSl = localStorage.getItem(slKey);
 
-            // Eğer daha önceden mühürlenmiş bir plan varsa, fiyatın TP mi yoksa SL mi olduğunu kontrol et
             if (savedType && savedEntry && savedTp && savedSl) {
                 let sEntry = parseFloat(savedEntry);
                 let sTp = parseFloat(savedTp);
@@ -427,23 +426,21 @@
                 let hitSl = false;
 
                 if (isShortPlan) {
-                    // Short için: Fiyat TP'ye (aşağıya) düştüyse veya SL'ye (yukarıya) çıktıysa hedef vurulmuştur
                     if (markPrice <= sTp || markPrice >= sSl) {
                         if (markPrice <= sTp) hitTp = true;
                         if (markPrice >= sSl) hitSl = true;
                     }
                 } else if (isLongPlan) {
-                    // Long için: Fiyat TP'ye (yukarıya) çıktıysa veya SL'ye (aşağıya) düştüyse hedef vurulmuştur
                     if (markPrice >= sTp || markPrice <= sSl) {
                         if (markPrice >= sTp) hitTp = true;
                         if (markPrice <= sSl) hitSl = true;
                     }
                 }
 
-                // Eğer TP veya SL olduysa eski planı tamamen sil ve yeni sinyal mekanizmasına geçmesine izin ver
+                // TP veya SL olduysa eski planı tamamen uçur ve boş dön
                 if (hitTp || hitSl) {
                     clearSignalPlan(coinSymbol, sourceKey);
-                    savedType = null; // Aşağıda yeniden taze plan oluşturulacak
+                    return null; 
                 } else {
                     return {
                         signalType: savedType,
@@ -455,7 +452,7 @@
                 }
             }
 
-            // Hafızada aktif plan yoksa ya da TP/SL olduğu için temizlendiyse yeni planı mühürle
+            // Hafızada mühürlü plan yoksa (ilk defa açılıyor veya önceki TP/SL olmuş), yeni planı mühürle
             let now = new Date();
             let dateStr = now.toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' });
             let timeStr = now.toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -579,9 +576,6 @@
             let slEl = document.getElementById("plan-sl");
             let winRateEl = document.getElementById("win-rate-val");
 
-            let longSizeK = (sourceData.long_size / 1000).toFixed(1);
-            let shortSizeK = (sourceData.short_size / 1000).toFixed(1);
-
             let rawSignalType = "";
             let rawEntry = 0;
             let rawTp = 0;
@@ -612,6 +606,18 @@
             }
 
             let plan = getPersistentSignalPlan(coinName, currentSource, rawSignalType, rawEntry, rawTp, rawSl, markPrice);
+            
+            // Eğer plan null döndüyse (yani önceki işlem TP veya SL oldu ve silindi), ekranı tamamen temizle/bekleme moduna al
+            if (!plan) {
+                timeLabelEl.innerText = "🕒 Bekleniyor...";
+                entryEl.innerText = "$0.00";
+                tpEl.innerText = "$0.00";
+                slEl.innerText = "$0.00";
+                winRateEl.innerText = "%0.0";
+                scenarioEl.innerHTML = `<div class="badges-wrapper"><div class="action-badge badge-neutral">🟡 İŞLEM KAPANDI (TP / SL)</div><div class="status-badge">⏳ Yeni Sinyal Bekleniyor</div></div><div style="margin-top: 4px;">Önceki işlem hedef veya stop seviyesine ulaştı ve kapatıldı. Yeni bir yön sinyali oluşana kadar alan bekleme modundadır.</div>`;
+                return;
+            }
+
             activePlanGlobal = plan;
 
             let actionBadge = "";
@@ -619,6 +625,8 @@
             let explanation = "";
             let isShort = plan.signalType.includes("SHORT");
             let isLong = plan.signalType.includes("LONG");
+            let longSizeK = (sourceData.long_size / 1000).toFixed(1);
+            let shortSizeK = (sourceData.short_size / 1000).toFixed(1);
 
             if (isShort) {
                 actionBadge = `<div class="action-badge badge-short">🔴 SİSTEM PLANI: SHORT YÖNLÜ POZİSYON</div>`;
