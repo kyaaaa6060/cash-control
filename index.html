@@ -91,6 +91,21 @@
         .badge-short { background-color: rgba(246, 70, 93, 0.15); color: var(--short-color); border: 1px solid rgba(246, 70, 93, 0.3); }
         .badge-neutral { background-color: rgba(240, 185, 11, 0.15); color: var(--accent-yellow); border: 1px solid rgba(240, 185, 11, 0.3); }
 
+        /* İşlem Planı Kutusu */
+        .trade-plan-box {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            background: var(--btn-bg);
+            border: 1px solid var(--card-border);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .plan-item div:first-child { font-size: 11px; color: var(--text-muted); margin-bottom: 2px; }
+        .plan-item div:last-child { font-size: 14px; font-weight: 700; color: var(--text-main); }
+
         .section-label {
             text-align: center;
             font-size: 12px;
@@ -215,8 +230,24 @@
         </div>
 
         <div class="scenario-box">
-            <div class="scenario-title">⚡ Anlık Fiyat & 5dk'lık Ortalama Stratejisi</div>
+            <div class="scenario-title">⚡ Sabitlenmiş İşlem Stratejisi (5dk Periyotlu)</div>
             <div id="scenario-text">Veriler analiz ediliyor...</div>
+        </div>
+
+        <!-- Sabit İşlem Planı (Giriş, TP, SL) -->
+        <div class="trade-plan-box">
+            <div class="plan-item">
+                <div>GİRİŞ (ENTRY)</div>
+                <div id="plan-entry" style="color: var(--accent-yellow);">$0.00</div>
+            </div>
+            <div class="plan-item">
+                <div>KÂR AL (TP)</div>
+                <div id="plan-tp" style="color: var(--long-color);">$0.00</div>
+            </div>
+            <div class="plan-item">
+                <div>STOP OL (SL)</div>
+                <div id="plan-sl" style="color: var(--short-color);">$0.00</div>
+            </div>
         </div>
 
         <div class="section-label">Veri Kaynağı Seçin:</div>
@@ -244,7 +275,7 @@
         </div>
 
         <div class="cache-info">
-            ⏳ Ortalamalar ve Analiz <strong>5 Dakikada Bir</strong> Yenilenir | Sonraki Güncelleme: <span id="timer">300</span>s
+            ⏳ Seviyeler ve Analiz <strong>5 Dakikada Bir</strong> Sabitlenir | Sonraki Güncelleme: <span id="timer">300</span>s
         </div>
 
         <div class="tabs-row">
@@ -321,19 +352,16 @@
             }
         }
 
-        // Fiyatı anlık (2 saniyede bir) tazeleyen özel fonksiyon
         async function fetchLivePriceOnly() {
             let coin = document.getElementById("coin-select").value;
             try {
                 let res = await fetch(`/api/market-stats/${coin}`);
                 let result = await res.json();
                 if(result.status === "success" && cachedResponse) {
-                    // Sadece mark fiyatı canlı olarak güncelle
                     cachedResponse.data.markPrice = result.data.markPrice;
                     document.getElementById("mark-price").innerText = "$" + result.data.markPrice.toLocaleString('en-US', {minimumFractionDigits: 2});
                     document.getElementById("timer").innerText = result.cache_remaining_seconds;
                     
-                    // Anlık fiyat değişimine göre senaryo ve oranları ekranda anlık tetikle
                     updateViewData();
                 }
             } catch(e) {
@@ -360,30 +388,55 @@
 
         function updateScenarioText(coinName, markPrice, longVal, shortVal, sourceData) {
             let scenarioEl = document.getElementById("scenario-text");
-            let diffLong = ((markPrice - longVal) / longVal) * 100;
-            let diffShort = ((shortVal - markPrice) / markPrice) * 100;
-            
+            let entryEl = document.getElementById("plan-entry");
+            let tpEl = document.getElementById("plan-tp");
+            let slEl = document.getElementById("plan-sl");
+
             let longSizeK = (sourceData.long_size / 1000).toFixed(1);
             let shortSizeK = (sourceData.short_size / 1000).toFixed(1);
 
             let actionBadge = "";
             let explanation = "";
+            let entryPrice = 0;
+            let tpPrice = 0;
+            let slPrice = 0;
 
+            // Stabil Giriş, TP ve SL Mantığı (5dk'da bir yenilenen maliyet bazlı)
             if (markPrice > shortVal) {
-                actionBadge = `<div class="action-badge badge-short">🔴 SİSTEM ÖNERİSİ: SHORT YÖNLÜ İŞLEM (KAR / REVERSAL)</div>`;
-                explanation = `Anlık fiyat, Short maliyetlerinin <strong>%${Math.abs(diffShort).toFixed(2)}</strong> üzerine çıktı. Short havuzu zararda olduğu için sistem hacimli bölgeden olası bir düzeltme (Short Squeeze / Kar Satışı) için kısa vadeli <strong>Short</strong> yönlü işlem planlardı.`;
+                // Short Fırsatı / Reversal
+                actionBadge = `<div class="action-badge badge-short">🔴 SİSTEM PLANI: SHORT YÖNLÜ POZİSYON</div>`;
+                entryPrice = shortVal;
+                tpPrice = longVal; // Hedef long ortalaması
+                slPrice = shortVal * 1.015; // %1.5 üstü stop
+                explanation = `Fiyat short maliyetlerin üstünde. Sistem <strong>$${entryPrice.toFixed(2)}</strong> seviyesinden Short girer; kârı <strong>$${tpPrice.toFixed(2)}</strong> (long havuzu) bölgesinde alır, stopu <strong>$${slPrice.toFixed(2)}</strong> üstüne koyar.`;
             } else if (markPrice < longVal) {
-                actionBadge = `<div class="action-badge badge-long">🟢 SİSTEM ÖNERİSİ: LONG YÖNLÜ İŞLEM (DİP / TEPKİ)</div>`;
-                explanation = `Anlık fiyat, Long maliyet seviyesinin <strong>%${Math.abs(diffLong).toFixed(2)}</strong> altında. <strong>$${longSizeK}K</strong> büyüklüğündeki zararda olan long havuzu nedeniyle likidasyon avı (son iğne) sonrası <strong>$${longVal.toFixed(2)}</strong> bölgesinden tepki alımı beklenir. Sistem kademeli <strong>Long</strong> açardı.`;
+                // Long Fırsatı / Dip Tepkisi
+                actionBadge = `<div class="action-badge badge-long">🟢 SİSTEM PLANI: LONG YÖNLÜ POZİSYON</div>`;
+                entryPrice = longVal;
+                tpPrice = shortVal; // Hedef short ortalaması
+                slPrice = longVal * 0.985; // %1.5 altı stop
+                explanation = `Fiyat long maliyetlerin altında. Sistem <strong>$${entryPrice.toFixed(2)}</strong> seviyesinden Long açar; kârı <strong>$${tpPrice.toFixed(2)}</strong> (short havuzu) seviyesinde kapatır, stopu <strong>$${slPrice.toFixed(2)}</strong> altına koyar.`;
             } else {
+                // Sıkışma Bölgesi / Bekle-Gör
                 if (sourceData.long_size >= sourceData.short_size) {
-                    actionBadge = `<div class="action-badge badge-neutral">🟡 SİSTEM ÖNERİSİ: BEKLE GÖR / ALT BANT İĞNE TAKİBİ</div>`;
-                    explanation = `Fiyat iki maliyet arasında sıkıştı ve Long hacmi baskın (<strong>$${longSizeK}K</strong>). Sistem önce alt banda iğne atılıp long stoplarının patlatılmasını bekler, ardından destek seviyesinden <strong>Long</strong> yönlü pozisyona girmeyi hedeflerdi.`;
+                    actionBadge = `<div class="action-badge badge-neutral">🟡 SİSTEM PLANI: ALT BANT LONG BEKLENİYOR</div>`;
+                    entryPrice = longVal;
+                    tpPrice = shortVal;
+                    slPrice = longVal * 0.985;
+                    explanation = `Fiyat dengede, Long hacim baskın ($${longSizeK}K). Fiyatın <strong>$${longVal.toFixed(2)}</strong> desteğine iğne atması beklenir. Giriş bu destekten yapılır, hedef <strong>$${tpPrice.toFixed(2)}</strong>, stop <strong>$${slPrice.toFixed(2)}</strong>'dir.`;
                 } else {
-                    actionBadge = `<div class="action-badge badge-neutral">🟡 SİSTEM ÖNERİSİ: ÜST BANT BASKI TAKİBİ</div>`;
-                    explanation = `Fiyat dengede ancak Short hacmi ağır basıyor (<strong>$${shortSizeK}K</strong>). Fiyatın yukarı yönlü hareket ederek short maliyetlerine baskı yapması beklenmeli, net kırılım gelene kadar sabırlı olunmalıdır.`;
+                    actionBadge = `<div class="action-badge badge-neutral">🟡 SİSTEM PLANI: ÜST BANT SHORT BEKLENİYOR</div>`;
+                    entryPrice = shortVal;
+                    tpPrice = longVal;
+                    slPrice = shortVal * 1.015;
+                    explanation = `Fiyat dengede, Short hacim baskın ($${shortSizeK}K). Fiyatın <strong>$${shortVal.toFixed(2)}</strong> direncine çıkması beklenir. Giriş dirençten kısa yönlüdür, hedef <strong>$${tpPrice.toFixed(2)}</strong>, stop <strong>$${slPrice.toFixed(2)}</strong>'dir.`;
                 }
             }
+
+            // Arayüze Sabit Değerleri Bas
+            entryEl.innerText = "$" + entryPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            tpEl.innerText = "$" + tpPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            slEl.innerText = "$" + slPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
             scenarioEl.innerHTML = actionBadge + `<div>${explanation}</div>`;
         }
@@ -418,14 +471,9 @@
             updateScenarioText(selectedCoin, markPrice, longVal, shortVal, sourceData);
         }
 
-        // Başlangıçta listeyi yükle
         loadCoinList();
-
-        // Ortalamalar ve cache 5 dakikada bir (300 saniye) yenilenir
-        setInterval(fetchMarketData, 300000);
-
-        // Mark fiyatı ve anlık senaryolar her 2 saniyede bir canlı akar
-        setInterval(fetchLivePriceOnly, 2000);
+        setInterval(fetchMarketData, 300000); // 5 dakikada bir ortalamalar ve plan yenilenir
+        setInterval(fetchLivePriceOnly, 2000); // Fiyat anlık akar ancak plan bozulmaz
     </script>
 </body>
 </html>
