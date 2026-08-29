@@ -53,7 +53,6 @@
             padding-bottom: 10px;
         }
 
-        /* Gelişmiş Akıllı Senaryo ve Yön Önerisi Paneli */
         .scenario-box {
             background: linear-gradient(135deg, rgba(30,34,45,0.95), rgba(19,23,34,0.98));
             border: 1px solid var(--card-border);
@@ -215,9 +214,8 @@
             <span style="cursor: pointer;">✕</span>
         </div>
 
-        <!-- Akıllı Senaryo ve Stratejik Yön Paneli -->
         <div class="scenario-box">
-            <div class="scenario-title">⚡ Yapay Zeka Strateji & Fiyat Senaryosu</div>
+            <div class="scenario-title">⚡ Anlık Fiyat & 5dk'lık Ortalama Stratejisi</div>
             <div id="scenario-text">Veriler analiz ediliyor...</div>
         </div>
 
@@ -236,7 +234,7 @@
         <div class="selector-row">
             <div>
                 <span style="font-size: 13px; color: var(--text-muted);">Coin:</span>
-                <select id="coin-select" onchange="updateViewData()">
+                <select id="coin-select" onchange="fetchMarketData()">
                     <option value="BTC">Yükleniyor...</option>
                 </select>
             </div>
@@ -246,7 +244,7 @@
         </div>
 
         <div class="cache-info">
-            ⏳ Veri ve Ortalama Cache Yenilenme Sıklığı: <strong>5 Dakika (300s)</strong> | Kalan: <span id="timer">300</span>s
+            ⏳ Ortalamalar ve Analiz <strong>5 Dakikada Bir</strong> Yenilenir | Sonraki Güncelleme: <span id="timer">300</span>s
         </div>
 
         <div class="tabs-row">
@@ -323,6 +321,26 @@
             }
         }
 
+        // Fiyatı anlık (2 saniyede bir) tazeleyen özel fonksiyon
+        async function fetchLivePriceOnly() {
+            let coin = document.getElementById("coin-select").value;
+            try {
+                let res = await fetch(`/api/market-stats/${coin}`);
+                let result = await res.json();
+                if(result.status === "success" && cachedResponse) {
+                    // Sadece mark fiyatı canlı olarak güncelle
+                    cachedResponse.data.markPrice = result.data.markPrice;
+                    document.getElementById("mark-price").innerText = "$" + result.data.markPrice.toLocaleString('en-US', {minimumFractionDigits: 2});
+                    document.getElementById("timer").innerText = result.cache_remaining_seconds;
+                    
+                    // Anlık fiyat değişimine göre senaryo ve oranları ekranda anlık tetikle
+                    updateViewData();
+                }
+            } catch(e) {
+                console.error("Canlı fiyat çekilemedi", e);
+            }
+        }
+
         function setSource(sourceKey, titleText) {
             currentSource = sourceKey;
             document.getElementById("modal-main-title").innerText = "📊 " + titleText;
@@ -351,20 +369,19 @@
             let actionBadge = "";
             let explanation = "";
 
-            // Akıllı Strateji / İşlem Yönü Karar Mekanizması
             if (markPrice > shortVal) {
                 actionBadge = `<div class="action-badge badge-short">🔴 SİSTEM ÖNERİSİ: SHORT YÖNLÜ İŞLEM (KAR / REVERSAL)</div>`;
-                explanation = `Fiyat, Short maliyetlerinin <strong>%${Math.abs(diffShort).toFixed(2)}</strong> üzerine çıkarak short pozisyonları zararda bırakmış durumda. Piyasa yapıcılar bu bölgede likiditeyi tüketip aşağı yönlü bir düzeltme (Short Squeeze / Kar Satışı) üretebileceğinden sistem kısa vadeli <strong>Short</strong> yönlü fırsat arardı.`;
+                explanation = `Anlık fiyat, Short maliyetlerinin <strong>%${Math.abs(diffShort).toFixed(2)}</strong> üzerine çıktı. Short havuzu zararda olduğu için sistem hacimli bölgeden olası bir düzeltme (Short Squeeze / Kar Satışı) için kısa vadeli <strong>Short</strong> yönlü işlem planlardı.`;
             } else if (markPrice < longVal) {
                 actionBadge = `<div class="action-badge badge-long">🟢 SİSTEM ÖNERİSİ: LONG YÖNLÜ İŞLEM (DİP / TEPKİ)</div>`;
-                explanation = `Fiyat, Long pozisyonların ortalama girişinin <strong>%${Math.abs(diffLong).toFixed(2)}</strong> altında seyrediyor. Zarardaki long hacmi (<strong>$${longSizeK}K</strong>) nedeniyle olası bir son iğne (likidasyon avı) sonrasında <strong>$${longVal.toFixed(2)}</strong> maliyet bölgesinden güçlü bir tepki alımı beklenir. Sistem bu seviyeden kademeli <strong>Long</strong> açmayı tercih ederdi.`;
+                explanation = `Anlık fiyat, Long maliyet seviyesinin <strong>%${Math.abs(diffLong).toFixed(2)}</strong> altında. <strong>$${longSizeK}K</strong> büyüklüğündeki zararda olan long havuzu nedeniyle likidasyon avı (son iğne) sonrası <strong>$${longVal.toFixed(2)}</strong> bölgesinden tepki alımı beklenir. Sistem kademeli <strong>Long</strong> açardı.`;
             } else {
                 if (sourceData.long_size >= sourceData.short_size) {
                     actionBadge = `<div class="action-badge badge-neutral">🟡 SİSTEM ÖNERİSİ: BEKLE GÖR / ALT BANT İĞNE TAKİBİ</div>`;
-                    explanation = `Fiyat, Long ($${longVal.toFixed(2)}) ve Short ($${shortVal.toFixed(2)}) arasında sıkışmış ve Long hacmi baskın (<strong>$${longSizeK}K</strong>). Sistem, piyasa yapıcının önce alt banda iğne atıp long stopları patlatmasını bekler, ardından destek seviyesinden <strong>Long</strong> yönlü pozisyona girmeyi planlardı.`;
+                    explanation = `Fiyat iki maliyet arasında sıkıştı ve Long hacmi baskın (<strong>$${longSizeK}K</strong>). Sistem önce alt banda iğne atılıp long stoplarının patlatılmasını bekler, ardından destek seviyesinden <strong>Long</strong> yönlü pozisyona girmeyi hedeflerdi.`;
                 } else {
                     actionBadge = `<div class="action-badge badge-neutral">🟡 SİSTEM ÖNERİSİ: ÜST BANT BASKI TAKİBİ</div>`;
-                    explanation = `Fiyat iki maliyet arasında dengede ancak Short hacmi ağır basıyor (<strong>$${shortSizeK}K</strong>). Fiyatın yukarı yönlü hareket ederek short maliyetlerine baskı yapması beklenmeli, net kırılım gelene kadar işlemden kaçınılmalıdır.`;
+                    explanation = `Fiyat dengede ancak Short hacmi ağır basıyor (<strong>$${shortSizeK}K</strong>). Fiyatın yukarı yönlü hareket ederek short maliyetlerine baskı yapması beklenmeli, net kırılım gelene kadar sabırlı olunmalıdır.`;
                 }
             }
 
@@ -398,12 +415,17 @@
 
             document.getElementById("general-val").innerText = "$" + genVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
 
-            // Akıllı Strateji ve Yön Önerisini Güncelle
             updateScenarioText(selectedCoin, markPrice, longVal, shortVal, sourceData);
         }
 
+        // Başlangıçta listeyi yükle
         loadCoinList();
-        setInterval(fetchMarketData, 10000);
+
+        // Ortalamalar ve cache 5 dakikada bir (300 saniye) yenilenir
+        setInterval(fetchMarketData, 300000);
+
+        // Mark fiyatı ve anlık senaryolar her 2 saniyede bir canlı akar
+        setInterval(fetchLivePriceOnly, 2000);
     </script>
 </body>
 </html>
