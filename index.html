@@ -314,31 +314,25 @@
         let currentTab = "guncel";
         let cachedResponse = null;
 
-        // Gerçek sinyalin ilk doğduğu anı session/local bazlı kontrol eden fonksiyon
-        function getExactSignalTimestamp(coinSymbol, sourceKey, signalType, entryPrice, tpPrice) {
-            let stateKey = `real_state_${coinSymbol}_${sourceKey}`;
-            let timeKey = `real_time_${coinSymbol}_${sourceKey}`;
-            
-            let savedState = sessionStorage.getItem(stateKey);
-            let savedTime = sessionStorage.getItem(timeKey);
+        // Hafızada her coin + kaynak + sinyal kombinasyonu için kilitlenmiş orijinal zamanı tutar
+        // Canlı fiyat güncellemeleri bu saati asla ezmez, sadece yeni veri/yön geldiğinde değişir.
+        const lockedSignalTimes = {};
 
-            // Benzersiz sinyal imzası oluştur (Yön + Giriş + TP seviyesi kombinasyonu)
-            let currentSignature = `${signalType}_${entryPrice.toFixed(2)}_${tpPrice.toFixed(2)}`;
+        function getOriginalSignalTime(coinSymbol, sourceKey, signalType) {
+            let uniqueKey = `${coinSymbol}_${sourceKey}_${signalType}`;
 
-            // Eğer hafızadaki sinyal imzası ile şimdiki imza AYNI ise, o ilk anın saatini koru
-            if (savedState === currentSignature && savedTime) {
-                return savedTime;
+            // Eğer bu sinyal türü için daha önce kilitlenmiş bir saat varsa, O SAATİ AYNEN KORU
+            if (lockedSignalTimes[uniqueKey]) {
+                return lockedSignalTimes[uniqueKey];
             }
 
-            // Sinyal veya seviyeler değiştiyse (yani YENİ bir pozisyon kararı verildiyse) SAATİ O AN SIFIRLA VE SABİTLE
+            // İlk defa oluşuyorsa (veya yeni bir yöne geçildiyse) o anın gerçek saatini bir kereye mahsus sabitle
             let now = new Date();
             let dateStr = now.toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' });
             let timeStr = now.toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', second: '2-digit' });
             let formattedString = `${dateStr} ${timeStr}`;
 
-            sessionStorage.setItem(stateKey, currentSignature);
-            sessionStorage.setItem(timeKey, formattedString);
-
+            lockedSignalTimes[uniqueKey] = formattedString;
             return formattedString;
         }
 
@@ -391,6 +385,7 @@
                     document.getElementById("mark-price").innerText = "$" + result.data.markPrice.toLocaleString('en-US', {minimumFractionDigits: 2});
                     document.getElementById("timer").innerText = result.cache_remaining_seconds;
                     
+                    // Canlı fiyatta sadece hesaplamalar güncellenir, fonksiyon içinde zaman kilidi korunduğu için saat değişmez
                     updateViewData();
                 }
             } catch(e) {
@@ -468,9 +463,9 @@
                 }
             }
 
-            // Sadece bu özel işlem ilk defa üretildiğinde saati kaydeder, aynı kaldığı sürece bu saat sabit kalır
-            let exactTimeStr = getExactSignalTimestamp(coinName, currentSource, signalType, entryPrice, tpPrice);
-            timeLabelEl.innerText = "🕒 " + exactTimeStr + " (TRT)";
+            // İşlemin ilk üretildiği anı alır ve yeni sinyal gelene kadar kilitler
+            let lockedTime = getOriginalSignalTime(coinName, currentSource, signalType);
+            timeLabelEl.innerText = "🕒 " + lockedTime + " (TRT)";
 
             entryEl.innerText = "$" + entryPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             tpEl.innerText = "$" + tpPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
