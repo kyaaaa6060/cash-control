@@ -453,7 +453,6 @@
             let savedTp = localStorage.getItem(tpKey);
             let savedSl = localStorage.getItem(slKey);
 
-            // Eğer hafızada kayıtlı bir plan varsa, YENİ verilerle ASLA ezme! Sabit kalsın.
             if (savedType && savedEntry && savedTp && savedSl) {
                 return {
                     signalType: savedType,
@@ -464,7 +463,6 @@
                 };
             }
 
-            // İlk defa oluşturuluyorsa mühürle ve kaydet
             let now = new Date();
             let dateStr = now.toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' });
             let timeStr = now.toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -520,6 +518,7 @@
             let coinSymbol = currentCoinGlobal;
             let triggerKey = `status_triggered_${coinSymbol}_${currentSource}`;
 
+            // Eğer bu işlem için daha önce uyarı verildiyse bir daha tetikleme (SADECE 1 KERE ÇIKAR)
             if (localStorage.getItem(triggerKey) === "true") return;
 
             let type = activePlanGlobal.signalType;
@@ -677,7 +676,6 @@
                 }
             }
 
-            // Bu fonksiyon artık kayıt varsa yeni hesaplamayı ezip eski planı koruyacak
             let plan = getPersistentSignalPlan(coinName, currentSource, rawSignalType, rawEntry, rawTp, rawSl);
             activePlanGlobal = plan;
 
