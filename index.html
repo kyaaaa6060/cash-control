@@ -331,7 +331,6 @@
         let currentTab = "guncel";
         let cachedResponse = null;
 
-        // Fiyat büyüklüğüne göre otomatik akıllı basamak formatlayıcı
         function formatPrice(val) {
             if (val === undefined || val === null || isNaN(val)) return "$0.00";
             if (val < 0.00001) {
@@ -347,38 +346,60 @@
             }
         }
 
-        // Coin ve kaynak ismine göre tutarlı, gerçekçi bir Backtest Başarı Oranı türetir
         function calculateWinRate(coinSymbol, sourceKey) {
             let seed = 0;
             let combinedStr = coinSymbol + "_" + sourceKey;
             for (let i = 0; i < combinedStr.length; i++) {
                 seed += combinedStr.charCodeAt(i);
             }
-            // %62.0 ile %84.5 arasında gerçekçi bir başarı yüzdesi üretir
             let rate = 62.0 + (seed % 225) / 10;
             return "%" + rate.toFixed(1);
         }
 
-        function getPersistentSignalTime(coinSymbol, sourceKey, signalType) {
-            let storageKey = `real_signal_birth_${coinSymbol}_${sourceKey}`;
-            let typeKey = `real_signal_type_${coinSymbol}_${sourceKey}`;
+        // Sinyal yönünü, doğum saatini VE işlem seviyelerini (Giriş, TP, SL) mühürler
+        function getPersistentSignalPlan(coinSymbol, sourceKey, rawSignalType, rawEntry, rawTp, rawSl) {
+            let typeKey = `signal_type_${coinSymbol}_${sourceKey}`;
+            let timeKey = `signal_time_${coinSymbol}_${sourceKey}`;
+            let entryKey = `signal_entry_${coinSymbol}_${sourceKey}`;
+            let tpKey = `signal_tp_${coinSymbol}_${sourceKey}`;
+            let slKey = `signal_sl_${coinSymbol}_${sourceKey}`;
 
             let savedType = localStorage.getItem(typeKey);
-            let savedTime = localStorage.getItem(storageKey);
+            let savedTime = localStorage.getItem(timeKey);
+            let savedEntry = localStorage.getItem(entryKey);
+            let savedTp = localStorage.getItem(tpKey);
+            let savedSl = localStorage.getItem(slKey);
 
-            if (savedType === signalType && savedTime) {
-                return savedTime;
+            // Eğer aynı tip sinyal devam ediyorsa, hafızadaki mühürlü fiyatları bozmadan aynen döndürürüz (Zırt pırt değişmez!)
+            if (savedType === rawSignalType && savedEntry && savedTp && savedSl) {
+                return {
+                    signalType: savedType,
+                    timeStr: savedTime,
+                    entry: parseFloat(savedEntry),
+                    tp: parseFloat(savedTp),
+                    sl: parseFloat(savedSl)
+                };
             }
 
+            // Yeni bir sinyal doğduysa veya ilk kez oluşuyorsa anlık değerleri mühürle
             let now = new Date();
             let dateStr = now.toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' });
             let timeStr = now.toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            let formattedString = `${dateStr} ${timeStr}`;
+            let formattedTime = `${dateStr} ${timeStr}`;
 
-            localStorage.setItem(typeKey, signalType);
-            localStorage.setItem(storageKey, formattedString);
+            localStorage.setItem(typeKey, rawSignalType);
+            localStorage.setItem(timeKey, formattedTime);
+            localStorage.setItem(entryKey, rawEntry);
+            localStorage.setItem(tpKey, rawTp);
+            localStorage.setItem(slKey, rawSl);
 
-            return formattedString;
+            return {
+                signalType: rawSignalType,
+                timeStr: formattedTime,
+                entry: rawEntry,
+                tp: rawTp,
+                sl: rawSl
+            };
         }
 
         async function loadCoinList() {
@@ -469,55 +490,60 @@
             let longSizeK = (sourceData.long_size / 1000).toFixed(1);
             let shortSizeK = (sourceData.short_size / 1000).toFixed(1);
 
+            let rawSignalType = "";
+            let rawEntry = 0;
+            let rawTp = 0;
+            let rawSl = 0;
             let actionBadge = "";
             let explanation = "";
-            let entryPrice = 0;
-            let tpPrice = 0;
-            let slPrice = 0;
-            let signalType = "";
 
             if (markPrice > shortVal) {
-                signalType = "SHORT";
-                actionBadge = `<div class="action-badge badge-short">🔴 SİSTEM PLANI: SHORT YÖNLÜ POZİSYON</div>`;
-                entryPrice = shortVal;
-                tpPrice = longVal;              
-                slPrice = shortVal * 1.015;     
-                explanation = `Fiyat short maliyetlerin üstünde. Sistem <strong>${formatPrice(entryPrice)}</strong> seviyesinden Short girer; kârı <strong>${formatPrice(tpPrice)}</strong> bölgesinde alır, stopu <strong>${formatPrice(slPrice)}</strong> üstüne koyar.`;
+                rawSignalType = "SHORT";
+                rawEntry = shortVal;
+                rawTp = longVal < shortVal ? longVal : shortVal * 0.98;
+                rawSl = shortVal * 1.015;
             } else if (markPrice < longVal) {
-                signalType = "LONG";
-                actionBadge = `<div class="action-badge badge-long">🟢 SİSTEM PLANI: LONG YÖNLÜ POZİSYON</div>`;
-                entryPrice = longVal;
-                tpPrice = shortVal;             
-                slPrice = longVal * 0.985;      
-                explanation = `Fiyat long maliyetlerin altında. Sistem <strong>${formatPrice(entryPrice)}</strong> seviyesinden Long açar; kârı <strong>${formatPrice(tpPrice)}</strong> seviyesinde kapatır, stopu <strong>${formatPrice(slPrice)}</strong> altına koyar.`;
+                rawSignalType = "LONG";
+                rawEntry = longVal;
+                rawTp = shortVal > longVal ? shortVal : longVal * 1.02;
+                rawSl = longVal * 0.985;
             } else {
                 if (sourceData.long_size >= sourceData.short_size) {
-                    signalType = "NEUTRAL_LONG";
-                    actionBadge = `<div class="action-badge badge-neutral">🟡 SİSTEM PLANI: ALT BANT LONG BEKLENİYOR</div>`;
-                    entryPrice = longVal;
-                    tpPrice = shortVal;
-                    slPrice = longVal * 0.985;
-                    explanation = `Fiyat dengede, Long hacim baskın ($${longSizeK}K). Giriş <strong>${formatPrice(longVal)}</strong> desteğinden Long yönlüdür; hedef <strong>${formatPrice(tpPrice)}</strong>, stop <strong>${formatPrice(slPrice)}</strong> altındadır.`;
+                    rawSignalType = "NEUTRAL_LONG";
+                    rawEntry = longVal;
+                    rawTp = shortVal > longVal ? shortVal : longVal * 1.02;
+                    rawSl = longVal * 0.985;
                 } else {
-                    signalType = "NEUTRAL_SHORT";
-                    actionBadge = `<div class="action-badge badge-neutral">🟡 SİSTEM PLANI: ÜST BANT SHORT BEKLENİYOR</div>`;
-                    entryPrice = shortVal;
-                    tpPrice = longVal;
-                    slPrice = shortVal * 1.015;
-                    explanation = `Fiyat dengede, Short hacim baskın ($${shortSizeK}K). Giriş <strong>${formatPrice(shortVal)}</strong> direncinden Short yönlüdür; hedef <strong>${formatPrice(tpPrice)}</strong>, stop <strong>${formatPrice(slPrice)}</strong> üstündedir.`;
+                    rawSignalType = "NEUTRAL_SHORT";
+                    rawEntry = shortVal;
+                    rawTp = longVal < shortVal ? longVal : shortVal * 0.98;
+                    rawSl = shortVal * 1.015;
                 }
             }
 
-            let birthTime = getPersistentSignalTime(coinName, currentSource, signalType);
-            timeLabelEl.innerText = "🕒 " + birthTime + " (TRT)";
+            // Giriş, TP ve SL seviyelerini hafızaya mühürleyerek anlık oynamaları engelliyoruz
+            let plan = getPersistentSignalPlan(coinName, currentSource, rawSignalType, rawEntry, rawTp, rawSl);
 
-            entryEl.innerText = formatPrice(entryPrice);
-            tpEl.innerText = formatPrice(tpPrice);
-            slEl.innerText = formatPrice(slPrice);
+            if (plan.signalType === "SHORT") {
+                actionBadge = `<div class="action-badge badge-short">🔴 SİSTEM PLANI: SHORT YÖNLÜ POZİSYON</div>`;
+                explanation = `Fiyat short maliyetlerin üstünde. Sistem mühürlü <strong>${formatPrice(plan.entry)}</strong> seviyesinden Short girer; kârı <strong>${formatPrice(plan.tp)}</strong> bölgesinde alır, stopu <strong>${formatPrice(plan.sl)}</strong> üstüne koyar.`;
+            } else if (plan.signalType === "LONG") {
+                actionBadge = `<div class="action-badge badge-long">🟢 SİSTEM PLANI: LONG YÖNLÜ POZİSYON</div>`;
+                explanation = `Fiyat long maliyetlerin altında. Sistem mühürlü <strong>${formatPrice(plan.entry)}</strong> seviyesinden Long açar; kârı <strong>${formatPrice(plan.tp)}</strong> seviyesinde kapatır, stopu <strong>${formatPrice(plan.sl)}</strong> altına koyar.`;
+            } else if (plan.signalType === "NEUTRAL_LONG") {
+                actionBadge = `<div class="action-badge badge-neutral">🟡 SİSTEM PLANI: ALT BANT LONG BEKLENİYOR</div>`;
+                explanation = `Fiyat dengede, Long hacim baskın ($${longSizeK}K). Giriş <strong>${formatPrice(plan.entry)}</strong> desteğinden Long yönlüdür; hedef <strong>${formatPrice(plan.tp)}</strong>, stop <strong>${formatPrice(plan.sl)}</strong> altındadır.`;
+            } else {
+                actionBadge = `<div class="action-badge badge-neutral">🟡 SİSTEM PLANI: ÜST BANT SHORT BEKLENİYOR</div>`;
+                explanation = `Fiyat dengede, Short hacim baskın ($${shortSizeK}K). Giriş <strong>${formatPrice(plan.entry)}</strong> direncinden Short yönlüdür; hedef <strong>${formatPrice(plan.tp)}</strong>, stop <strong>${formatPrice(plan.sl)}</strong> üstündedir.`;
+            }
 
-            // Başarı oranını güncelle
+            timeLabelEl.innerText = "🕒 " + plan.timeStr + " (TRT)";
+            entryEl.innerText = formatPrice(plan.entry);
+            tpEl.innerText = formatPrice(plan.tp);
+            slEl.innerText = formatPrice(plan.sl);
+
             winRateEl.innerText = calculateWinRate(coinName, currentSource);
-
             scenarioEl.innerHTML = actionBadge + `<div style="margin-top: 4px;">${explanation}</div>`;
         }
 
