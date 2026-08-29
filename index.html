@@ -53,9 +53,9 @@
             padding-bottom: 10px;
         }
 
-        /* Konuştuğumuz stratejik konuları gösteren şık bilgi paneli */
-        .strategy-info-box {
-            background: linear-gradient(135deg, rgba(30,34,45,0.8), rgba(19,23,34,0.9));
+        /* Dinamik Akıllı Fiyat Senaryo Kutusu */
+        .scenario-box {
+            background: linear-gradient(135deg, rgba(30,34,45,0.9), rgba(19,23,34,0.95));
             border: 1px solid var(--card-border);
             border-left: 3px solid var(--accent-yellow);
             padding: 12px 14px;
@@ -63,11 +63,20 @@
             margin-bottom: 15px;
             font-size: 12px;
             color: var(--text-muted);
-            line-height: 1.5;
+            line-height: 1.6;
         }
 
-        .strategy-info-box strong {
+        .scenario-box strong {
             color: var(--text-main);
+        }
+
+        .scenario-title {
+            color: var(--accent-yellow);
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
 
         .section-label {
@@ -193,9 +202,10 @@
             <span style="cursor: pointer;">✕</span>
         </div>
 
-        <!-- Üst kısımda konuştuğumuz stratejik detayları içeren yazı paneli -->
-        <div class="strategy-info-box">
-            💡 <strong>Strateji Notu:</strong> Multi-exchange (Binance, OKX, MEXC, Hyperliquid) verileri ve Pine Script (CashControl Pro / İso Bot) mantığı harmanlanmıştır. Balina ve kopya liderlerin pozisyon yoğunluklarına göre maliyet bölgeleri anlık takip edilmektedir.
+        <!-- Akıllı Fiyat Senaryo Paneli -->
+        <div class="scenario-box">
+            <div class="scenario-title">🧠 Akıllı Piyasa Senaryosu & Fiyat Beklentisi</div>
+            <div id="scenario-text">Veriler analiz ediliyor...</div>
         </div>
 
         <div class="section-label">Veri Kaynağı Seçin:</div>
@@ -317,6 +327,27 @@
             updateViewData();
         }
 
+        function updateScenarioText(coinName, markPrice, longVal, shortVal, sourceData) {
+            let scenarioEl = document.getElementById("scenario-text");
+            let diffLong = ((markPrice - longVal) / longVal) * 100;
+            let diffShort = ((shortVal - markPrice) / markPrice) * 100;
+
+            let text = "";
+            if (markPrice > longVal) {
+                text = `<strong>${coinName}</strong>, Long pozisyonların ortalama maliyetinin <strong>%${Math.abs(diffLong).toFixed(2)}</strong> üstünde seyrediyor. `;
+                if (sourceData.long_size > sourceData.short_size) {
+                    text += `Long hacmi baskın olduğu için piyasa yapıcılar likiditeyi toplamak amacıyla kısa vadeli bir geri çekilme ile long tasfiyelerini tetikleyebilir.`;
+                } else {
+                    text += `Long taraf karda olduğu için fiyat yukarı yönlü ivmesini koruyabilir ancak direnç bölgelerinde kar satışı gelebilir.`;
+                }
+            } else {
+                text = `<strong>${coinName}</strong> fiyatı, terste kalan Long pozisyonların ortalama giriş seviyesinin altında (zararda). `;
+                text += `Bu durum, fiyatın Long'ları patlatmak (stoplatmak) için aşağı iğne atabileceğini ancak sonrasında maliyet bölgesine (<span style="color:var(--accent-yellow)">$${longVal.toFixed(2)}</span>) tekrar tepki alımı gelebileceğini gösteriyor.`;
+            }
+            
+            scenarioEl.innerHTML = text;
+        }
+
         async function updateViewData() {
             if (!cachedResponse) return;
             
@@ -326,6 +357,7 @@
                 return;
             }
 
+            let markPrice = cachedResponse.data.markPrice;
             let sourceData = cachedResponse.data.sources[currentSource];
             if (!sourceData) sourceData = cachedResponse.data.sources["all"];
 
@@ -342,6 +374,9 @@
             document.getElementById("short-sub").innerText = `(${sourceData.short_count} işlem, $${(sourceData.short_size/1000).toFixed(2)}K size)`;
 
             document.getElementById("general-val").innerText = "$" + genVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
+
+            // Dinamik Senaryo Metnini Güncelle
+            updateScenarioText(selectedCoin, markPrice, longVal, shortVal, sourceData);
         }
 
         loadCoinList();
