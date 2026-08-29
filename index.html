@@ -39,6 +39,7 @@
             max-width: 100%;
             padding: 20px;
             box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+            position: relative;
         }
 
         .header-title {
@@ -79,17 +80,33 @@
             color: var(--text-main);
         }
 
+        .badges-wrapper {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 6px;
+        }
+
         .action-badge {
             display: inline-block;
             padding: 3px 8px;
             border-radius: 4px;
             font-weight: 700;
             font-size: 11px;
-            margin-bottom: 6px;
         }
         .badge-long { background-color: rgba(14, 203, 129, 0.15); color: var(--long-color); border: 1px solid rgba(14, 203, 129, 0.3); }
         .badge-short { background-color: rgba(246, 70, 93, 0.15); color: var(--short-color); border: 1px solid rgba(246, 70, 93, 0.3); }
         .badge-neutral { background-color: rgba(240, 185, 11, 0.15); color: var(--accent-yellow); border: 1px solid rgba(240, 185, 11, 0.3); }
+        
+        .status-badge {
+            background-color: rgba(240, 185, 11, 0.1);
+            color: var(--accent-yellow);
+            border: 1px solid rgba(240, 185, 11, 0.3);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 11px;
+        }
 
         .backtest-row {
             display: flex;
@@ -231,11 +248,57 @@
         .dot-green { background-color: var(--long-color); }
         .dot-red { background-color: var(--short-color); }
         .dot-yellow { background-color: var(--accent-yellow); }
+
+        #alert-modal {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(11, 14, 20, 0.92);
+            border-radius: 12px;
+            z-index: 100;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .alert-box-inner {
+            background: var(--card-bg);
+            border: 2px solid var(--card-border);
+            padding: 25px;
+            border-radius: 10px;
+            max-width: 450px;
+            width: 100%;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+        .alert-title { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+        .alert-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5; }
+        .alert-btn {
+            background: var(--accent-yellow);
+            color: #0b0e14;
+            border: none;
+            padding: 10px 20px;
+            font-weight: 700;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .alert-btn:hover { opacity: 0.9; }
     </style>
 </head>
 <body>
 
     <div class="modal-container">
+        <div id="alert-modal">
+            <div class="alert-box-inner">
+                <div id="alert-icon" style="font-size: 32px; margin-bottom: 8px;">🎯</div>
+                <div class="alert-title" id="alert-title-text">İŞLEM SONUÇLANDI</div>
+                <div class="alert-desc" id="alert-desc-text">İşlem hedefe ulaştı.</div>
+                <button class="alert-btn" onclick="resetAndClearSignal()">Yeni Sinyale Geç</button>
+            </div>
+        </div>
+
         <div class="header-title">
             <span id="modal-main-title">📊 Ağırlıklı Ortalama Analizi</span>
             <span style="cursor: pointer;">✕</span>
@@ -330,6 +393,7 @@
         let currentSource = "all";
         let currentTab = "guncel";
         let cachedResponse = null;
+        let activePlanGlobal = null;
 
         function formatPrice(val) {
             if (val === undefined || val === null || isNaN(val)) return "$0.00";
@@ -356,7 +420,6 @@
             return "%" + rate.toFixed(1);
         }
 
-        // Sinyal yönünü, doğum saatini VE işlem seviyelerini (Giriş, TP, SL) mühürler
         function getPersistentSignalPlan(coinSymbol, sourceKey, rawSignalType, rawEntry, rawTp, rawSl) {
             let typeKey = `signal_type_${coinSymbol}_${sourceKey}`;
             let timeKey = `signal_time_${coinSymbol}_${sourceKey}`;
@@ -370,7 +433,6 @@
             let savedTp = localStorage.getItem(tpKey);
             let savedSl = localStorage.getItem(slKey);
 
-            // Eğer aynı tip sinyal devam ediyorsa, hafızadaki mühürlü fiyatları bozmadan aynen döndürürüz (Zırt pırt değişmez!)
             if (savedType === rawSignalType && savedEntry && savedTp && savedSl) {
                 return {
                     signalType: savedType,
@@ -381,7 +443,6 @@
                 };
             }
 
-            // Yeni bir sinyal doğduysa veya ilk kez oluşuyorsa anlık değerleri mühürle
             let now = new Date();
             let dateStr = now.toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' });
             let timeStr = now.toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -400,6 +461,45 @@
                 tp: rawTp,
                 sl: rawSl
             };
+        }
+
+        function resetAndClearSignal() {
+            let coinSymbol = document.getElementById("coin-select").value;
+            localStorage.removeItem(`signal_type_${coinSymbol}_${currentSource}`);
+            localStorage.removeItem(`signal_time_${coinSymbol}_${currentSource}`);
+            localStorage.removeItem(`signal_entry_${coinSymbol}_${currentSource}`);
+            localStorage.removeItem(`signal_tp_${coinSymbol}_${currentSource}`);
+            localStorage.removeItem(`signal_sl_${coinSymbol}_${currentSource}`);
+
+            document.getElementById("alert-modal").style.display = "none";
+            fetchMarketData();
+        }
+
+        function checkTradeTriggers(markPrice) {
+            if (!activePlanGlobal) return;
+            let type = activePlanGlobal.signalType;
+            let tp = activePlanGlobal.tp;
+            let sl = activePlanGlobal.sl;
+
+            if (type.includes("SHORT")) {
+                if (markPrice <= tp) triggerAlert("TP", "Harika! Short işlem hedefine ulaştı ve kâr alındı.", "#0ecb81", "🎉");
+                else if (markPrice >= sl) triggerAlert("SL", "Dikkat! Short işlem stop seviyesini patlattı.", "#f6465d", "🛑");
+            } else if (type.includes("LONG")) {
+                if (markPrice >= tp) triggerAlert("TP", "Harika! Long işlem hedefine ulaştı ve kâr alındı.", "#0ecb81", "🎉");
+                else if (markPrice <= sl) triggerAlert("SL", "Dikkat! Long işlem stop seviyesini patlattı.", "#f6465d", "🛑");
+            }
+        }
+
+        function triggerAlert(statusType, descText, colorCode, emoji) {
+            let modal = document.getElementById("alert-modal");
+            if (modal.style.display === "flex") return;
+
+            document.getElementById("alert-icon").innerText = emoji;
+            document.getElementById("alert-title-text").innerText = statusType === "TP" ? "🎯 İŞLEM TP OLDU (KÂR ALINDI)" : "🛑 İŞLEM STOP OLDU";
+            document.getElementById("alert-title-text").style.color = colorCode;
+            document.getElementById("alert-desc-text").innerText = descText;
+            
+            modal.style.display = "flex";
         }
 
         async function loadCoinList() {
@@ -448,10 +548,13 @@
                 let result = await res.json();
                 if(result.status === "success" && cachedResponse) {
                     cachedResponse.data.markPrice = result.data.markPrice;
-                    document.getElementById("mark-price").innerText = formatPrice(result.data.markPrice);
+                    let markPrice = result.data.markPrice;
+
+                    document.getElementById("mark-price").innerText = formatPrice(markPrice);
                     document.getElementById("timer").innerText = result.cache_remaining_seconds;
                     
                     updateViewData();
+                    checkTradeTriggers(markPrice);
                 }
             } catch(e) {
                 console.error("Canlı fiyat çekilemedi", e);
@@ -521,20 +624,40 @@
                 }
             }
 
-            // Giriş, TP ve SL seviyelerini hafızaya mühürleyerek anlık oynamaları engelliyoruz
             let plan = getPersistentSignalPlan(coinName, currentSource, rawSignalType, rawEntry, rawTp, rawSl);
+            activePlanGlobal = plan;
+
+            // --- AKILLI DURUM ANALİZİ (Giriş Bekleniyor mu / İşlemde mi?) ---
+            let statusBadge = "";
+            let isShort = plan.signalType.includes("SHORT");
+            let isLong = plan.signalType.includes("LONG");
+
+            if (isShort) {
+                actionBadge = `<div class="action-badge badge-short">🔴 SİSTEM PLANI: SHORT YÖNLÜ POZİSYON</div>`;
+                if (markPrice < plan.entry) {
+                    statusBadge = `<div class="status-badge">⏳ Giriş Seviyesi Bekleniyor (Limit Emir)</div>`;
+                } else {
+                    statusBadge = `<div class="status-badge" style="background:rgba(246,70,93,0.15); color:var(--short-color); border-color:rgba(246,70,93,0.3);">🚀 Aktif İşlemde / Takipte</div>`;
+                }
+            } else if (isLong) {
+                actionBadge = `<div class="action-badge badge-long">🟢 SİSTEM PLANI: LONG YÖNLÜ POZİSYON</div>`;
+                if (markPrice > plan.entry) {
+                    statusBadge = `<div class="status-badge">⏳ Giriş Seviyesi Bekleniyor (Limit Emir)</div>`;
+                } else {
+                    statusBadge = `<div class="status-badge" style="background:rgba(14,203,129,0.15); color:var(--long-color); border-color:rgba(14,203,129,0.3);">🚀 Aktif İşlemde / Takipte</div>`;
+                }
+            } else {
+                actionBadge = `<div class="action-badge badge-neutral">🟡 SİSTEM PLANI: BANT BEKLENİYOR</div>`;
+                statusBadge = `<div class="status-badge">⏳ Fiyat Kırılımı Bekleniyor</div>`;
+            }
 
             if (plan.signalType === "SHORT") {
-                actionBadge = `<div class="action-badge badge-short">🔴 SİSTEM PLANI: SHORT YÖNLÜ POZİSYON</div>`;
                 explanation = `Fiyat short maliyetlerin üstünde. Sistem mühürlü <strong>${formatPrice(plan.entry)}</strong> seviyesinden Short girer; kârı <strong>${formatPrice(plan.tp)}</strong> bölgesinde alır, stopu <strong>${formatPrice(plan.sl)}</strong> üstüne koyar.`;
             } else if (plan.signalType === "LONG") {
-                actionBadge = `<div class="action-badge badge-long">🟢 SİSTEM PLANI: LONG YÖNLÜ POZİSYON</div>`;
                 explanation = `Fiyat long maliyetlerin altında. Sistem mühürlü <strong>${formatPrice(plan.entry)}</strong> seviyesinden Long açar; kârı <strong>${formatPrice(plan.tp)}</strong> seviyesinde kapatır, stopu <strong>${formatPrice(plan.sl)}</strong> altına koyar.`;
             } else if (plan.signalType === "NEUTRAL_LONG") {
-                actionBadge = `<div class="action-badge badge-neutral">🟡 SİSTEM PLANI: ALT BANT LONG BEKLENİYOR</div>`;
                 explanation = `Fiyat dengede, Long hacim baskın ($${longSizeK}K). Giriş <strong>${formatPrice(plan.entry)}</strong> desteğinden Long yönlüdür; hedef <strong>${formatPrice(plan.tp)}</strong>, stop <strong>${formatPrice(plan.sl)}</strong> altındadır.`;
             } else {
-                actionBadge = `<div class="action-badge badge-neutral">🟡 SİSTEM PLANI: ÜST BANT SHORT BEKLENİYOR</div>`;
                 explanation = `Fiyat dengede, Short hacim baskın ($${shortSizeK}K). Giriş <strong>${formatPrice(plan.entry)}</strong> direncinden Short yönlüdür; hedef <strong>${formatPrice(plan.tp)}</strong>, stop <strong>${formatPrice(plan.sl)}</strong> üstündedir.`;
             }
 
@@ -544,7 +667,9 @@
             slEl.innerText = formatPrice(plan.sl);
 
             winRateEl.innerText = calculateWinRate(coinName, currentSource);
-            scenarioEl.innerHTML = actionBadge + `<div style="margin-top: 4px;">${explanation}</div>`;
+            
+            // Rozetleri birleştirip ekrana basıyoruz
+            scenarioEl.innerHTML = `<div class="badges-wrapper">${actionBadge}${statusBadge}</div><div style="margin-top: 4px;">${explanation}</div>`;
         }
 
         async function updateViewData() {
