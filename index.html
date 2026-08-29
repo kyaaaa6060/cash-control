@@ -103,7 +103,7 @@
             text-align: center;
         }
         .plan-item div:first-child { font-size: 11px; color: var(--text-muted); margin-bottom: 2px; }
-        .plan-item div:last-child { font-size: 14px; font-weight: 700; color: var(--text-main); }
+        .plan-item div:last-child { font-size: 13px; font-weight: 700; color: var(--text-main); }
 
         .section-label {
             text-align: center;
@@ -212,7 +212,7 @@
 
         .metric-title { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
         .metric-sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
-        .metric-val { font-size: 16px; font-weight: 700; }
+        .metric-val { font-size: 15px; font-weight: 700; }
 
         .dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; }
         .dot-green { background-color: var(--long-color); }
@@ -289,7 +289,7 @@
                 <div class="metric-title"><span class="dot dot-green"></span> LONG Ort. Giriş:</div>
                 <div class="metric-sub" id="long-sub">(0 işlem, $0.00 size)</div>
             </div>
-            <div class="metric-val" id="long-val" style="color: var(--long-color);">$0,0000</div>
+            <div class="metric-val" id="long-val" style="color: var(--long-color);">$0.00</div>
         </div>
 
         <div class="metric-card">
@@ -297,7 +297,7 @@
                 <div class="metric-title"><span class="dot dot-red"></span> SHORT Ort. Giriş:</div>
                 <div class="metric-sub" id="short-sub">(0 işlem, $0.00 size)</div>
             </div>
-            <div class="metric-val" id="short-val" style="color: var(--short-color);">$0,0000</div>
+            <div class="metric-val" id="short-val" style="color: var(--short-color);">$0.00</div>
         </div>
 
         <div class="metric-card">
@@ -305,7 +305,7 @@
                 <div class="metric-title"><span class="dot dot-yellow"></span> Ortalama Giriş:</div>
                 <div class="metric-sub">Tüm pozisyonların ağırlıklı genel ortalaması</div>
             </div>
-            <div class="metric-val" id="general-val" style="color: var(--accent-yellow);">$0,0000</div>
+            <div class="metric-val" id="general-val" style="color: var(--accent-yellow);">$0.00</div>
         </div>
     </div>
 
@@ -314,8 +314,22 @@
         let currentTab = "guncel";
         let cachedResponse = null;
 
-        // Tarayıcı belleğinde (localStorage) kalıcı olarak her coin ve kaynağın ilk sinyal zamanını saklar.
-        // Böylece sayfayı yenilesen, coine yeni tıklasan veya kaynak değiştirsen bile o ilk saat asla değişmez.
+        // Fiyat büyüklüğüne göre otomatik akıllı basamak formatlayıcı
+        function formatPrice(val) {
+            if (val === undefined || val === null || isNaN(val)) return "$0.00";
+            if (val < 0.00001) {
+                return "$" + val.toFixed(8);
+            } else if (val < 0.001) {
+                return "$" + val.toFixed(6);
+            } else if (val < 1) {
+                return "$" + val.toFixed(4);
+            } else if (val < 10) {
+                return "$" + val.toLocaleString('en-US', {minimumFractionDigits: 3, maximumFractionDigits: 4});
+            } else {
+                return "$" + val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            }
+        }
+
         function getPersistentSignalTime(coinSymbol, sourceKey, signalType) {
             let storageKey = `real_signal_birth_${coinSymbol}_${sourceKey}`;
             let typeKey = `real_signal_type_${coinSymbol}_${sourceKey}`;
@@ -323,14 +337,10 @@
             let savedType = localStorage.getItem(typeKey);
             let savedTime = localStorage.getItem(storageKey);
 
-            // Eğer daha önce kaydedilmiş sinyal türü ile şimdiki sinyal türü AYNI ise, 
-            // eskiden kaydedilmiş o İLK SAATİ doğrudan geri döndür (Asla üzerine yazmaz).
             if (savedType === signalType && savedTime) {
                 return savedTime;
             }
 
-            // Eğer sinyal yönü değiştiyse veya bu coin/kaynak için ilk defa sinyal oluşuyorsa, 
-            // o anın gerçek saatini ilk doğum saati olarak kalıcı kaydet.
             let now = new Date();
             let dateStr = now.toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' });
             let timeStr = now.toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -372,7 +382,7 @@
                 if(result.status === "success") {
                     cachedResponse = result;
                     document.getElementById("timer").innerText = result.cache_remaining_seconds;
-                    document.getElementById("mark-price").innerText = "$" + result.data.markPrice.toLocaleString('en-US', {minimumFractionDigits: 2});
+                    document.getElementById("mark-price").innerText = formatPrice(result.data.markPrice);
                     
                     updateViewData();
                 }
@@ -388,7 +398,7 @@
                 let result = await res.json();
                 if(result.status === "success" && cachedResponse) {
                     cachedResponse.data.markPrice = result.data.markPrice;
-                    document.getElementById("mark-price").innerText = "$" + result.data.markPrice.toLocaleString('en-US', {minimumFractionDigits: 2});
+                    document.getElementById("mark-price").innerText = formatPrice(result.data.markPrice);
                     document.getElementById("timer").innerText = result.cache_remaining_seconds;
                     
                     updateViewData();
@@ -442,14 +452,14 @@
                 entryPrice = shortVal;
                 tpPrice = longVal;              
                 slPrice = shortVal * 1.015;     
-                explanation = `Fiyat short maliyetlerin üstünde. Sistem <strong>$${entryPrice.toFixed(2)}</strong> seviyesinden Short girer; kârı <strong>$${tpPrice.toFixed(2)}</strong> bölgesinde alır, stopu <strong>$${slPrice.toFixed(2)}</strong> üstüne koyar.`;
+                explanation = `Fiyat short maliyetlerin üstünde. Sistem <strong>${formatPrice(entryPrice)}</strong> seviyesinden Short girer; kârı <strong>${formatPrice(tpPrice)}</strong> bölgesinde alır, stopu <strong>${formatPrice(slPrice)}</strong> üstüne koyar.`;
             } else if (markPrice < longVal) {
                 signalType = "LONG";
                 actionBadge = `<div class="action-badge badge-long">🟢 SİSTEM PLANI: LONG YÖNLÜ POZİSYON</div>`;
                 entryPrice = longVal;
                 tpPrice = shortVal;             
                 slPrice = longVal * 0.985;      
-                explanation = `Fiyat long maliyetlerin altında. Sistem <strong>$${entryPrice.toFixed(2)}</strong> seviyesinden Long açar; kârı <strong>$${tpPrice.toFixed(2)}</strong> seviyesinde kapatır, stopu <strong>$${slPrice.toFixed(2)}</strong> altına koyar.`;
+                explanation = `Fiyat long maliyetlerin altında. Sistem <strong>${formatPrice(entryPrice)}</strong> seviyesinden Long açar; kârı <strong>${formatPrice(tpPrice)}</strong> seviyesinde kapatır, stopu <strong>${formatPrice(slPrice)}</strong> altına koyar.`;
             } else {
                 if (sourceData.long_size >= sourceData.short_size) {
                     signalType = "NEUTRAL_LONG";
@@ -457,25 +467,23 @@
                     entryPrice = longVal;
                     tpPrice = shortVal;
                     slPrice = longVal * 0.985;
-                    explanation = `Fiyat dengede, Long hacim baskın ($${longSizeK}K). Giriş <strong>$${longVal.toFixed(2)}</strong> desteğinden Long yönlüdür; hedef <strong>$${tpPrice.toFixed(2)}</strong>, stop <strong>$${slPrice.toFixed(2)}</strong> altındadır.`;
+                    explanation = `Fiyat dengede, Long hacim baskın ($${longSizeK}K). Giriş <strong>${formatPrice(longVal)}</strong> desteğinden Long yönlüdür; hedef <strong>${formatPrice(tpPrice)}</strong>, stop <strong>${formatPrice(slPrice)}</strong> altındadır.`;
                 } else {
                     signalType = "NEUTRAL_SHORT";
                     actionBadge = `<div class="action-badge badge-neutral">🟡 SİSTEM PLANI: ÜST BANT SHORT BEKLENİYOR</div>`;
                     entryPrice = shortVal;
                     tpPrice = longVal;
                     slPrice = shortVal * 1.015;
-                    explanation = `Fiyat dengede, Short hacim baskın ($${shortSizeK}K). Giriş <strong>$${shortVal.toFixed(2)}</strong> direncinden Short yönlüdür; hedef <strong>$${tpPrice.toFixed(2)}</strong>, stop <strong>$${slPrice.toFixed(2)}</strong> üstündedir.`;
+                    explanation = `Fiyat dengede, Short hacim baskın ($${shortSizeK}K). Giriş <strong>${formatPrice(shortVal)}</strong> direncinden Short yönlüdür; hedef <strong>${formatPrice(tpPrice)}</strong>, stop <strong>${formatPrice(slPrice)}</strong> üstündedir.`;
                 }
             }
 
-            // Bu fonksiyon artık coine veya sekmeye ne zaman tıkladığına bakmaz, 
-            // o sinyalin tarayıcı hafızasındaki GERÇEK İLK OLUŞUM SAATİNİ getirir ve kilitler.
             let birthTime = getPersistentSignalTime(coinName, currentSource, signalType);
             timeLabelEl.innerText = "🕒 " + birthTime + " (TRT)";
 
-            entryEl.innerText = "$" + entryPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            tpEl.innerText = "$" + tpPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            slEl.innerText = "$" + slPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            entryEl.innerText = formatPrice(entryPrice);
+            tpEl.innerText = formatPrice(tpPrice);
+            slEl.innerText = formatPrice(slPrice);
 
             scenarioEl.innerHTML = actionBadge + `<div style="margin-top: 4px;">${explanation}</div>`;
         }
@@ -499,13 +507,13 @@
             let shortVal = sourceData.short_avg * multiplier;
             let genVal = sourceData.general_avg * multiplier;
 
-            document.getElementById("long-val").innerText = "$" + longVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
+            document.getElementById("long-val").innerText = formatPrice(longVal);
             document.getElementById("long-sub").innerText = `(${sourceData.long_count} işlem, $${(sourceData.long_size/1000).toFixed(2)}K size)`;
 
-            document.getElementById("short-val").innerText = "$" + shortVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
+            document.getElementById("short-val").innerText = formatPrice(shortVal);
             document.getElementById("short-sub").innerText = `(${sourceData.short_count} işlem, $${(sourceData.short_size/1000).toFixed(2)}K size)`;
 
-            document.getElementById("general-val").innerText = "$" + genVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
+            document.getElementById("general-val").innerText = formatPrice(genVal);
 
             updateScenarioText(selectedCoin, markPrice, longVal, shortVal, sourceData);
         }
