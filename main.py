@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 import requests
 
@@ -87,17 +87,26 @@ def read_index():
     except FileNotFoundError:
         return "<h1>index.html dosyası bulunamadı!</h1>"
 
-@app.get("/api/tactics-test")
-def test_tactics():
-    # Örnek test verisi simülasyonu
-    sample_signals = analyze_coin_tactics(
-        mark_price=65000.0,
-        funding_rate=0.06,
-        hl_funding=0.01,
-        binance_funding=0.055,
-        combined_avg={"long_size": 1500000, "short_size": 800000},
-        whale_data={"long_avg": 64800.0, "short_avg": 65500.0},
-        all_data={"long_avg": 66000.0},
-        oi_usd=12000000
-    )
-    return {"status": "active", "sample_signals": sample_signals}
+@app.get("/api/data")
+def get_dashboard_data():
+    # Arayüzün (index.html) veri çektiği temel endpoint
+    # Örnek veri yapısı döndürerek yükleme ekranından çıkmasını sağlar
+    sample_coins = {
+        "BTC": {
+            "symbol": "BTCUSDT",
+            "markPrice": 65000.0,
+            "fundingRate": 0.06,
+            "openInterestUSD": 12000000,
+            "signals": analyze_coin_tactics(
+                mark_price=65000.0,
+                funding_rate=0.06,
+                hl_funding=0.01,
+                binance_funding=0.055,
+                combined_avg={"long_size": 1500000, "short_size": 800000},
+                whale_data={"long_avg": 64800.0, "short_avg": 65500.0},
+                all_data={"long_avg": 66000.0},
+                oi_usd=12000000
+            )
+        }
+    }
+    return sample_coins
