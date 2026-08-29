@@ -314,25 +314,31 @@
         let currentTab = "guncel";
         let cachedResponse = null;
 
-        // Hafızada her coin + kaynak + sinyal kombinasyonu için kilitlenmiş orijinal zamanı tutar
-        // Canlı fiyat güncellemeleri bu saati asla ezmez, sadece yeni veri/yön geldiğinde değişir.
-        const lockedSignalTimes = {};
+        // Tarayıcı belleğinde (localStorage) kalıcı olarak her coin ve kaynağın ilk sinyal zamanını saklar.
+        // Böylece sayfayı yenilesen, coine yeni tıklasan veya kaynak değiştirsen bile o ilk saat asla değişmez.
+        function getPersistentSignalTime(coinSymbol, sourceKey, signalType) {
+            let storageKey = `real_signal_birth_${coinSymbol}_${sourceKey}`;
+            let typeKey = `real_signal_type_${coinSymbol}_${sourceKey}`;
 
-        function getOriginalSignalTime(coinSymbol, sourceKey, signalType) {
-            let uniqueKey = `${coinSymbol}_${sourceKey}_${signalType}`;
+            let savedType = localStorage.getItem(typeKey);
+            let savedTime = localStorage.getItem(storageKey);
 
-            // Eğer bu sinyal türü için daha önce kilitlenmiş bir saat varsa, O SAATİ AYNEN KORU
-            if (lockedSignalTimes[uniqueKey]) {
-                return lockedSignalTimes[uniqueKey];
+            // Eğer daha önce kaydedilmiş sinyal türü ile şimdiki sinyal türü AYNI ise, 
+            // eskiden kaydedilmiş o İLK SAATİ doğrudan geri döndür (Asla üzerine yazmaz).
+            if (savedType === signalType && savedTime) {
+                return savedTime;
             }
 
-            // İlk defa oluşuyorsa (veya yeni bir yöne geçildiyse) o anın gerçek saatini bir kereye mahsus sabitle
+            // Eğer sinyal yönü değiştiyse veya bu coin/kaynak için ilk defa sinyal oluşuyorsa, 
+            // o anın gerçek saatini ilk doğum saati olarak kalıcı kaydet.
             let now = new Date();
             let dateStr = now.toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' });
             let timeStr = now.toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', second: '2-digit' });
             let formattedString = `${dateStr} ${timeStr}`;
 
-            lockedSignalTimes[uniqueKey] = formattedString;
+            localStorage.setItem(typeKey, signalType);
+            localStorage.setItem(storageKey, formattedString);
+
             return formattedString;
         }
 
@@ -385,7 +391,6 @@
                     document.getElementById("mark-price").innerText = "$" + result.data.markPrice.toLocaleString('en-US', {minimumFractionDigits: 2});
                     document.getElementById("timer").innerText = result.cache_remaining_seconds;
                     
-                    // Canlı fiyatta sadece hesaplamalar güncellenir, fonksiyon içinde zaman kilidi korunduğu için saat değişmez
                     updateViewData();
                 }
             } catch(e) {
@@ -463,9 +468,10 @@
                 }
             }
 
-            // İşlemin ilk üretildiği anı alır ve yeni sinyal gelene kadar kilitler
-            let lockedTime = getOriginalSignalTime(coinName, currentSource, signalType);
-            timeLabelEl.innerText = "🕒 " + lockedTime + " (TRT)";
+            // Bu fonksiyon artık coine veya sekmeye ne zaman tıkladığına bakmaz, 
+            // o sinyalin tarayıcı hafızasındaki GERÇEK İLK OLUŞUM SAATİNİ getirir ve kilitler.
+            let birthTime = getPersistentSignalTime(coinName, currentSource, signalType);
+            timeLabelEl.innerText = "🕒 " + birthTime + " (TRT)";
 
             entryEl.innerText = "$" + entryPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             tpEl.innerText = "$" + tpPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
