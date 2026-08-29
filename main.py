@@ -1,201 +1,83 @@
-import time
-import requests
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
+import requests
 
-app = FastAPI(title="Cash Control Engine - Multi-Exchange (Hyperliquid, Binance, MEXC, OKX)", version="6.1")
+app = FastAPI()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+def analyze_coin_tactics(mark_price, funding_rate, hl_funding, binance_funding, combined_avg, whale_data, all_data, oi_usd):
+    signals = []
 
-CACHE = {
-    "last_update": 0,
-    "data": {}
-}
-CACHE_DURATION = 5
+    # 1. BALİNA MALİYET SAVUNMASI
+    if whale_data and "long_avg" in whale_data and "short_avg" in whale_data:
+        whale_long_dist = abs(mark_price - whale_data["long_avg"]) / mark_price if whale_data["long_avg"] else 999
+        whale_short_dist = abs(mark_price - whale_data["short_avg"]) / mark_price if whale_data["short_avg"] else 999
 
-def get_binance_futures_tickers():
-    try:
-        url = "https://fapi.binance.com/fapi/v1/premiumIndex"
-        res = requests.get(url, timeout=3)
-        if res.status_code == 200:
-            tickers = {}
-            for item in res.json():
-                symbol = item.get("symbol", "")
-                if symbol.endswith("USDT"):
-                    base_name = symbol.replace("USDT", "")
-                    tickers[base_name] = {
-                        "markPrice": float(item.get("markPrice", 0)),
-                        "fundingRate": float(item.get("lastFundingRate", 0)) * 100
-                    }
-            return tickers
-    except Exception as e:
-        print("Binance hatası:", e)
-    return {}
+        if whale_long_dist <= 0.008 and mark_price >= whale_data["long_avg"]:
+            signals.append({
+                "badge": "🛡️ BALİNA LONG SAVUNMASI",
+                "color": "#00c853",
+                "desc": "Fiyat balina Long maliyetinde. Desteğe yakın."
+            })
+        elif whale_short_dist <= 0.008 and mark_price <= whale_data["short_avg"]:
+            signals.append({
+                "badge": "🛡️ BALİNA SHORT SAVUNMASI",
+                "color": "#d50000",
+                "desc": "Fiyat balina Short maliyetinde. Dirence yakın."
+            })
 
-def get_okx_futures_tickers():
-    try:
-        url = "https://www.okx.com/api/v5/public/mark-price?instType=SWAP"
-        res = requests.get(url, timeout=3)
-        if res.status_code == 200:
-            result = res.json()
-            if result.get("code") == "0":
-                tickers = {}
-                for item in result.get("data", []):
-                    inst_id = item.get("instId", "")
-                    if "-USDT-" in inst_id:
-                        base_name = inst_id.split("-")[0]
-                        tickers[base_name] = {
-                            "markPrice": float(item.get("markPx", 0)),
-                            "fundingRate": 0.0
-                        }
-                return tickers
-    except Exception as e:
-        print("OKX hatası:", e)
-    return {}
+    # 2. LİKİDASYON SÜPÜRME (SWEEP) BÖLGESİ
+    if all_data and "long_avg" in all_data and all_data["long_avg"] > 0:
+        all_long_dev = ((mark_price - all_data["long_avg"]) / all_data["long_avg"]) * 100
+        if -2.5 <= all_long_dev <= -1.2:
+            signals.append({
+                "badge": "🎯 LİKİDASYON AV BÖLGESİ",
+                "color": "#ff6d00",
+                "desc": "Perakende maliyetinin %2 altı. Stop süpürme iğnesi gelebilir."
+            })
 
-def get_mexc_futures_tickers():
-    try:
-        url = "https://contract.mexc.com/api/v1/contract/ticker"
-        res = requests.get(url, timeout=3)
-        if res.status_code == 200:
-            result = res.json()
-            if result.get("success"):
-                tickers = {}
-                for item in result.get("data", []):
-                    symbol = item.get("symbol", "").replace("_USDT", "USDT")
-                    base_name = symbol.replace("USDT", "")
-                    tickers[base_name] = {
-                        "markPrice": float(item.get("fairPrice", 0) or item.get("lastPrice", 0)),
-                        "fundingRate": float(item.get("fundingRate", 0)) * 100,
-                    }
-                return tickers
-    except Exception as e:
-        print("MEXC hatası:", e)
-    return {}
+    # 3. HACİMSEL DENGESİZLİK (SIZE RATIO)
+    if combined_avg and "long_size" in combined_avg and "short_size" in combined_avg:
+        total_l_size = combined_avg["long_size"]
+        total_s_size = combined_avg["short_size"]
+        size_ratio = total_l_size / total_s_size if total_s_size > 0 else 1.0
 
-def fetch_karma_market_data():
-    processed_coins = {}
-    total_open_interest_usd = 0
-    all_prices = []
-    
-    binance_data = get_binance_futures_tickers()
-    okx_data = get_okx_futures_tickers()
-    mexc_data = get_mexc_futures_tickers()
-    
-    hl_url = "https://api.hyperliquid.xyz/info"
-    payload = {"type": "metaAndAssetCtxs"}
-    
-    try:
-        res = requests.post(hl_url, json=payload, headers={"Content-Type": "application/json"}, timeout=5)
-        if res.status_code == 200:
-            data = res.json()
-            universe = data[0].get("universe", [])
-            ctxs = data[1]
-            
-            sources = ["copy", "whale", "all", "pct6_20"]
-            
-            for i, asset in enumerate(universe):
-                name = asset.get("name")
-                ctx = ctxs[i]
-                hl_mark_px = float(ctx.get("markPx", 0))
-                open_interest = float(ctx.get("openInterest", 0))
-                hl_funding = float(ctx.get("funding", 0)) * 100
-                
-                prices = []
-                fundings = []
-                
-                if hl_mark_px > 0:
-                    prices.append(hl_mark_px)
-                    fundings.append(hl_funding)
-                
-                if name in binance_data and binance_data[name]["markPrice"] > 0:
-                    prices.append(binance_data[name]["markPrice"])
-                    fundings.append(binance_data[name]["fundingRate"])
-                    
-                if name in okx_data and okx_data[name]["markPrice"] > 0:
-                    prices.append(okx_data[name]["markPrice"])
-                    
-                if name in mexc_data and mexc_data[name]["markPrice"] > 0:
-                    prices.append(mexc_data[name]["markPrice"])
-                    fundings.append(mexc_data[name]["fundingRate"])
-                
-                if not prices:
-                    continue
-                
-                mark_px = sum(prices) / len(prices)
-                funding = sum(fundings) / len(fundings) if fundings else hl_funding
-                
-                all_prices.append(mark_px)
-                oi_usd = open_interest * mark_px
-                total_open_interest_usd += oi_usd
-                
-                coin_sources_data = {}
-                for src in sources:
-                    multiplier = 1.0 if src == "all" else (0.95 if src == "whale" else 1.02)
-                    
-                    long_avg = mark_px * 0.985 * multiplier
-                    short_avg = mark_px * 1.015 * multiplier
-                    general_avg = (long_avg + short_avg) / 2
-                    
-                    long_count = int(1500 + (hash(name + src) % 1500))
-                    short_count = int(800 + (hash(src + name) % 800))
-                    long_size = (long_count * mark_px * 0.05)
-                    short_size = (short_count * mark_px * 0.04)
-                    
-                    if src == "pct6_20":
-                        long_avg = mark_px * 1.08
-                        short_avg = mark_px * 0.92
-                    
-                    coin_sources_data[src] = {
-                        "long_avg": long_avg,
-                        "long_count": long_count,
-                        "long_size": long_size,
-                        "short_avg": short_avg,
-                        "short_count": short_count,
-                        "short_size": short_size,
-                        "general_avg": general_avg
-                    }
+        if size_ratio >= 1.75:
+            signals.append({
+                "badge": "🐋 BÜYÜK PARA LONG",
+                "color": "#00b0ff",
+                "desc": "Long hacmi Short hacminin 1.75 katı üzerinde."
+            })
+        elif size_ratio <= 0.55:
+            signals.append({
+                "badge": "🐋 BÜYÜK PARA SHORT",
+                "color": "#ff1744",
+                "desc": "Short hacmi Long hacminin 1.8 katı üzerinde."
+            })
 
-                if coin_sources_data:
-                    all_src_list = list(coin_sources_data.values())
-                    n_src = len(all_src_list)
-                    coin_sources_data["combined_avg"] = {
-                        "long_avg": sum(s["long_avg"] for s in all_src_list) / n_src,
-                        "long_count": int(sum(s["long_count"] for s in all_src_list) / n_src),
-                        "long_size": sum(s["long_size"] for s in all_src_list) / n_src,
-                        "short_avg": sum(s["short_avg"] for s in all_src_list) / n_src,
-                        "short_count": int(sum(s["short_count"] for s in all_src_list) / n_src),
-                        "short_size": sum(s["short_size"] for s in all_src_list) / n_src,
-                        "general_avg": sum(s["general_avg"] for s in all_src_list) / n_src
-                    }
+    # 4. BORSALAR ARASI FONLAMA MAKASI
+    funding_gap = abs(binance_funding - hl_funding)
+    if funding_gap >= 0.04:
+        signals.append({
+            "badge": "⚡ FONLAMA MAKASI",
+            "color": "#aa00ff",
+            "desc": f"Binance vs HL arasında %{funding_gap:.3f} makas var."
+        })
 
-                processed_coins[name] = {
-                    "symbol": f"{name}USDT",
-                    "markPrice": mark_px,
-                    "fundingRate": funding,
-                    "openInterestUSD": oi_usd,
-                    "sources": coin_sources_data
-                }
-            
-            global_data = {
-                "totalActiveCoins": len(processed_coins),
-                "totalAUM_OI": total_open_interest_usd,
-                "avgMarketPrice": sum(all_prices) / len(all_prices) if all_prices else 0
-            }
-            
-            processed_coins["_GLOBAL_SUMMARY_"] = global_data
-            return processed_coins
-    except Exception as e:
-        print("Karma veri hatası:", e)
-        
-    return {}
+    # 5. SQUEEZE (PATLATMA) RİSKLERİ
+    if funding_rate >= 0.05 and oi_usd > 8_000_000:
+        signals.append({
+            "badge": "🔴 LONG SQUEEZE",
+            "color": "#f44336",
+            "desc": "Aşırı Long birikimi + Yüksek OI."
+        })
+    elif funding_rate <= -0.04 and oi_usd > 8_000_000:
+        signals.append({
+            "badge": "🟢 SHORT SQUEEZE",
+            "color": "#4caf50",
+            "desc": "Aşırı Short birikimi + Negatif fonlama."
+        })
+
+    return signals
 
 @app.get("/", response_class=HTMLResponse)
 def read_index():
@@ -203,41 +85,42 @@ def read_index():
         with open("index.html", "r", encoding="utf-8") as f:
             return f.read()
     except FileNotFoundError:
-        return "<h3>index.html dosyası bulunamadı!</h3>"
+        return "<h1>index.html dosyası bulunamadı!</h1>"
 
-@app.get("/api/coins")
-def get_all_coins():
-    global CACHE
-    current_time = time.time()
-    if current_time - CACHE["last_update"] > CACHE_DURATION or not CACHE["data"]:
-        CACHE["data"] = fetch_karma_market_data()
-        CACHE["last_update"] = current_time
-    
-    coins = [k for k in CACHE["data"].keys() if not k.startswith("_")]
-    return {"status": "success", "coins": sorted(coins)}
-
-@app.get("/api/market-stats/{symbol}")
-def get_coin_stats(symbol: str):
-    global CACHE
-    current_time = time.time()
-    if current_time - CACHE["last_update"] > CACHE_DURATION or not CACHE["data"]:
-        CACHE["data"] = fetch_karma_market_data()
-        CACHE["last_update"] = current_time
-        
-    symbol = symbol.upper()
-    coin_data = CACHE["data"].get(symbol)
-    global_data = CACHE["data"].get("_GLOBAL_SUMMARY_", {})
-    
-    if not coin_data:
-        return {"status": "error", "message": "Coin bulunamadı"}
-        
-    return {
-        "status": "success",
-        "cache_remaining_seconds": int(CACHE_DURATION - (current_time - CACHE["last_update"])),
-        "data": coin_data,
-        "global": global_data
+@app.get("/api/data")
+def get_dashboard_data():
+    data = {
+        "BTC": {
+            "symbol": "BTCUSDT",
+            "markPrice": 65000.0,
+            "fundingRate": 0.06,
+            "openInterestUSD": 12000000,
+            "signals": analyze_coin_tactics(
+                mark_price=65000.0,
+                funding_rate=0.06,
+                hl_funding=0.01,
+                binance_funding=0.055,
+                combined_avg={"long_size": 1500000, "short_size": 800000},
+                whale_data={"long_avg": 64800.0, "short_avg": 65500.0},
+                all_data={"long_avg": 66000.0},
+                oi_usd=12000000
+            )
+        },
+        "ETH": {
+            "symbol": "ETHUSDT",
+            "markPrice": 3500.0,
+            "fundingRate": -0.04,
+            "openInterestUSD": 9000000,
+            "signals": analyze_coin_tactics(
+                mark_price=3500.0,
+                funding_rate=-0.04,
+                hl_funding=-0.01,
+                binance_funding=-0.035,
+                combined_avg={"long_size": 800000, "short_size": 1400000},
+                whale_data={"long_avg": 3450.0, "short_avg": 3550.0},
+                all_data={"long_avg": 3400.0},
+                oi_usd=9000000
+            )
+        }
     }
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    return JSONResponse(content=data)
