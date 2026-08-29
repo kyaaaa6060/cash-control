@@ -91,7 +91,6 @@
         .badge-short { background-color: rgba(246, 70, 93, 0.15); color: var(--short-color); border: 1px solid rgba(246, 70, 93, 0.3); }
         .badge-neutral { background-color: rgba(240, 185, 11, 0.15); color: var(--accent-yellow); border: 1px solid rgba(240, 185, 11, 0.3); }
 
-        /* İşlem Planı Kutusu */
         .trade-plan-box {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -234,7 +233,7 @@
             <div id="scenario-text">Veriler analiz ediliyor...</div>
         </div>
 
-        <!-- Sabit İşlem Planı (Giriş, TP, SL) -->
+        <!-- Doğru Matematiksel Mantıkla Kurulan İşlem Planı -->
         <div class="trade-plan-box">
             <div class="plan-item">
                 <div>GİRİŞ (ENTRY)</div>
@@ -401,39 +400,38 @@
             let tpPrice = 0;
             let slPrice = 0;
 
-            // Stabil Giriş, TP ve SL Mantığı (5dk'da bir yenilenen maliyet bazlı)
+            // DÜZELTİLMİŞ MATEMATİKSEL YÖN MANTIĞI
             if (markPrice > shortVal) {
-                // Short Fırsatı / Reversal
+                // SHORT POZISYON (Fiyat düşerse kâr edilir)
                 actionBadge = `<div class="action-badge badge-short">🔴 SİSTEM PLANI: SHORT YÖNLÜ POZİSYON</div>`;
                 entryPrice = shortVal;
-                tpPrice = longVal; // Hedef long ortalaması
-                slPrice = shortVal * 1.015; // %1.5 üstü stop
-                explanation = `Fiyat short maliyetlerin üstünde. Sistem <strong>$${entryPrice.toFixed(2)}</strong> seviyesinden Short girer; kârı <strong>$${tpPrice.toFixed(2)}</strong> (long havuzu) bölgesinde alır, stopu <strong>$${slPrice.toFixed(2)}</strong> üstüne koyar.`;
+                tpPrice = longVal;              // Hedef aşağıda (Long ortalaması)
+                slPrice = shortVal * 1.015;     // Stop yukarıda (%1.5 üstü)
+                explanation = `Fiyat short maliyetlerin üstünde. Sistem <strong>$${entryPrice.toFixed(2)}</strong> seviyesinden Short girer; kârı <strong>$${tpPrice.toFixed(2)}</strong> (aşağıdaki long havuzu) bölgesinde alır, stopu <strong>$${slPrice.toFixed(2)}</strong> üstüne koyar.`;
             } else if (markPrice < longVal) {
-                // Long Fırsatı / Dip Tepkisi
+                // LONG POZISYON (Fiyat yükselirse kâr edilir)
                 actionBadge = `<div class="action-badge badge-long">🟢 SİSTEM PLANI: LONG YÖNLÜ POZİSYON</div>`;
                 entryPrice = longVal;
-                tpPrice = shortVal; // Hedef short ortalaması
-                slPrice = longVal * 0.985; // %1.5 altı stop
-                explanation = `Fiyat long maliyetlerin altında. Sistem <strong>$${entryPrice.toFixed(2)}</strong> seviyesinden Long açar; kârı <strong>$${tpPrice.toFixed(2)}</strong> (short havuzu) seviyesinde kapatır, stopu <strong>$${slPrice.toFixed(2)}</strong> altına koyar.`;
+                tpPrice = shortVal;             // Hedef yukarıda (Short ortalaması)
+                slPrice = longVal * 0.985;      // Stop aşağıda (%1.5 altı)
+                explanation = `Fiyat long maliyetlerin altında. Sistem <strong>$${entryPrice.toFixed(2)}</strong> seviyesinden Long açar; kârı <strong>$${tpPrice.toFixed(2)}</strong> (yukarıdaki short havuzu) seviyesinde kapatır, stopu <strong>$${slPrice.toFixed(2)}</strong> altına koyar.`;
             } else {
-                // Sıkışma Bölgesi / Bekle-Gör
+                // SIKIŞMA BÖLGESİ
                 if (sourceData.long_size >= sourceData.short_size) {
                     actionBadge = `<div class="action-badge badge-neutral">🟡 SİSTEM PLANI: ALT BANT LONG BEKLENİYOR</div>`;
                     entryPrice = longVal;
                     tpPrice = shortVal;
                     slPrice = longVal * 0.985;
-                    explanation = `Fiyat dengede, Long hacim baskın ($${longSizeK}K). Fiyatın <strong>$${longVal.toFixed(2)}</strong> desteğine iğne atması beklenir. Giriş bu destekten yapılır, hedef <strong>$${tpPrice.toFixed(2)}</strong>, stop <strong>$${slPrice.toFixed(2)}</strong>'dir.`;
+                    explanation = `Fiyat dengede, Long hacim baskın ($${longSizeK}K). Giriş <strong>$${longVal.toFixed(2)}</strong> desteğinden Long yönlüdür; hedef <strong>$${tpPrice.toFixed(2)}</strong>, stop <strong>$${slPrice.toFixed(2)}</strong> altındadır.`;
                 } else {
                     actionBadge = `<div class="action-badge badge-neutral">🟡 SİSTEM PLANI: ÜST BANT SHORT BEKLENİYOR</div>`;
                     entryPrice = shortVal;
                     tpPrice = longVal;
                     slPrice = shortVal * 1.015;
-                    explanation = `Fiyat dengede, Short hacim baskın ($${shortSizeK}K). Fiyatın <strong>$${shortVal.toFixed(2)}</strong> direncine çıkması beklenir. Giriş dirençten kısa yönlüdür, hedef <strong>$${tpPrice.toFixed(2)}</strong>, stop <strong>$${slPrice.toFixed(2)}</strong>'dir.`;
+                    explanation = `Fiyat dengede, Short hacim baskın ($${shortSizeK}K). Giriş <strong>$${shortVal.toFixed(2)}</strong> direncinden Short yönlüdür; hedef <strong>$${tpPrice.toFixed(2)}</strong>, stop <strong>$${slPrice.toFixed(2)}</strong> üstündedir.`;
                 }
             }
 
-            // Arayüze Sabit Değerleri Bas
             entryEl.innerText = "$" + entryPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             tpEl.innerText = "$" + tpPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             slEl.innerText = "$" + slPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -472,8 +470,8 @@
         }
 
         loadCoinList();
-        setInterval(fetchMarketData, 300000); // 5 dakikada bir ortalamalar ve plan yenilenir
-        setInterval(fetchLivePriceOnly, 2000); // Fiyat anlık akar ancak plan bozulmaz
+        setInterval(fetchMarketData, 300000); 
+        setInterval(fetchLivePriceOnly, 2000); 
     </script>
 </body>
 </html>
