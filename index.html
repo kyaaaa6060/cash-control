@@ -70,8 +70,8 @@
             font-weight: 600;
             margin-bottom: 6px;
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 6px;
             font-size: 13px;
         }
 
@@ -229,11 +229,13 @@
         </div>
 
         <div class="scenario-box">
-            <div class="scenario-title">⚡ Sabitlenmiş İşlem Stratejisi (5dk Periyotlu)</div>
-            <div id="scenario-text">Veriler analiz ediliyor...</div>
+            <div class="scenario-title">
+                <span>⚡ Sabitlenmiş İşlem Stratejisi</span>
+                <span id="plan-time-label" style="font-size: 11px; font-weight: normal; color: var(--text-muted);">🕒 --.--.---- --:--:-- (TRT)</span>
+            </div>
+            <div id="scenario-text" style="margin-top: 6px;">Veriler analiz ediliyor...</div>
         </div>
 
-        <!-- Doğru Matematiksel Mantıkla Kurulan İşlem Planı -->
         <div class="trade-plan-box">
             <div class="plan-item">
                 <div>GİRİŞ (ENTRY)</div>
@@ -311,6 +313,7 @@
         let currentSource = "all";
         let currentTab = "guncel";
         let cachedResponse = null;
+        let lastPlanTimestamp = "--.--.---- --:--:--";
 
         async function loadCoinList() {
             try {
@@ -344,6 +347,12 @@
                     document.getElementById("timer").innerText = result.cache_remaining_seconds;
                     document.getElementById("mark-price").innerText = "$" + result.data.markPrice.toLocaleString('en-US', {minimumFractionDigits: 2});
                     
+                    // Planın kurulduğu anı TR saati (Europe/Istanbul) ile sabitle
+                    let now = new Date();
+                    let dateStr = now.toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' });
+                    let timeStr = now.toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    lastPlanTimestamp = `${dateStr} ${timeStr}`;
+
                     updateViewData();
                 }
             } catch(e) {
@@ -387,6 +396,7 @@
 
         function updateScenarioText(coinName, markPrice, longVal, shortVal, sourceData) {
             let scenarioEl = document.getElementById("scenario-text");
+            let timeLabelEl = document.getElementById("plan-time-label");
             let entryEl = document.getElementById("plan-entry");
             let tpEl = document.getElementById("plan-tp");
             let slEl = document.getElementById("plan-sl");
@@ -400,23 +410,19 @@
             let tpPrice = 0;
             let slPrice = 0;
 
-            // DÜZELTİLMİŞ MATEMATİKSEL YÖN MANTIĞI
             if (markPrice > shortVal) {
-                // SHORT POZISYON (Fiyat düşerse kâr edilir)
                 actionBadge = `<div class="action-badge badge-short">🔴 SİSTEM PLANI: SHORT YÖNLÜ POZİSYON</div>`;
                 entryPrice = shortVal;
-                tpPrice = longVal;              // Hedef aşağıda (Long ortalaması)
-                slPrice = shortVal * 1.015;     // Stop yukarıda (%1.5 üstü)
-                explanation = `Fiyat short maliyetlerin üstünde. Sistem <strong>$${entryPrice.toFixed(2)}</strong> seviyesinden Short girer; kârı <strong>$${tpPrice.toFixed(2)}</strong> (aşağıdaki long havuzu) bölgesinde alır, stopu <strong>$${slPrice.toFixed(2)}</strong> üstüne koyar.`;
+                tpPrice = longVal;              
+                slPrice = shortVal * 1.015;     
+                explanation = `Fiyat short maliyetlerin üstünde. Sistem <strong>$${entryPrice.toFixed(2)}</strong> seviyesinden Short girer; kârı <strong>$${tpPrice.toFixed(2)}</strong> bölgesinde alır, stopu <strong>$${slPrice.toFixed(2)}</strong> üstüne koyar.`;
             } else if (markPrice < longVal) {
-                // LONG POZISYON (Fiyat yükselirse kâr edilir)
                 actionBadge = `<div class="action-badge badge-long">🟢 SİSTEM PLANI: LONG YÖNLÜ POZİSYON</div>`;
                 entryPrice = longVal;
-                tpPrice = shortVal;             // Hedef yukarıda (Short ortalaması)
-                slPrice = longVal * 0.985;      // Stop aşağıda (%1.5 altı)
-                explanation = `Fiyat long maliyetlerin altında. Sistem <strong>$${entryPrice.toFixed(2)}</strong> seviyesinden Long açar; kârı <strong>$${tpPrice.toFixed(2)}</strong> (yukarıdaki short havuzu) seviyesinde kapatır, stopu <strong>$${slPrice.toFixed(2)}</strong> altına koyar.`;
+                tpPrice = shortVal;             
+                slPrice = longVal * 0.985;      
+                explanation = `Fiyat long maliyetlerin altında. Sistem <strong>$${entryPrice.toFixed(2)}</strong> seviyesinden Long açar; kârı <strong>$${tpPrice.toFixed(2)}</strong> seviyesinde kapatır, stopu <strong>$${slPrice.toFixed(2)}</strong> altına koyar.`;
             } else {
-                // SIKIŞMA BÖLGESİ
                 if (sourceData.long_size >= sourceData.short_size) {
                     actionBadge = `<div class="action-badge badge-neutral">🟡 SİSTEM PLANI: ALT BANT LONG BEKLENİYOR</div>`;
                     entryPrice = longVal;
@@ -432,11 +438,12 @@
                 }
             }
 
+            timeLabelEl.innerText = "🕒 " + lastPlanTimestamp + " (TRT)";
             entryEl.innerText = "$" + entryPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             tpEl.innerText = "$" + tpPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             slEl.innerText = "$" + slPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
-            scenarioEl.innerHTML = actionBadge + `<div>${explanation}</div>`;
+            scenarioEl.innerHTML = actionBadge + `<div style="margin-top: 4px;">${explanation}</div>`;
         }
 
         async function updateViewData() {
