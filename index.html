@@ -231,7 +231,7 @@
         <div class="scenario-box">
             <div class="scenario-title">
                 <span>⚡ Sabitlenmiş İşlem Stratejisi</span>
-                <span id="plan-time-label" style="font-size: 11px; font-weight: normal; color: var(--text-muted);">🕒 --.--.---- --:--:-- (TRT)</span>
+                <span id="plan-time-label" style="font-size: 11px; font-weight: normal; color: var(--text-muted);">🕒 Yükleniyor...</span>
             </div>
             <div id="scenario-text" style="margin-top: 6px;">Veriler analiz ediliyor...</div>
         </div>
@@ -266,7 +266,7 @@
         <div class="selector-row">
             <div>
                 <span style="font-size: 13px; color: var(--text-muted);">Coin:</span>
-                <select id="coin-select" onchange="fetchMarketData()">
+                <select id="coin-select" onchange="onCoinChange()">
                     <option value="BTC">Yükleniyor...</option>
                 </select>
             </div>
@@ -313,7 +313,35 @@
         let currentSource = "all";
         let currentTab = "guncel";
         let cachedResponse = null;
-        let lastPlanTimestamp = "--.--.---- --:--:--";
+
+        // localStorage kullanarak coin bazlı strateji zaman damgasını tarayıcıda sabitliyoruz
+        // Böylece sayfa yenilense bile 5 dakikalık periyot dolana kadar aynı saat kalır.
+        function getPersistentTimestamp(coinSymbol) {
+            let storageKey = `strategy_time_${coinSymbol}`;
+            let storedData = localStorage.getItem(storageKey);
+            let nowTime = Date.now();
+
+            // Eğer daha önce kaydedilmiş bir zaman varsa ve 5 dakikadan (300000 ms) eski değilse onu kullan
+            if (storedData) {
+                let parsed = JSON.parse(storedData);
+                if (nowTime - parsed.timestamp < 300000) {
+                    return parsed.timeString;
+                }
+            }
+
+            // Yeni zaman üret ve kaydet
+            let now = new Date();
+            let dateStr = now.toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' });
+            let timeStr = now.toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            let formattedString = `${dateStr} ${timeStr}`;
+
+            localStorage.setItem(storageKey, JSON.stringify({
+                timestamp: nowTime,
+                timeString: formattedString
+            }));
+
+            return formattedString;
+        }
 
         async function loadCoinList() {
             try {
@@ -347,12 +375,6 @@
                     document.getElementById("timer").innerText = result.cache_remaining_seconds;
                     document.getElementById("mark-price").innerText = "$" + result.data.markPrice.toLocaleString('en-US', {minimumFractionDigits: 2});
                     
-                    // Planın kurulduğu anı TR saati (Europe/Istanbul) ile sabitle
-                    let now = new Date();
-                    let dateStr = now.toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' });
-                    let timeStr = now.toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                    lastPlanTimestamp = `${dateStr} ${timeStr}`;
-
                     updateViewData();
                 }
             } catch(e) {
@@ -375,6 +397,10 @@
             } catch(e) {
                 console.error("Canlı fiyat çekilemedi", e);
             }
+        }
+
+        function onCoinChange() {
+            fetchMarketData();
         }
 
         function setSource(sourceKey, titleText) {
@@ -438,7 +464,10 @@
                 }
             }
 
-            timeLabelEl.innerText = "🕒 " + lastPlanTimestamp + " (TRT)";
+            // Sabitlenmiş zaman damgasını çek (sayfa yenilense bile değişmez)
+            let fixedTimeStr = getPersistentTimestamp(coinName);
+            timeLabelEl.innerText = "🕒 " + fixedTimeStr + " (TRT)";
+
             entryEl.innerText = "$" + entryPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             tpEl.innerText = "$" + tpPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             slEl.innerText = "$" + slPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
