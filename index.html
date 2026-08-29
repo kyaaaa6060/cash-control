@@ -266,57 +266,11 @@
         .dot-green { background-color: var(--long-color); }
         .dot-red { background-color: var(--short-color); }
         .dot-yellow { background-color: var(--accent-yellow); }
-
-        #alert-modal {
-            display: none;
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(11, 14, 20, 0.92);
-            border-radius: 12px;
-            z-index: 100;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        .alert-box-inner {
-            background: var(--card-bg);
-            border: 2px solid var(--card-border);
-            padding: 25px;
-            border-radius: 10px;
-            max-width: 450px;
-            width: 100%;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-        }
-        .alert-title { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
-        .alert-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5; }
-        .alert-btn {
-            background: var(--accent-yellow);
-            color: #0b0e14;
-            border: none;
-            padding: 10px 20px;
-            font-weight: 700;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
-        }
-        .alert-btn:hover { opacity: 0.9; }
     </style>
 </head>
 <body>
 
     <div class="modal-container">
-        <div id="alert-modal">
-            <div class="alert-box-inner">
-                <div id="alert-icon" style="font-size: 32px; margin-bottom: 8px;">🎯</div>
-                <div class="alert-title" id="alert-title-text">İŞLEM SONUÇLANDI</div>
-                <div class="alert-desc" id="alert-desc-text">İşlem hedefe ulaştı.</div>
-                <button class="alert-btn" onclick="resetAndClearSignal()">Yeni Sinyale Geç</button>
-            </div>
-        </div>
-
         <div class="header-title">
             <span id="modal-main-title">📊 Ağırlıklı Ortalama Analizi</span>
             <span style="cursor: pointer;">✕</span>
@@ -375,7 +329,7 @@
 
         <div class="cache-info">
             <div>⏳ Güncelleme: <span id="timer">300</span>s</div>
-            <button class="global-reset-btn" onclick="resetAllSignalsGlobally()" title="Tüm coin ve kaynaklardaki kilitleri sıfırlar">🔄 Tüm İşlemleri Sıfırla</button>
+            <button class="global-reset-btn" onclick="resetAllSignalsGlobally()" title="Tüm mühürlü planları sıfırlar">🔄 Tüm İşlemleri Sıfırla</button>
         </div>
 
         <div class="tabs-row">
@@ -483,77 +437,20 @@
             };
         }
 
-        function resetAndClearSignal() {
-            let coinSymbol = currentCoinGlobal;
-            localStorage.removeItem(`signal_type_${coinSymbol}_${currentSource}`);
-            localStorage.removeItem(`signal_time_${coinSymbol}_${currentSource}`);
-            localStorage.removeItem(`signal_entry_${coinSymbol}_${currentSource}`);
-            localStorage.removeItem(`signal_tp_${coinSymbol}_${currentSource}`);
-            localStorage.removeItem(`signal_sl_${coinSymbol}_${currentSource}`);
-            localStorage.removeItem(`status_triggered_${coinSymbol}_${currentSource}`);
-
-            document.getElementById("alert-modal").style.display = "none";
-            fetchMarketData();
-        }
-
         function resetAllSignalsGlobally() {
-            if(confirm("Tarayıcı hafızasındaki tüm mühürlü işlem planları ve kilitleri sıfırlansın mı?")) {
+            if(confirm("Tarayıcı hafızasındaki tüm mühürlü işlem planları sıfırlansın mı?")) {
                 let keysToRemove = [];
                 for (let i = 0; i < localStorage.length; i++) {
                     let key = localStorage.key(i);
-                    if (key && (key.startsWith("signal_") || key.startsWith("status_triggered_"))) {
+                    if (key && key.startsWith("signal_")) {
                         keysToRemove.push(key);
                     }
                 }
                 keysToRemove.forEach(k => localStorage.removeItem(k));
 
-                document.getElementById("alert-modal").style.display = "none";
                 fetchMarketData();
                 alert("Tüm işlemler başarıyla sıfırlandı, yeni sinyaller yüklendi!");
             }
-        }
-
-        function checkTradeTriggers(markPrice) {
-            if (!activePlanGlobal) return;
-            let coinSymbol = currentCoinGlobal;
-            let triggerKey = `status_triggered_${coinSymbol}_${currentSource}`;
-
-            // Eğer bu işlem için daha önce uyarı verildiyse bir daha tetikleme (SADECE 1 KERE ÇIKAR)
-            if (localStorage.getItem(triggerKey) === "true") return;
-
-            let type = activePlanGlobal.signalType;
-            let tp = activePlanGlobal.tp;
-            let sl = activePlanGlobal.sl;
-
-            if (type.includes("SHORT")) {
-                if (markPrice <= tp) {
-                    localStorage.setItem(triggerKey, "true");
-                    triggerAlert("TP", `Harika! ${coinSymbol}USDT Short işlem hedefine ulaştı ve kâr alındı.`, "#0ecb81", "🎉");
-                } else if (markPrice >= sl) {
-                    localStorage.setItem(triggerKey, "true");
-                    triggerAlert("SL", `Dikkat! ${coinSymbol}USDT Short işlem stop seviyesini patlattı.`, "#f6465d", "🛑");
-                }
-            } else if (type.includes("LONG")) {
-                if (markPrice >= tp) {
-                    localStorage.setItem(triggerKey, "true");
-                    triggerAlert("TP", `Harika! ${coinSymbol}USDT Long işlem hedefine ulaştı ve kâr alındı.`, "#0ecb81", "🎉");
-                } else if (markPrice <= sl) {
-                    localStorage.setItem(triggerKey, "true");
-                    triggerAlert("SL", `Dikkat! ${coinSymbol}USDT Long işlem stop seviyesini patlattı.`, "#f6465d", "🛑");
-                }
-            }
-        }
-
-        function triggerAlert(statusType, descText, colorCode, emoji) {
-            let modal = document.getElementById("alert-modal");
-            if (modal.style.display === "flex") return;
-
-            document.getElementById("alert-icon").innerText = emoji;
-            document.getElementById("alert-title-text").innerText = statusType === "TP" ? "🎯 İŞLEM TP OLDU (KÂR ALINDI)" : "🛑 İŞLEM STOP OLDU";
-            document.getElementById("alert-title-text").style.color = colorCode;
-            document.getElementById("alert-desc-text").innerText = descText;
-            
-            modal.style.display = "flex";
         }
 
         async function loadCoinList() {
@@ -608,7 +505,6 @@
                     document.getElementById("timer").innerText = result.cache_remaining_seconds;
                     
                     updateViewData();
-                    checkTradeTriggers(markPrice);
                 }
             } catch(e) {
                 console.error("Canlı fiyat çekilemedi", e);
