@@ -314,27 +314,30 @@
         let currentTab = "guncel";
         let cachedResponse = null;
 
-        // Pozisyonun ilk kez üretildiği/yön değiştirdiği anı coin ve kaynak bazlı hafızada tutar
-        function getSignalTimestamp(coinSymbol, sourceKey, signalType) {
-            let storageKey = `signal_time_${coinSymbol}_${sourceKey}`;
-            let stateKey = `signal_state_${coinSymbol}_${sourceKey}`;
+        // Gerçek sinyalin ilk doğduğu anı session/local bazlı kontrol eden fonksiyon
+        function getExactSignalTimestamp(coinSymbol, sourceKey, signalType, entryPrice, tpPrice) {
+            let stateKey = `real_state_${coinSymbol}_${sourceKey}`;
+            let timeKey = `real_time_${coinSymbol}_${sourceKey}`;
             
-            let savedState = localStorage.getItem(stateKey);
-            let savedTime = localStorage.getItem(storageKey);
+            let savedState = sessionStorage.getItem(stateKey);
+            let savedTime = sessionStorage.getItem(timeKey);
 
-            // Eğer daha önce kaydedilmiş bir yön varsa ve bu yön YENİ SİNYAL ile aynıysa eski saati koru
-            if (savedState === signalType && savedTime) {
+            // Benzersiz sinyal imzası oluştur (Yön + Giriş + TP seviyesi kombinasyonu)
+            let currentSignature = `${signalType}_${entryPrice.toFixed(2)}_${tpPrice.toFixed(2)}`;
+
+            // Eğer hafızadaki sinyal imzası ile şimdiki imza AYNI ise, o ilk anın saatini koru
+            if (savedState === currentSignature && savedTime) {
                 return savedTime;
             }
 
-            // Yön değiştiyse (veya ilk kez oluşuyorsa) saati o anki gerçek zamanla güncelle ve sabitle
+            // Sinyal veya seviyeler değiştiyse (yani YENİ bir pozisyon kararı verildiyse) SAATİ O AN SIFIRLA VE SABİTLE
             let now = new Date();
             let dateStr = now.toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' });
             let timeStr = now.toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', second: '2-digit' });
             let formattedString = `${dateStr} ${timeStr}`;
 
-            localStorage.setItem(stateKey, signalType);
-            localStorage.setItem(storageKey, formattedString);
+            sessionStorage.setItem(stateKey, currentSignature);
+            sessionStorage.setItem(timeKey, formattedString);
 
             return formattedString;
         }
@@ -465,9 +468,9 @@
                 }
             }
 
-            // Sadece yön değiştiğinde o anın saatini sabitle, yön aynı kaldığı sürece bu saat sabit kalır
-            let fixedTimeStr = getSignalTimestamp(coinName, currentSource, signalType);
-            timeLabelEl.innerText = "🕒 " + fixedTimeStr + " (TRT)";
+            // Sadece bu özel işlem ilk defa üretildiğinde saati kaydeder, aynı kaldığı sürece bu saat sabit kalır
+            let exactTimeStr = getExactSignalTimestamp(coinName, currentSource, signalType, entryPrice, tpPrice);
+            timeLabelEl.innerText = "🕒 " + exactTimeStr + " (TRT)";
 
             entryEl.innerText = "$" + entryPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             tpEl.innerText = "$" + tpPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
