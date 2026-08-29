@@ -231,7 +231,7 @@
         <div class="scenario-box">
             <div class="scenario-title">
                 <span>⚡ Sabitlenmiş İşlem Stratejisi</span>
-                <span id="plan-time-label" style="font-size: 11px; font-weight: normal; color: var(--text-muted);">🕒 Yükleniyor...</span>
+                <span id="plan-time-label" style="font-size: 11px; font-weight: normal; color: var(--text-muted);">🕒 Bekleniyor...</span>
             </div>
             <div id="scenario-text" style="margin-top: 6px;">Veriler analiz ediliyor...</div>
         </div>
@@ -314,31 +314,27 @@
         let currentTab = "guncel";
         let cachedResponse = null;
 
-        // localStorage kullanarak coin bazlı strateji zaman damgasını tarayıcıda sabitliyoruz
-        // Böylece sayfa yenilense bile 5 dakikalık periyot dolana kadar aynı saat kalır.
-        function getPersistentTimestamp(coinSymbol) {
-            let storageKey = `strategy_time_${coinSymbol}`;
-            let storedData = localStorage.getItem(storageKey);
-            let nowTime = Date.now();
+        // Pozisyonun ilk kez üretildiği/yön değiştirdiği anı coin ve kaynak bazlı hafızada tutar
+        function getSignalTimestamp(coinSymbol, sourceKey, signalType) {
+            let storageKey = `signal_time_${coinSymbol}_${sourceKey}`;
+            let stateKey = `signal_state_${coinSymbol}_${sourceKey}`;
+            
+            let savedState = localStorage.getItem(stateKey);
+            let savedTime = localStorage.getItem(storageKey);
 
-            // Eğer daha önce kaydedilmiş bir zaman varsa ve 5 dakikadan (300000 ms) eski değilse onu kullan
-            if (storedData) {
-                let parsed = JSON.parse(storedData);
-                if (nowTime - parsed.timestamp < 300000) {
-                    return parsed.timeString;
-                }
+            // Eğer daha önce kaydedilmiş bir yön varsa ve bu yön YENİ SİNYAL ile aynıysa eski saati koru
+            if (savedState === signalType && savedTime) {
+                return savedTime;
             }
 
-            // Yeni zaman üret ve kaydet
+            // Yön değiştiyse (veya ilk kez oluşuyorsa) saati o anki gerçek zamanla güncelle ve sabitle
             let now = new Date();
             let dateStr = now.toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' });
             let timeStr = now.toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', second: '2-digit' });
             let formattedString = `${dateStr} ${timeStr}`;
 
-            localStorage.setItem(storageKey, JSON.stringify({
-                timestamp: nowTime,
-                timeString: formattedString
-            }));
+            localStorage.setItem(stateKey, signalType);
+            localStorage.setItem(storageKey, formattedString);
 
             return formattedString;
         }
@@ -435,14 +431,17 @@
             let entryPrice = 0;
             let tpPrice = 0;
             let slPrice = 0;
+            let signalType = "";
 
             if (markPrice > shortVal) {
+                signalType = "SHORT";
                 actionBadge = `<div class="action-badge badge-short">🔴 SİSTEM PLANI: SHORT YÖNLÜ POZİSYON</div>`;
                 entryPrice = shortVal;
                 tpPrice = longVal;              
                 slPrice = shortVal * 1.015;     
                 explanation = `Fiyat short maliyetlerin üstünde. Sistem <strong>$${entryPrice.toFixed(2)}</strong> seviyesinden Short girer; kârı <strong>$${tpPrice.toFixed(2)}</strong> bölgesinde alır, stopu <strong>$${slPrice.toFixed(2)}</strong> üstüne koyar.`;
             } else if (markPrice < longVal) {
+                signalType = "LONG";
                 actionBadge = `<div class="action-badge badge-long">🟢 SİSTEM PLANI: LONG YÖNLÜ POZİSYON</div>`;
                 entryPrice = longVal;
                 tpPrice = shortVal;             
@@ -450,12 +449,14 @@
                 explanation = `Fiyat long maliyetlerin altında. Sistem <strong>$${entryPrice.toFixed(2)}</strong> seviyesinden Long açar; kârı <strong>$${tpPrice.toFixed(2)}</strong> seviyesinde kapatır, stopu <strong>$${slPrice.toFixed(2)}</strong> altına koyar.`;
             } else {
                 if (sourceData.long_size >= sourceData.short_size) {
+                    signalType = "NEUTRAL_LONG";
                     actionBadge = `<div class="action-badge badge-neutral">🟡 SİSTEM PLANI: ALT BANT LONG BEKLENİYOR</div>`;
                     entryPrice = longVal;
                     tpPrice = shortVal;
                     slPrice = longVal * 0.985;
                     explanation = `Fiyat dengede, Long hacim baskın ($${longSizeK}K). Giriş <strong>$${longVal.toFixed(2)}</strong> desteğinden Long yönlüdür; hedef <strong>$${tpPrice.toFixed(2)}</strong>, stop <strong>$${slPrice.toFixed(2)}</strong> altındadır.`;
                 } else {
+                    signalType = "NEUTRAL_SHORT";
                     actionBadge = `<div class="action-badge badge-neutral">🟡 SİSTEM PLANI: ÜST BANT SHORT BEKLENİYOR</div>`;
                     entryPrice = shortVal;
                     tpPrice = longVal;
@@ -464,8 +465,8 @@
                 }
             }
 
-            // Sabitlenmiş zaman damgasını çek (sayfa yenilense bile değişmez)
-            let fixedTimeStr = getPersistentTimestamp(coinName);
+            // Sadece yön değiştiğinde o anın saatini sabitle, yön aynı kaldığı sürece bu saat sabit kalır
+            let fixedTimeStr = getSignalTimestamp(coinName, currentSource, signalType);
             timeLabelEl.innerText = "🕒 " + fixedTimeStr + " (TRT)";
 
             entryEl.innerText = "$" + entryPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
