@@ -453,7 +453,8 @@
             let savedTp = localStorage.getItem(tpKey);
             let savedSl = localStorage.getItem(slKey);
 
-            if (savedType === rawSignalType && savedEntry && savedTp && savedSl) {
+            // Eğer hafızada kayıtlı bir plan varsa, YENİ verilerle ASLA ezme! Sabit kalsın.
+            if (savedType && savedEntry && savedTp && savedSl) {
                 return {
                     signalType: savedType,
                     timeStr: savedTime,
@@ -463,6 +464,7 @@
                 };
             }
 
+            // İlk defa oluşturuluyorsa mühürle ve kaydet
             let now = new Date();
             let dateStr = now.toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' });
             let timeStr = now.toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -496,10 +498,8 @@
             fetchMarketData();
         }
 
-        // 🔄 TOPLU TÜM İŞLEMLERİ VE KİLİTLERİ SIFIRLAMA FONKSİYONU
         function resetAllSignalsGlobally() {
             if(confirm("Tarayıcı hafızasındaki tüm mühürlü işlem planları ve kilitleri sıfırlansın mı?")) {
-                // LocalStorage içindeki bizim anahtarlarımızı temizle
                 let keysToRemove = [];
                 for (let i = 0; i < localStorage.length; i++) {
                     let key = localStorage.key(i);
@@ -652,8 +652,6 @@
             let rawEntry = 0;
             let rawTp = 0;
             let rawSl = 0;
-            let actionBadge = "";
-            let explanation = "";
 
             if (markPrice > shortVal) {
                 rawSignalType = "SHORT";
@@ -679,10 +677,13 @@
                 }
             }
 
+            // Bu fonksiyon artık kayıt varsa yeni hesaplamayı ezip eski planı koruyacak
             let plan = getPersistentSignalPlan(coinName, currentSource, rawSignalType, rawEntry, rawTp, rawSl);
             activePlanGlobal = plan;
 
+            let actionBadge = "";
             let statusBadge = "";
+            let explanation = "";
             let isShort = plan.signalType.includes("SHORT");
             let isLong = plan.signalType.includes("LONG");
 
