@@ -14,13 +14,13 @@ def analyze_coin_tactics(mark_price, funding_rate, hl_funding, binance_funding, 
 
         if whale_long_dist <= 0.008 and mark_price >= whale_data["long_avg"]:
             signals.append({
-                "badge": "🛡️ BALİNA LONG SAVUNMASI",
+                "badge": "🛡️ BALİNA LONG",
                 "color": "#00c853",
                 "desc": "Fiyat balina Long maliyetinde. Desteğe yakın."
             })
         elif whale_short_dist <= 0.008 and mark_price <= whale_data["short_avg"]:
             signals.append({
-                "badge": "🛡️ BALİNA SHORT SAVUNMASI",
+                "badge": "🛡️ BALİNA SHORT",
                 "color": "#d50000",
                 "desc": "Fiyat balina Short maliyetinde. Dirence yakın."
             })
@@ -30,12 +30,12 @@ def analyze_coin_tactics(mark_price, funding_rate, hl_funding, binance_funding, 
         all_long_dev = ((mark_price - all_data["long_avg"]) / all_data["long_avg"]) * 100
         if -2.5 <= all_long_dev <= -1.2:
             signals.append({
-                "badge": "🎯 LİKİDASYON AV BÖLGESİ",
+                "badge": "🎯 LİKİDASYON AV",
                 "color": "#ff6d00",
-                "desc": "Perakende maliyetinin %2 altı. Stop süpürme iğnesi gelebilir."
+                "desc": "Perakende maliyetinin %2 altı. Stop süpürme gelebilir."
             })
 
-    # 3. HACİMSEL DENGESİZLİK (SIZE RATIO)
+    # 3. HACİMSEL DENGESİZLİK
     if combined_avg and "long_size" in combined_avg and "short_size" in combined_avg:
         total_l_size = combined_avg["long_size"]
         total_s_size = combined_avg["short_size"]
@@ -45,36 +45,36 @@ def analyze_coin_tactics(mark_price, funding_rate, hl_funding, binance_funding, 
             signals.append({
                 "badge": "🐋 BÜYÜK PARA LONG",
                 "color": "#00b0ff",
-                "desc": "Long hacmi Short hacminin 1.75 katı üzerinde."
+                "desc": "Long hacmi baskın."
             })
         elif size_ratio <= 0.55:
             signals.append({
                 "badge": "🐋 BÜYÜK PARA SHORT",
                 "color": "#ff1744",
-                "desc": "Short hacmi Long hacminin 1.8 katı üzerinde."
+                "desc": "Short hacmi baskın."
             })
 
-    # 4. BORSALAR ARASI FONLAMA MAKASI
+    # 4. FONLAMA MAKASI
     funding_gap = abs(binance_funding - hl_funding)
     if funding_gap >= 0.04:
         signals.append({
             "badge": "⚡ FONLAMA MAKASI",
             "color": "#aa00ff",
-            "desc": f"Binance vs HL arasında %{funding_gap:.3f} makas var."
+            "desc": f"Borsalar arası %{funding_gap:.3f} makas var."
         })
 
-    # 5. SQUEEZE (PATLATMA) RİSKLERİ
+    # 5. SQUEEZE RİSKLERİ
     if funding_rate >= 0.05 and oi_usd > 8_000_000:
         signals.append({
             "badge": "🔴 LONG SQUEEZE",
             "color": "#f44336",
-            "desc": "Aşırı Long birikimi + Yüksek OI."
+            "desc": "Aşırı Long birikimi var."
         })
     elif funding_rate <= -0.04 and oi_usd > 8_000_000:
         signals.append({
             "badge": "🟢 SHORT SQUEEZE",
             "color": "#4caf50",
-            "desc": "Aşırı Short birikimi + Negatif fonlama."
+            "desc": "Aşırı Short birikimi var."
         })
 
     return signals
@@ -96,14 +96,10 @@ def get_dashboard_data():
             "fundingRate": 0.06,
             "openInterestUSD": 12000000,
             "signals": analyze_coin_tactics(
-                mark_price=65000.0,
-                funding_rate=0.06,
-                hl_funding=0.01,
-                binance_funding=0.055,
+                mark_price=65000.0, funding_rate=0.06, hl_funding=0.01, binance_funding=0.055,
                 combined_avg={"long_size": 1500000, "short_size": 800000},
                 whale_data={"long_avg": 64800.0, "short_avg": 65500.0},
-                all_data={"long_avg": 66000.0},
-                oi_usd=12000000
+                all_data={"long_avg": 66000.0}, oi_usd=12000000
             )
         },
         "ETH": {
@@ -112,14 +108,10 @@ def get_dashboard_data():
             "fundingRate": -0.04,
             "openInterestUSD": 9000000,
             "signals": analyze_coin_tactics(
-                mark_price=3500.0,
-                funding_rate=-0.04,
-                hl_funding=-0.01,
-                binance_funding=-0.035,
+                mark_price=3500.0, funding_rate=-0.04, hl_funding=-0.01, binance_funding=-0.035,
                 combined_avg={"long_size": 800000, "short_size": 1400000},
                 whale_data={"long_avg": 3450.0, "short_avg": 3550.0},
-                all_data={"long_avg": 3400.0},
-                oi_usd=9000000
+                all_data={"long_avg": 3400.0}, oi_usd=9000000
             )
         }
     }
