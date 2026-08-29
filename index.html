@@ -196,14 +196,32 @@
         }
 
         .cache-info {
-            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             font-size: 11px;
             color: var(--accent-yellow);
             background: rgba(240, 185, 11, 0.08);
-            padding: 5px;
+            padding: 6px 10px;
             border-radius: 6px;
             margin-bottom: 15px;
             border: 1px dashed rgba(240, 185, 11, 0.2);
+        }
+
+        .global-reset-btn {
+            background: rgba(246, 70, 93, 0.15);
+            color: var(--short-color);
+            border: 1px solid rgba(246, 70, 93, 0.3);
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 700;
+            transition: all 0.2s;
+        }
+        .global-reset-btn:hover {
+            background: var(--short-color);
+            color: #fff;
         }
 
         .tabs-row {
@@ -356,7 +374,8 @@
         </div>
 
         <div class="cache-info">
-            ⏳ Seviyeler ve Analiz <strong>5 Dakikada Bir</strong> Sabitlenir | Sonraki Güncelleme: <span id="timer">300</span>s
+            <div>⏳ Güncelleme: <span id="timer">300</span>s</div>
+            <button class="global-reset-btn" onclick="resetAllSignalsGlobally()" title="Tüm coin ve kaynaklardaki kilitleri sıfırlar">🔄 Tüm İşlemleri Sıfırla</button>
         </div>
 
         <div class="tabs-row">
@@ -394,6 +413,7 @@
         let currentTab = "guncel";
         let cachedResponse = null;
         let activePlanGlobal = null;
+        let currentCoinGlobal = "BTC";
 
         function formatPrice(val) {
             if (val === undefined || val === null || isNaN(val)) return "$0.00";
@@ -464,29 +484,64 @@
         }
 
         function resetAndClearSignal() {
-            let coinSymbol = document.getElementById("coin-select").value;
+            let coinSymbol = currentCoinGlobal;
             localStorage.removeItem(`signal_type_${coinSymbol}_${currentSource}`);
             localStorage.removeItem(`signal_time_${coinSymbol}_${currentSource}`);
             localStorage.removeItem(`signal_entry_${coinSymbol}_${currentSource}`);
             localStorage.removeItem(`signal_tp_${coinSymbol}_${currentSource}`);
             localStorage.removeItem(`signal_sl_${coinSymbol}_${currentSource}`);
+            localStorage.removeItem(`status_triggered_${coinSymbol}_${currentSource}`);
 
             document.getElementById("alert-modal").style.display = "none";
             fetchMarketData();
         }
 
+        // 🔄 TOPLU TÜM İŞLEMLERİ VE KİLİTLERİ SIFIRLAMA FONKSİYONU
+        function resetAllSignalsGlobally() {
+            if(confirm("Tarayıcı hafızasındaki tüm mühürlü işlem planları ve kilitleri sıfırlansın mı?")) {
+                // LocalStorage içindeki bizim anahtarlarımızı temizle
+                let keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    let key = localStorage.key(i);
+                    if (key && (key.startsWith("signal_") || key.startsWith("status_triggered_"))) {
+                        keysToRemove.push(key);
+                    }
+                }
+                keysToRemove.forEach(k => localStorage.removeItem(k));
+
+                document.getElementById("alert-modal").style.display = "none";
+                fetchMarketData();
+                alert("Tüm işlemler başarıyla sıfırlandı, yeni sinyaller yüklendi!");
+            }
+        }
+
         function checkTradeTriggers(markPrice) {
             if (!activePlanGlobal) return;
+            let coinSymbol = currentCoinGlobal;
+            let triggerKey = `status_triggered_${coinSymbol}_${currentSource}`;
+
+            if (localStorage.getItem(triggerKey) === "true") return;
+
             let type = activePlanGlobal.signalType;
             let tp = activePlanGlobal.tp;
             let sl = activePlanGlobal.sl;
 
             if (type.includes("SHORT")) {
-                if (markPrice <= tp) triggerAlert("TP", "Harika! Short işlem hedefine ulaştı ve kâr alındı.", "#0ecb81", "🎉");
-                else if (markPrice >= sl) triggerAlert("SL", "Dikkat! Short işlem stop seviyesini patlattı.", "#f6465d", "🛑");
+                if (markPrice <= tp) {
+                    localStorage.setItem(triggerKey, "true");
+                    triggerAlert("TP", `Harika! ${coinSymbol}USDT Short işlem hedefine ulaştı ve kâr alındı.`, "#0ecb81", "🎉");
+                } else if (markPrice >= sl) {
+                    localStorage.setItem(triggerKey, "true");
+                    triggerAlert("SL", `Dikkat! ${coinSymbol}USDT Short işlem stop seviyesini patlattı.`, "#f6465d", "🛑");
+                }
             } else if (type.includes("LONG")) {
-                if (markPrice >= tp) triggerAlert("TP", "Harika! Long işlem hedefine ulaştı ve kâr alındı.", "#0ecb81", "🎉");
-                else if (markPrice <= sl) triggerAlert("SL", "Dikkat! Long işlem stop seviyesini patlattı.", "#f6465d", "🛑");
+                if (markPrice >= tp) {
+                    localStorage.setItem(triggerKey, "true");
+                    triggerAlert("TP", `Harika! ${coinSymbol}USDT Long işlem hedefine ulaştı ve kâr alındı.`, "#0ecb81", "🎉");
+                } else if (markPrice <= sl) {
+                    localStorage.setItem(triggerKey, "true");
+                    triggerAlert("SL", `Dikkat! ${coinSymbol}USDT Long işlem stop seviyesini patlattı.`, "#f6465d", "🛑");
+                }
             }
         }
 
@@ -524,9 +579,9 @@
         }
 
         async function fetchMarketData() {
-            let coin = document.getElementById("coin-select").value;
+            currentCoinGlobal = document.getElementById("coin-select").value;
             try {
-                let res = await fetch(`/api/market-stats/${coin}`);
+                let res = await fetch(`/api/market-stats/${currentCoinGlobal}`);
                 let result = await res.json();
                 
                 if(result.status === "success") {
@@ -542,9 +597,9 @@
         }
 
         async function fetchLivePriceOnly() {
-            let coin = document.getElementById("coin-select").value;
+            currentCoinGlobal = document.getElementById("coin-select").value;
             try {
-                let res = await fetch(`/api/market-stats/${coin}`);
+                let res = await fetch(`/api/market-stats/${currentCoinGlobal}`);
                 let result = await res.json();
                 if(result.status === "success" && cachedResponse) {
                     cachedResponse.data.markPrice = result.data.markPrice;
@@ -627,7 +682,6 @@
             let plan = getPersistentSignalPlan(coinName, currentSource, rawSignalType, rawEntry, rawTp, rawSl);
             activePlanGlobal = plan;
 
-            // --- AKILLI DURUM ANALİZİ (Giriş Bekleniyor mu / İşlemde mi?) ---
             let statusBadge = "";
             let isShort = plan.signalType.includes("SHORT");
             let isLong = plan.signalType.includes("LONG");
@@ -667,8 +721,6 @@
             slEl.innerText = formatPrice(plan.sl);
 
             winRateEl.innerText = calculateWinRate(coinName, currentSource);
-            
-            // Rozetleri birleştirip ekrana basıyoruz
             scenarioEl.innerHTML = `<div class="badges-wrapper">${actionBadge}${statusBadge}</div><div style="margin-top: 4px;">${explanation}</div>`;
         }
 
