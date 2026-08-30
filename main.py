@@ -107,8 +107,8 @@ def fetch_karma_market_data():
                 hl_mark_px = float(ctx.get("markPx", 0))
                 open_interest = float(ctx.get("openInterest", 0))
                 hl_funding = float(ctx.get("funding", 0)) * 100
-
-prices = []
+                
+                prices = []
                 fundings = []
                 
                 if hl_mark_px > 0:
@@ -187,8 +187,7 @@ prices = []
             global_data = {
                 "totalActiveCoins": len(processed_coins),
                 "totalAUM_OI": total_open_interest_usd,
-
-"avgMarketPrice": sum(all_prices) / len(all_prices) if all_prices else 0
+                "avgMarketPrice": sum(all_prices) / len(all_prices) if all_prices else 0
             }
             
             processed_coins["_GLOBAL_SUMMARY_"] = global_data
@@ -239,6 +238,6 @@ def get_coin_stats(symbol: str):
         "global": global_data
     }
 
-if name == "main":
+if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
