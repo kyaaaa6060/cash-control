@@ -35,6 +35,16 @@
         .ivme-desc { font-size: 12px; color: #b7bdc6; line-height: 1.4; margin-bottom: 8px; }
         .ivme-footer { display: flex; gap: 15px; font-size: 11px; color: #848e9c; border-top: 1px solid #2b2b2b; padding-top: 6px; }
         
+        /* Yeni Eklenen Alanlar İçin Tasarımlar */
+        .analysis-extra-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+        .extra-card { background: #121418; border: 1px solid #23272e; border-radius: 6px; padding: 8px 10px; }
+        .extra-title { font-size: 11px; font-weight: bold; color: #848e9c; margin-bottom: 6px; border-bottom: 1px solid #23272e; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+        .extra-content { font-size: 12px; color: #eaeaea; }
+        .level-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 11px; }
+        .level-lbl { color: #848e9c; }
+        .pattern-item { background: #1e2329; border-radius: 4px; padding: 4px 6px; margin-bottom: 4px; font-size: 11px; border-left: 2px solid #f0b90b; }
+        .no-pattern { color: #848e9c; font-style: italic; font-size: 11px; text-align: center; padding: 6px; }
+
         .prices-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #121418; padding: 8px 10px; border-radius: 6px; margin-bottom: 10px; text-align: center; border: 1px solid #23272e; }
         .price-item .lbl { font-size: 10px; color: #848e9c; margin-bottom: 2px; }
         .price-item .val { font-size: 13px; font-weight: bold; word-break: break-all; }
@@ -95,6 +105,28 @@
                 <div class="ivme-footer">
                     <div>🎯 Confluence: <span style="color: #0ecb81; font-weight: bold;">%88.4</span></div>
                     <div>⚡ İvme: <span style="color: #fff; font-weight: bold;">+4.7x</span></div>
+                </div>
+            </div>
+
+            <!-- Destek / Direnç ve Formasyonlar Alanı -->
+            <div class="analysis-extra-grid">
+                <!-- Destek / Direnç Kutusu -->
+                <div class="extra-card">
+                    <div class="extra-title">🛡️ Destek & Direnç</div>
+                    <div class="extra-content" id="supportResistanceContainer">
+                        <div class="level-row"><span class="level-lbl">Direnç 2:</span> <span id="res2" style="color: #f6465d;">$-</span></div>
+                        <div class="level-row"><span class="level-lbl">Direnç 1:</span> <span id="res1" style="color: #f6465d;">$-</span></div>
+                        <div class="level-row"><span class="level-lbl">Destek 1:</span> <span id="sup1" style="color: #0ecb81;">$-</span></div>
+                        <div class="level-row"><span class="level-lbl">Destek 2:</span> <span id="sup2" style="color: #0ecb81;">$-</span></div>
+                    </div>
+                </div>
+
+                <!-- Aktif Formasyonlar Kutusu -->
+                <div class="extra-card">
+                    <div class="extra-title">📐 Aktif Formasyonlar</div>
+                    <div class="extra-content" id="patternsContainer">
+                        <div class="no-pattern">Formasyon aranıyor...</div>
+                    </div>
                 </div>
             </div>
 
@@ -276,6 +308,31 @@
                     document.getElementById('valEntry').innerText = "$" + ai.entry;
                     document.getElementById('valTP').innerText = "$" + ai.tp;
                     document.getElementById('valSL').innerText = "$" + ai.sl;
+
+                    // --- DESTEK & DİRENÇ VERİLERİNİ GÜNCELLEME ---
+                    // Backend yanıtında levels objesi beklenir (Ör: d.levels = {res2, res1, sup1, sup2})
+                    if (d.levels) {
+                        document.getElementById('res2').innerText = "$" + (d.levels.res2 || "-");
+                        document.getElementById('res1').innerText = "$" + (d.levels.res1 || "-");
+                        document.getElementById('sup1').innerText = "$" + (d.levels.sup1 || "-");
+                        document.getElementById('sup2').innerText = "$" + (d.levels.sup2 || "-");
+                    }
+
+                    // --- AKTİF FORMASYONLAR VERİLERİNİ GÜNCELLEME ---
+                    // Backend yanıtında patterns dizisi beklenir (Ör: d.patterns = [{name: 'Üçgen', target: '105.00'}])
+                    let patternsContainer = document.getElementById('patternsContainer');
+                    patternsContainer.innerHTML = '';
+                    
+                    if (d.patterns && d.patterns.length > 0) {
+                        d.patterns.forEach(pat => {
+                            let div = document.createElement('div');
+                            div.className = 'pattern-item';
+                            div.innerHTML = `<strong>${pat.name}</strong><br><span style="color: #848e9c; font-size: 10px;">Hedef:</span> <span style="color: #0ecb81; font-weight: bold;">$${pat.target}</span>`;
+                            patternsContainer.appendChild(div);
+                        });
+                    } else {
+                        patternsContainer.innerHTML = `<div class="no-pattern">Aktif Formasyon Bulunamadı</div>`;
+                    }
                     
                     let srcData = d.sources[currentSource] || d.sources["trak"];
                     
