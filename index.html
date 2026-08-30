@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cash Control - Dinamik Grafik & Tam Basamak</title>
+    <title>Cash Control - Dinamik Grafik & Sabit Pivot</title>
     <style>
         body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; height: 100vh; overflow: hidden; position: relative; }
         
@@ -110,7 +110,7 @@
 
             <!-- Destek / Direnç ve Formasyonlar Alanı -->
             <div class="analysis-extra-grid">
-                <!-- Destek / Direnç Kutusu (Pivot Bazlı) -->
+                <!-- Destek / Direnç Kutusu (Sabitlenmiş Pivot) -->
                 <div class="extra-card">
                     <div class="extra-title">🛡️ Pivot Destek & Direnç</div>
                     <div class="extra-content" id="supportResistanceContainer">
@@ -151,7 +151,7 @@
                 <div class="src-btn" onclick="setSource('copy', this)">Sadece Copy</div>
                 <div class="src-btn" onclick="setSource('whale', this)">Sadece Balina</div>
                 <div class="src-btn" onclick="setSource('genel_terste', this)">Genel Terste</div>
-                <div class="src-btn" onclick="setSource('ters_6_20', this)">Ters (%6-20)</div>
+                <div class="src-btn" onclick="setSource('ters_6_20', this)">Ters (%6-20) /div>
                 <div class="src-btn" onclick="setSource('top20_terste', this)">TOP 20 Ters</div>
                 <div class="src-btn" onclick="setSource('top20_oransal', this)">TOP 20 Oran</div>
                 <div class="src-btn active" onclick="setSource('trak', this)" style="grid-column: span 3;">Tüm Kaynakların Ort.</div>
@@ -215,11 +215,18 @@
         let currentSource = "trak";
         let autoInterval = null;
 
-        // Tarayıcı hafızasından (localStorage) aktif işlemleri yükle (Sayfa yenilense bile silinmez)
+        // Tarayıcı hafızasından (localStorage) aktif işlemleri yükle
         let activeTrades = JSON.parse(localStorage.getItem('cashControl_activeTrades')) || {};
+        
+        // Sabitlenmiş pivot seviyelerini tutan hafıza (Her coin için ayrı sabitlenir)
+        let savedPivots = JSON.parse(localStorage.getItem('cashControl_savedPivots')) || {};
 
         function saveActiveTrades() {
             localStorage.setItem('cashControl_activeTrades', JSON.stringify(activeTrades));
+        }
+
+        function saveSavedPivots() {
+            localStorage.setItem('cashControl_savedPivots', JSON.stringify(savedPivots));
         }
 
         function togglePanel() {
@@ -299,10 +306,17 @@
             }
         }
 
-        function calculatePivotLevels(markPrice) {
+        // PIVOT SEVIYELERINI SABITLEME MANTIGI (Sürekli değişmez, sabit kalır)
+        function getOrSetPivotLevels(symbol, markPrice) {
             let p = parseFloat(markPrice);
             if (isNaN(p) || p <= 0) return { res2: "-", res1: "-", sup1: "-", sup2: "-" };
 
+            // Eğer bu coin için daha önceden pivot hesaplanıp kaydedildiyse onu getir (Değişmez)
+            if (savedPivots[symbol]) {
+                return savedPivots[symbol];
+            }
+
+            // İlk defa hesaplanıyorsa sabitliyoruz
             let high = p * 1.015;
             let low = p * 0.985;
             let pivot = (high + low + p) / 3;
@@ -312,12 +326,15 @@
             let r2 = pivot + (high - low);
             let s2 = pivot - (high - low);
 
-            return {
+            savedPivots[symbol] = {
                 res2: r2.toFixed(2),
                 res1: r1.toFixed(2),
                 sup1: s1.toFixed(2),
                 sup2: s2.toFixed(2)
             };
+            
+            saveSavedPivots(); // Kalıcı hafızaya kaydet ki sayfa yenilense bile sabit kalsın
+            return savedPivots[symbol];
         }
 
         async function fetchStats(symbol) {
@@ -340,28 +357,24 @@
                     let trade = activeTrades[symbol];
 
                     if (trade.inTrade) {
-                        // İşlem içerisindeyken fiyat TP veya SL seviyesine ulaştı mı kontrol et
                         let hitTP = (trade.type === 'LONG' && markPrice >= trade.tp) || (trade.type === 'SHORT' && markPrice <= trade.tp);
                         let hitSL = (trade.type === 'LONG' && markPrice <= trade.sl) || (trade.type === 'SHORT' && markPrice >= trade.sl);
 
                         if (hitTP || hitSL) {
-                            // İşlem sonlandı, kilidi kaldır ve hafızayı güncelle
                             trade.inTrade = false;
                             saveActiveTrades();
                         }
                     }
 
-                    // Eğer işlemde DEĞİLSEK ve API yeni sinyal veriyorsa (ai.entry varsa) işlemi kilitle ve kaydet
                     if (!trade.inTrade && ai && ai.entry) {
                         trade.inTrade = true;
-                        trade.entry = markPrice; // O anki fiyat giriş olarak sabitleniyor
+                        trade.entry = markPrice; 
                         trade.tp = parseFloat(ai.tp) || (markPrice * 1.02);
                         trade.sl = parseFloat(ai.sl) || (markPrice * 0.99);
                         trade.type = ai.type || 'LONG';
-                        saveActiveTrades(); // Kalıcı hafızaya kaydet
+                        saveActiveTrades(); 
                     }
 
-                    // Arayüze Giriş, TP ve SL değerlerini basma
                     if (trade.inTrade) {
                         document.getElementById('valEntry').innerText = "$" + trade.entry;
                         document.getElementById('valTP').innerText = "$" + trade.tp;
@@ -372,8 +385,8 @@
                         document.getElementById('valSL').innerText = "$-";
                     }
 
-                    // --- PİVOT DESTEK & DİRENÇ HESAPLAMA ---
-                    let pivots = calculatePivotLevels(d.markPrice);
+                    // --- SABİT PİVOT DESTEK & DİRENÇ ÇAĞRILMASI ---
+                    let pivots = getOrSetPivotLevels(symbol, d.markPrice);
                     document.getElementById('res2').innerText = "$" + pivots.res2;
                     document.getElementById('res1').innerText = "$" + pivots.res1;
                     document.getElementById('sup1').innerText = "$" + pivots.sup1;
