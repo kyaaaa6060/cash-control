@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cash Control - Dinamik Grafik & Tam Basamak</title>
+    <title>Cash Control - Otomatik Çizgili Grafik & Panel</title>
+    <!-- TradingView Lightweight Charts Kütüphanesi -->
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; height: 100vh; overflow: hidden; position: relative; }
         
-        /* Arka Plandaki TradingView Grafik Alanı */
+        /* Arka Plandaki Grafik Alanı */
         #tradingview-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
 
         /* Üst Kontrol / Panel Açma Tuşu Barı */
@@ -64,7 +66,7 @@
 </head>
 <body>
 
-    <!-- Arka Planda Çalışan TradingView Grafik Alanı -->
+    <!-- Arka Planda Çalışan Dinamik Grafik Alanı -->
     <div id="tradingview-container"></div>
 
     <!-- Sağ Üst Köşe Panel Açma/Kapama Tuşu -->
@@ -183,48 +185,98 @@
         let currentSource = "trak";
         let autoInterval = null;
 
+        // Grafik Değişkenleri
+        let chart;
+        let candleSeries;
+        let entryLine, tpLine, slLine;
+
         function togglePanel() {
             let modal = document.getElementById('panelModal');
             modal.classList.toggle('hidden');
         }
 
-        // TradingView Grafiğini seçilen coine göre dinamik yükleyen fonksiyon
-        function updateTradingViewChart(symbol) {
+        // --- GRAFİK FONKSİYONLARI ---
+        function initChart() {
             let container = document.getElementById('tradingview-container');
-            container.innerHTML = ''; // Eski grafiği temizle
+            container.innerHTML = ''; 
             
-            let widgetDiv = document.createElement('div');
-            widgetDiv.className = "tradingview-widget-container";
-            widgetDiv.style.height = "100%";
-            widgetDiv.style.width = "100%";
-            
-            let innerDiv = document.createElement('div');
-            innerDiv.className = "tradingview-widget-container__widget";
-            innerDiv.style.height = "calc(100% - 32px)";
-            innerDiv.style.width = "100%";
-            widgetDiv.appendChild(innerDiv);
-            
-            let script = document.createElement('script');
-            script.type = "text/javascript";
-            script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
-            script.async = true;
-            script.innerHTML = JSON.stringify({
-                "width": "100%",
-                "height": "100%",
-                "symbol": "BINANCE:" + symbol + "USDT",
-                "interval": "15",
-                "timezone": "Europe/Istanbul",
-                "theme": "dark",
-                "style": "1",
-                "locale": "tr",
-                "allow_symbol_change": true,
-                "calendar": false,
-                "support_host": "https://www.tradingview.com"
+            chart = LightweightCharts.createChart(container, {
+                width: container.clientWidth,
+                height: container.clientHeight,
+                layout: { background: { type: 'solid', color: '#0b0e11' }, textColor: '#eaeaea' },
+                grid: { vertLines: { color: '#1e2329' }, horzLines: { color: '#1e2329' } },
+                crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+                timeScale: { timeVisible: true, secondsVisible: false, borderColor: '#2b2b2b' },
+                rightPriceScale: { borderColor: '#2b2b2b' }
             });
-            
-            widgetDiv.appendChild(script);
-            container.appendChild(widgetDiv);
+
+            candleSeries = chart.addCandlestickSeries({
+                upColor: '#0ecb81', downColor: '#f6465d',
+                borderVisible: false,
+                wickUpColor: '#0ecb81', wickDownColor: '#f6465d'
+            });
+
+            // Ekran boyutu değiştiğinde grafiği yeniden boyutlandır
+            window.addEventListener('resize', () => {
+                chart.resize(container.clientWidth, container.clientHeight);
+            });
         }
+
+        // Binance üzerinden canlı mum verilerini çek (15 Dakikalık)
+        async function fetchCandleData(symbol) {
+            try {
+                let formattedSymbol = symbol + "USDT";
+                let response = await fetch(`https://api.binance.com/api/v3/klines?symbol=${formattedSymbol}&interval=15m&limit=200`);
+                let data = await response.json();
+                
+                let chartData = data.map(d => ({
+                    time: d[0] / 1000,
+                    open: parseFloat(d[1]),
+                    high: parseFloat(d[2]),
+                    low: parseFloat(d[3]),
+                    close: parseFloat(d[4])
+                }));
+                candleSeries.setData(chartData);
+            } catch (err) {
+                console.error("Grafik verisi alınamadı:", err);
+            }
+        }
+
+        // Grafik üzerine Çizgileri ekle
+        function drawStrategyLines(entryPrice, tpPrice, slPrice) {
+            if(!candleSeries) return;
+
+            // Eski çizgileri temizle
+            if(entryLine) candleSeries.removePriceLine(entryLine);
+            if(tpLine) candleSeries.removePriceLine(tpLine);
+            if(slLine) candleSeries.removePriceLine(slLine);
+
+            // Giriş (Sarı)
+            if(entryPrice) {
+                entryLine = candleSeries.createPriceLine({
+                    price: parseFloat(entryPrice),
+                    color: '#f0b90b', lineWidth: 2, lineStyle: 2,
+                    axisLabelVisible: true, title: 'ENTRY'
+                });
+            }
+            // Kar Al (Yeşil)
+            if(tpPrice) {
+                tpLine = candleSeries.createPriceLine({
+                    price: parseFloat(tpPrice),
+                    color: '#0ecb81', lineWidth: 2, lineStyle: 2,
+                    axisLabelVisible: true, title: 'TP'
+                });
+            }
+            // Stop Ol (Kırmızı)
+            if(slPrice) {
+                slLine = candleSeries.createPriceLine({
+                    price: parseFloat(slPrice),
+                    color: '#f6465d', lineWidth: 2, lineStyle: 2,
+                    axisLabelVisible: true, title: 'SL'
+                });
+            }
+        }
+        // -----------------------------
 
         async function loadCoins() {
             try {
@@ -251,7 +303,8 @@
                     }
                     
                     if(currentSymbol) {
-                        updateTradingViewChart(currentSymbol);
+                        initChart();
+                        await fetchCandleData(currentSymbol);
                         fetchStats(currentSymbol);
                         startRealtimeSync();
                     }
@@ -269,13 +322,17 @@
                     let d = json.data;
                     let ai = d.ai_analysis;
                     
-                    // Virgülden sonraki TÜM basamakların tam olarak görünmesi sağlandı
+                    // Mark fiyat
                     document.getElementById('markPrice').innerText = "$" + d.markPrice;
                     
+                    // Fiyatları basamak kısıtlaması olmadan yazdır
                     document.getElementById('aiComment').innerText = ai.comment;
                     document.getElementById('valEntry').innerText = "$" + ai.entry;
                     document.getElementById('valTP').innerText = "$" + ai.tp;
                     document.getElementById('valSL').innerText = "$" + ai.sl;
+                    
+                    // Çizgileri grafiğe uygula
+                    drawStrategyLines(ai.entry, ai.tp, ai.sl);
                     
                     let srcData = d.sources[currentSource] || d.sources["trak"];
                     
@@ -295,10 +352,10 @@
             }
         }
 
-        function onCoinChange() {
+        async function onCoinChange() {
             let select = document.getElementById('coinSelect');
             currentSymbol = select.value;
-            updateTradingViewChart(currentSymbol); // Seçilen coinin grafiğini anında yenile
+            await fetchCandleData(currentSymbol); // Seçilen coinin mum verilerini anında yenile
             fetchStats(currentSymbol);
         }
 
@@ -310,6 +367,7 @@
         }
 
         function manualRefresh() {
+            fetchCandleData(currentSymbol);
             fetchStats(currentSymbol);
         }
 
@@ -322,6 +380,8 @@
                     secondsLeft = 5;
                     if(currentSymbol) {
                         fetchStats(currentSymbol);
+                        // Canlıda sürekli mum verisi çekmek apiyi yorabileceğinden sadece paneli güncelliyoruz.
+                        // Manuel yenile dendiğinde mum verisi de yenilenir.
                     }
                 }
                 let countEl = document.getElementById('refreshCountdown');
