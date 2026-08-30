@@ -7,10 +7,8 @@
     <style>
         body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; height: 100vh; overflow: hidden; position: relative; }
         
-        /* Arka Plandaki TradingView Grafik Alanı */
         #tradingview-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
 
-        /* Üst Kontrol / Panel Açma, Zaman Seçimi ve Çıkış Tuşu Barı */
         .top-control-bar { position: absolute; top: 15px; right: 20px; z-index: 10; display: flex; gap: 8px; align-items: center; }
         
         .timeframe-select { background: #1e2329; color: #f0b90b; border: 1px solid #2f363d; padding: 8px 10px; border-radius: 6px; font-weight: bold; font-size: 13px; outline: none; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
@@ -22,12 +20,10 @@
         .logout-btn { background: #1e2329; color: #f6465d; border: 1px solid #2f363d; padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: 0.2s; }
         .logout-btn:hover { background: rgba(246, 70, 93, 0.15); border-color: #f6465d; }
 
-        /* Rol Gösterge Rozeti (Panel İçinde) */
         .role-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 6px; }
         .role-badge.admin { background: rgba(240, 185, 11, 0.2); color: #f0b90b; border: 1px solid rgba(240, 185, 11, 0.4); }
         .role-badge.user { background: rgba(14, 203, 129, 0.2); color: #0ecb81; border: 1px solid rgba(14, 203, 129, 0.4); }
 
-        /* Şifre Giriş Kilidi (Auth Modal) */
         .auth-overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(11, 14, 17, 0.95); z-index: 100; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(8px); }
         .auth-card { background: #181a20; border: 1px solid #2b2b2b; border-radius: 10px; width: 100%; max-width: 350px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); text-align: center; }
         .auth-title { font-size: 16px; font-weight: bold; color: #fff; margin-bottom: 6px; }
@@ -38,7 +34,6 @@
         .auth-btn:hover { background: #fcd535; }
         .auth-error { color: #f6465d; font-size: 11px; margin-top: 8px; display: none; }
 
-        /* Ön Plandaki Açılır/Kapanır Ana Panel (Modal) */
         .modal-overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.6); z-index: 20; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(3px); transition: 0.3s ease; }
         .modal-overlay.hidden { display: none; }
 
@@ -58,7 +53,6 @@
         .ivme-desc { font-size: 12px; color: #b7bdc6; line-height: 1.4; margin-bottom: 8px; }
         .ivme-footer { display: flex; gap: 15px; font-size: 11px; color: #848e9c; border-top: 1px solid #2b2b2b; padding-top: 6px; }
         
-        /* Destek/Direnç ve Formasyon Izgarası */
         .analysis-extra-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
         .extra-card { background: #121418; border: 1px solid #23272e; border-radius: 6px; padding: 8px 10px; }
         .extra-title { font-size: 11px; font-weight: bold; color: #848e9c; margin-bottom: 6px; border-bottom: 1px solid #23272e; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
@@ -97,7 +91,6 @@
 </head>
 <body>
 
-    <!-- ŞİFRE GİRİŞ KİLİDİ -->
     <div id="authOverlay" class="auth-overlay">
         <div class="auth-card">
             <div class="auth-title">🔐 Cash Control</div>
@@ -108,10 +101,8 @@
         </div>
     </div>
 
-    <!-- Arka Planda Çalışan TradingView Grafik Alanı -->
     <div id="tradingview-container"></div>
 
-    <!-- Sağ Üst Köşe Kontrol Barı (Zaman Dilimi Seçici, Panel Açma, Çıkış) -->
     <div class="top-control-bar">
         <select id="timeframeSelect" class="timeframe-select" onchange="onTimeframeChange()">
             <option value="5">5 Dakika</option>
@@ -128,7 +119,6 @@
         <button class="logout-btn" onclick="logoutSession()">🔒 Çıkış Yap</button>
     </div>
 
-    <!-- Ön Plandaki Açılır/Kapanır Ana Panel (Modal) -->
     <div id="panelModal" class="modal-overlay">
         <div class="main-card">
             <div class="header-top">
@@ -139,7 +129,6 @@
                 <div class="close-btn" onclick="togglePanel()">✕</div>
             </div>
 
-            <!-- Hacim İvmesi & Akış Motoru -->
             <div class="ivme-box">
                 <div class="ivme-top">
                     <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
@@ -157,9 +146,7 @@
                 </div>
             </div>
 
-            <!-- Destek / Direnç ve Formasyonlar Alanı -->
             <div class="analysis-extra-grid">
-                <!-- Destek / Direnç Kutusu (Sabit Pivot) -->
                 <div class="extra-card">
                     <div class="extra-title">🛡️ Pivot Destek & Direnç</div>
                     <div class="extra-content" id="supportResistanceContainer">
@@ -170,7 +157,6 @@
                     </div>
                 </div>
 
-                <!-- Aktif Formasyonlar Kutusu -->
                 <div class="extra-card">
                     <div class="extra-title">📐 Aktif Formasyonlar</div>
                     <div class="extra-content" id="patternsContainer">
@@ -179,7 +165,6 @@
                 </div>
             </div>
 
-            <!-- Giriş, Kâr Al, Stop Ol -->
             <div class="prices-grid">
                 <div class="price-item">
                     <div class="lbl">GİRİŞ (ENTRY)</div>
@@ -206,7 +191,6 @@
                 <div class="src-btn active" onclick="setSource('trak', this)" style="grid-column: span 3;">Tüm Kaynakların Ort.</div>
             </div>
 
-            <!-- Coin Seçimi ve Anlık Mark Fiyat -->
             <div class="bottom-bar">
                 <div>
                     <span style="font-size: 12px; color: #848e9c; margin-right: 6px;">Coin:</span>
@@ -218,7 +202,6 @@
                 </div>
             </div>
 
-            <!-- Otomatik Güncelleme Barı -->
             <div class="refresh-status-bar">
                 <div>⏳ Cache: <span id="refreshCountdown">5s</span></div>
                 <button class="reset-btn" id="resetBtn" onclick="manualRefresh()">Sıfırla</button>
@@ -230,7 +213,6 @@
                 <div>Geçmiş</div>
             </div>
 
-            <!-- ALT KISIM: Long, Short ve Ortalama Kartları -->
             <div id="resultCardsContainer">
                 <div class="result-card long">
                     <div>
@@ -265,9 +247,6 @@
         let currentSource = "trak";
         let autoInterval = null;
         let currentUserRole = null;
-
-        // Tarayıcı belleğinden aktif işlemleri yüklüyoruz (Böylece sayfaya tekrar girince işlem silinmez/değişmez)
-        let activeTrades = JSON.parse(localStorage.getItem('cashControl_activeTrades')) || {};
         let savedPivots = JSON.parse(localStorage.getItem('cashControl_savedPivots')) || {};
 
         const ADMIN_PASS = "1453";
@@ -312,10 +291,6 @@
         function logoutSession() {
             localStorage.removeItem('cashControl_role');
             location.reload();
-        }
-
-        function saveActiveTrades() {
-            localStorage.setItem('cashControl_activeTrades', JSON.stringify(activeTrades));
         }
 
         function saveSavedPivots() {
@@ -434,48 +409,14 @@
                 if(json.status === 'success') {
                     let d = json.data;
                     let ai = d.ai_analysis;
-                    let markPrice = parseFloat(d.markPrice);
                     
                     document.getElementById('markPrice').innerText = "$" + d.markPrice;
                     document.getElementById('aiComment').innerText = `[${timeframe} Periyot] ` + ai.comment;
 
-                    if (!activeTrades[symbol]) {
-                        activeTrades[symbol] = { inTrade: false, entry: null, tp: null, sl: null, type: null };
-                    }
-
-                    let trade = activeTrades[symbol];
-
-                    // İşlem aktifse TP veya SL'ye ulaşıp ulaşmadığını kontrol et (Sadece bu durumda kapanır)
-                    if (trade.inTrade) {
-                        let hitTP = (trade.type === 'LONG' && markPrice >= trade.tp) || (trade.type === 'SHORT' && markPrice <= trade.tp);
-                        let hitSL = (trade.type === 'LONG' && markPrice <= trade.sl) || (trade.type === 'SHORT' && markPrice >= trade.sl);
-
-                        if (hitTP || hitSL) {
-                            trade.inTrade = false; // İşlem bitti, yeni sinyale geçebilir
-                            saveActiveTrades();
-                        }
-                    }
-
-                    // İşlem kapalıysa yeni sinyali kilitler ve kaydeder
-                    if (!trade.inTrade && ai && ai.entry) {
-                        trade.inTrade = true;
-                        trade.entry = markPrice; 
-                        trade.tp = parseFloat(ai.tp) || (markPrice * 1.02);
-                        trade.sl = parseFloat(ai.sl) || (markPrice * 0.99);
-                        trade.type = ai.type || 'LONG';
-                        saveActiveTrades(); 
-                    }
-
-                    // Ekrana yansıtma (İşlem bitene kadar bu değerler sabit kalır)
-                    if (trade.inTrade) {
-                        document.getElementById('valEntry').innerText = "$" + trade.entry;
-                        document.getElementById('valTP').innerText = "$" + trade.tp;
-                        document.getElementById('valSL').innerText = "$" + trade.sl;
-                    } else {
-                        document.getElementById('valEntry').innerText = "$-";
-                        document.getElementById('valTP').innerText = "$-";
-                        document.getElementById('valSL').innerText = "$-";
-                    }
+                    // Sunucudan gelen ortak işlem fiyatlarını ekrana basıyoruz (Böylece tüm cihazlar aynı görür)
+                    document.getElementById('valEntry').innerText = "$" + ai.entry.toFixed(2);
+                    document.getElementById('valTP').innerText = "$" + ai.tp.toFixed(2);
+                    document.getElementById('valSL').innerText = "$" + ai.sl.toFixed(2);
 
                     let pivots = getOrSetPivotLevels(symbol, d.markPrice);
                     document.getElementById('res2').innerText = "$" + pivots.res2;
@@ -484,28 +425,17 @@
                     document.getElementById('sup2').innerText = "$" + pivots.sup2;
 
                     let patternsContainer = document.getElementById('patternsContainer');
-                    patternsContainer.innerHTML = '';
-                    
-                    if (d.patterns && d.patterns.length > 0) {
-                        d.patterns.forEach(pat => {
-                            let div = document.createElement('div');
-                            div.className = 'pattern-item';
-                            div.innerHTML = `<span><strong>${pat.name}</strong></span> <span style="color: #0ecb81; font-weight: bold;">$${pat.target}</span>`;
-                            patternsContainer.appendChild(div);
-                        });
-                    } else {
-                        patternsContainer.innerHTML = `<div class="no-pattern">Aktif Formasyon Bulunamadı</div>`;
-                    }
+                    patternsContainer.innerHTML = `<div class="no-pattern">Aktif Formasyon Bulunamadı</div>`;
                     
                     let srcData = d.sources[currentSource] || d.sources["trak"];
                     
-                    document.getElementById('longVal').innerText = "$" + srcData.long_avg;
+                    document.getElementById('longVal').innerText = "$" + srcData.long_avg.toFixed(2);
                     document.getElementById('longSub').innerText = `(${srcData.long_count} işlem, $${srcData.long_size.toFixed(1)}K size)`;
                     
-                    document.getElementById('shortVal').innerText = "$" + srcData.short_avg;
+                    document.getElementById('shortVal').innerText = "$" + srcData.short_avg.toFixed(2);
                     document.getElementById('shortSub').innerText = `(${srcData.short_count} işlem, $${srcData.short_size.toFixed(1)}K size)`;
                     
-                    document.getElementById('avgVal').innerText = "$" + srcData.general_avg;
+                    document.getElementById('avgVal').innerText = "$" + srcData.general_avg.toFixed(2);
                     
                     let now = new Date();
                     document.getElementById('currentTime').innerText = now.toLocaleDateString('tr-TR') + " " + now.toLocaleTimeString('tr-TR') + " (TRT)";
