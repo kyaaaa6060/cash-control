@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="Cash Control Engine - Full UI Sync", version="13.0")
+app = FastAPI(title="Cash Control Engine - Full UI Sync", version="13.1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -19,6 +19,9 @@ CACHE = {
     "data": {}
 }
 CACHE_DURATION = 5 
+
+# Tüm cihazların (telefon, tablet vb.) ortak göreceği aktif işlemler hafızası
+ACTIVE_TRADES = {}
 
 def get_binance_futures_tickers():
     """Binance Futures üzerinden anlık Mark Fiyatları ve Fonlama Oranlarını çeker"""
@@ -57,7 +60,6 @@ def fetch_karma_market_data():
             universe = data[0].get("universe", [])
             ctxs = data[1]
             
-            # Görseldeki 6 adet tam buton ismi
             sources = ["copy", "whale", "genel_terste", "ters_6_20", "top20_terste", "top20_oransal", "trak"]
             
             for i, asset in enumerate(universe):
@@ -101,17 +103,36 @@ def fetch_karma_market_data():
                         "general_avg": general_avg
                     }
 
-                entry = mark_px * 0.995
-                tp = mark_px * 1.028
-                sl = mark_px * 0.978
+                # Sunucu tarafında ortak işlem yönetimi
+                if name not in ACTIVE_TRADES:
+                    ACTIVE_TRADES[name] = {
+                        "inTrade": True,
+                        "entry": mark_px,
+                        "tp": mark_px * 1.028,
+                        "sl": mark_px * 0.978,
+                        "type": "LONG"
+                    }
                 
+                trade = ACTIVE_TRADES[name]
+                
+                # Fiyat TP veya SL seviyesine ulaştıysa işlemi kapat ve yenile
+                hitTP = (trade["type"] == 'LONG' and mark_px >= trade["tp"]) or (trade["type"] == 'SHORT' and mark_px <= trade["tp"])
+                hitSL = (trade["type"] == 'LONG' and mark_px <= trade["sl"]) or (trade["type"] == 'SHORT' and mark_px >= trade["sl"])
+                
+                if hitTP or hitSL or not trade["inTrade"]:
+                    trade["inTrade"] = True
+                    trade["entry"] = mark_px
+                    trade["tp"] = mark_px * 1.028
+                    trade["sl"] = mark_px * 0.978
+                    trade["type"] = "LONG"
+
                 ai_report = {
                     "signal": "LONG İVME BASKISI",
-                    "comment": f"Normal eğrinin üzerinde +4.7x Hız ile tetiklenen yoğunluk tespit edildi. Giriş ${entry:,.2f} seviyesinden planlandı; hedef ${tp:,.2f}, stop ${sl:,.2f} seviyesindedir.",
+                    "comment": f"Normal eğrinin üzerinde +4.7x Hız ile tetiklenen yoğunluk tespit edildi. Giriş ${trade['entry']:,.2f} seviyesinden planlandı; hedef ${trade['tp']:,.2f}, stop ${trade['sl']:,.2f} seviyesindedir.",
                     "confluence": 88.4,
-                    "entry": entry,
-                    "tp": tp,
-                    "sl": sl
+                    "entry": trade["entry"],
+                    "tp": trade["tp"],
+                    "sl": trade["sl"]
                 }
 
                 processed_coins[name] = {
