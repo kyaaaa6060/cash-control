@@ -59,7 +59,6 @@
         .extra-content { font-size: 12px; color: #eaeaea; }
         .level-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 11px; }
         .level-lbl { color: #848e9c; }
-        .pattern-item { background: #1e2329; border-radius: 4px; padding: 6px 8px; margin-bottom: 4px; font-size: 11px; border-left: 2px solid #f0b90b; display: flex; justify-content: space-between; align-items: center; }
         .no-pattern { color: #848e9c; font-style: italic; font-size: 11px; text-align: center; padding: 6px; }
 
         .prices-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #121418; padding: 8px 10px; border-radius: 6px; margin-bottom: 10px; text-align: center; border: 1px solid #23272e; }
@@ -302,6 +301,15 @@
             modal.classList.toggle('hidden');
         }
 
+        function formatPrice(val) {
+            let num = parseFloat(val);
+            if (isNaN(num)) return "$-";
+            if (num < 0.0001) return num.toFixed(6);
+            if (num < 1) return num.toFixed(4);
+            if (num < 10) return num.toFixed(3);
+            return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
         function updateTradingViewChart(symbol, timeframe) {
             let container = document.getElementById('tradingview-container');
             container.innerHTML = ''; 
@@ -392,10 +400,10 @@
             let s2 = pivot - (high - low);
 
             savedPivots[symbol] = {
-                res2: r2.toFixed(2),
-                res1: r1.toFixed(2),
-                sup1: s1.toFixed(2),
-                sup2: s2.toFixed(2)
+                res2: r2,
+                res1: r1,
+                sup1: s1,
+                sup2: s2
             };
             
             saveSavedPivots();
@@ -410,32 +418,31 @@
                     let d = json.data;
                     let ai = d.ai_analysis;
                     
-                    document.getElementById('markPrice').innerText = "$" + d.markPrice;
+                    document.getElementById('markPrice').innerText = "$" + formatPrice(d.markPrice);
                     document.getElementById('aiComment').innerText = `[${timeframe} Periyot] ` + ai.comment;
 
-                    // Sunucudan gelen ortak işlem fiyatlarını ekrana basıyoruz (Böylece tüm cihazlar aynı görür)
-                    document.getElementById('valEntry').innerText = "$" + ai.entry.toFixed(2);
-                    document.getElementById('valTP').innerText = "$" + ai.tp.toFixed(2);
-                    document.getElementById('valSL').innerText = "$" + ai.sl.toFixed(2);
+                    document.getElementById('valEntry').innerText = "$" + formatPrice(ai.entry);
+                    document.getElementById('valTP').innerText = "$" + formatPrice(ai.tp);
+                    document.getElementById('valSL').innerText = "$" + formatPrice(ai.sl);
 
                     let pivots = getOrSetPivotLevels(symbol, d.markPrice);
-                    document.getElementById('res2').innerText = "$" + pivots.res2;
-                    document.getElementById('res1').innerText = "$" + pivots.res1;
-                    document.getElementById('sup1').innerText = "$" + pivots.sup1;
-                    document.getElementById('sup2').innerText = "$" + pivots.sup2;
+                    document.getElementById('res2').innerText = "$" + formatPrice(pivots.res2);
+                    document.getElementById('res1').innerText = "$" + formatPrice(pivots.res1);
+                    document.getElementById('sup1').innerText = "$" + formatPrice(pivots.sup1);
+                    document.getElementById('sup2').innerText = "$" + formatPrice(pivots.sup2);
 
                     let patternsContainer = document.getElementById('patternsContainer');
                     patternsContainer.innerHTML = `<div class="no-pattern">Aktif Formasyon Bulunamadı</div>`;
                     
                     let srcData = d.sources[currentSource] || d.sources["trak"];
                     
-                    document.getElementById('longVal').innerText = "$" + srcData.long_avg.toFixed(2);
+                    document.getElementById('longVal').innerText = "$" + formatPrice(srcData.long_avg);
                     document.getElementById('longSub').innerText = `(${srcData.long_count} işlem, $${srcData.long_size.toFixed(1)}K size)`;
                     
-                    document.getElementById('shortVal').innerText = "$" + srcData.short_avg.toFixed(2);
+                    document.getElementById('shortVal').innerText = "$" + formatPrice(srcData.short_avg);
                     document.getElementById('shortSub').innerText = `(${srcData.short_count} işlem, $${srcData.short_size.toFixed(1)}K size)`;
                     
-                    document.getElementById('avgVal').innerText = "$" + srcData.general_avg.toFixed(2);
+                    document.getElementById('avgVal').innerText = "$" + formatPrice(srcData.general_avg);
                     
                     let now = new Date();
                     document.getElementById('currentTime').innerText = now.toLocaleDateString('tr-TR') + " " + now.toLocaleTimeString('tr-TR') + " (TRT)";
