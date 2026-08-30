@@ -432,7 +432,16 @@
                     document.getElementById('sup2').innerText = "$" + formatPrice(pivots.sup2);
 
                     let patternsContainer = document.getElementById('patternsContainer');
-                    patternsContainer.innerHTML = `<div class="no-pattern">Aktif Formasyon Bulunamadı</div>`;
+                    if (d.patterns && d.patterns.length > 0) {
+                        patternsContainer.innerHTML = d.patterns.map(p => `
+                            <div class="level-row">
+                                <span class="level-lbl" style="color: #fff;">${p.name}</span> 
+                                <span style="color: #0ecb81; font-weight: bold;">${p.confidence}</span>
+                            </div>
+                        `).join('');
+                    } else {
+                        patternsContainer.innerHTML = `<div class="no-pattern">Aktif Formasyon Bulunamadı</div>`;
+                    }
                     
                     let srcData = d.sources[currentSource] || d.sources["trak"];
                     
