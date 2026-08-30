@@ -140,7 +140,7 @@
             gap: 5px;
         }
 
-.tab-item.active {
+        .tab-item.active {
             color: var(--accent-yellow);
         }
 
@@ -163,60 +163,6 @@
         .dot-green { background-color: var(--long-color); }
         .dot-red { background-color: var(--short-color); }
         .dot-yellow { background-color: var(--accent-yellow); }
-
-        /* --- PRO TRADER PANELİ (KADEMELİ GİRİŞ & LİKİDİTE) --- */
-        .trader-panel {
-            background-color: var(--btn-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 8px;
-            padding: 14px;
-            margin-top: 12px;
-        }
-        .trader-header {
-            font-size: 12px;
-            font-weight: 700;
-            color: var(--accent-yellow);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 6px;
-            margin-bottom: 8px;
-            border-bottom: 1px solid var(--card-border);
-            padding-bottom: 6px;
-        }
-        .trader-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            margin-top: 8px;
-        }
-        .trader-box {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 6px;
-            padding: 8px;
-            text-align: center;
-        }
-        .trader-box-title { font-size: 10px; color: var(--text-muted); margin-bottom: 4px; }
-        .trader-box-val { font-size: 12px; font-weight: 700; }
-        .trader-desc {
-            font-size: 11px;
-            color: var(--text-main);
-            margin-top: 8px;
-            line-height: 1.4;
-            background: rgba(0,0,0,0.2);
-            padding: 6px 8px;
-            border-radius: 6px;
-        }
-        .reset-btn {
-            background: rgba(246, 70, 93, 0.2);
-            border: 1px solid var(--short-color);
-            color: var(--short-color);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 10px;
-            cursor: pointer;
-        }
     </style>
 </head>
 <body>
@@ -239,10 +185,10 @@
             <button class="source-btn" id="src-combined" onclick="setSource('combined_avg', 'Tüm Kaynakların Ortalaması')">Tüm Kaynakların Ort.</button>
         </div>
 
-<div class="selector-row">
+        <div class="selector-row">
             <div>
                 <span style="font-size: 13px; color: var(--text-muted);">Coin:</span>
-                <select id="coin-select" onchange="onCoinChange()">
+                <select id="coin-select" onchange="updateViewData()">
                     <option value="BTC">Yükleniyor...</option>
                 </select>
             </div>
@@ -283,31 +229,6 @@
             </div>
             <div class="metric-val" id="general-val" style="color: var(--accent-yellow);">$0,0000</div>
         </div>
-
-        <!-- PRO TRADER & LİKİDİTE TAKİP MASASI -->
-        <div class="trader-panel">
-            <div class="trader-header">
-                <span>⚡ Likidite & Kademeli Giriş Takip Masası</span>
-                <button class="reset-btn" onclick="resetStrategyLock()">Yeni Sinyal Al</button>
-            </div>
-            <div class="trader-desc" id="ai-market-status">
-                Piyasa likiditesi taranıyor...
-            </div>
-            <div class="trader-grid">
-                <div class="trader-box">
-                    <div class="trader-box-title">KADEMELİ GİRİŞ (ZONE)</div>
-                    <div class="trader-box-val" id="ai-entry-zone" style="color: var(--accent-yellow);">-</div>
-                </div>
-                <div class="trader-box">
-                    <div class="trader-box-title">HEDEF (TP)</div>
-                    <div class="trader-box-val" id="ai-tp-zone" style="color: var(--long-color);">-</div>
-                </div>
-                <div class="trader-box">
-                    <div class="trader-box-title">STOP (SL)</div>
-                    <div class="trader-box-val" id="ai-sl-zone" style="color: var(--short-color);">-</div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script>
@@ -325,8 +246,7 @@
                     data.coins.forEach(coin => {
                         let opt = document.createElement("option");
                         opt.value = coin;
-
-opt.innerText = coin + "USDT";
+                        opt.innerText = coin + "USDT";
                         if(coin === "BTC") opt.selected = true;
                         select.appendChild(opt);
                     });
@@ -340,7 +260,7 @@ opt.innerText = coin + "USDT";
         async function fetchMarketData() {
             let coin = document.getElementById("coin-select").value;
             try {
-                let res = await fetch(/api/market-stats/${coin});
+                let res = await fetch(`/api/market-stats/${coin}`);
                 let result = await res.json();
                 
                 if(result.status === "success") {
@@ -355,15 +275,13 @@ opt.innerText = coin + "USDT";
             }
         }
 
-        function onCoinChange() {
-            fetchMarketData();
-        }
-
         function setSource(sourceKey, titleText) {
             currentSource = sourceKey;
             document.getElementById("modal-main-title").innerText = "📊 " + titleText;
+            
             document.querySelectorAll('.source-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
+            
             updateViewData();
         }
 
@@ -374,19 +292,12 @@ opt.innerText = coin + "USDT";
             updateViewData();
         }
 
-        function resetStrategyLock() {
-            let selectedCoin = document.getElementById("coin-select").value;
-            let lockKey = trader_liquidity_track_${selectedCoin}_${currentSource};
-            localStorage.removeItem(lockKey);
-            updateViewData();
-        }
-
-        function updateViewData() {
+        async function updateViewData() {
             if (!cachedResponse) return;
             
             let selectedCoin = document.getElementById("coin-select").value;
             if (cachedResponse.data.symbol !== selectedCoin + "USDT") {
-                fetchMarketData();
+                await fetchMarketData();
                 return;
             }
 
@@ -400,121 +311,16 @@ opt.innerText = coin + "USDT";
             let genVal = sourceData.general_avg * multiplier;
 
             document.getElementById("long-val").innerText = "$" + longVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
-            document.getElementById("long-sub").innerText = (${sourceData.long_count} işlem, $${(sourceData.long_size/1000).toFixed(2)}K size);
+            document.getElementById("long-sub").innerText = `(${sourceData.long_count} işlem, $${(sourceData.long_size/1000).toFixed(2)}K size)`;
 
             document.getElementById("short-val").innerText = "$" + shortVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
-            document.getElementById("short-sub").innerText = (${sourceData.short_count} işlem, $${(sourceData.short_size/1000).toFixed(2)}K size);
+            document.getElementById("short-sub").innerText = `(${sourceData.short_count} işlem, $${(sourceData.short_size/1000).toFixed(2)}K size)`;
 
             document.getElementById("general-val").innerText = "$" + genVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
-
-            // --- LİKİDİTE İĞNESİ & KADEMELİ GİRİŞ MANTIĞI ---
-            let lockKey = trader_liquidity_track_${selectedCoin}_${currentSource};
-            let savedLock = localStorage.getItem(lockKey);
-            let markPrice = cachedResponse.data.markPrice;
-            let fundingRate = cachedResponse.data.fundingRate || 0;
-
-            let lockedStrategy;
-
-if (savedLock) {
-                lockedStrategy = JSON.parse(savedLock);
-
-                if (lockedStrategy.status === "CLOSED") {
-                    document.getElementById("ai-market-status").innerHTML = 🛑 <strong>İşlem Sonuçlandı:</strong> ${lockedStrategy.closeReason}. Yeni sinyal bekleniyor.;
-                    document.getElementById("ai-entry-zone").innerText = "Tamamlandı";
-                    document.getElementById("ai-tp-zone").innerText = "-";
-                    document.getElementById("ai-sl-zone").innerText = "-";
-                    return;
-                }
-
-                // Bekleme (Limit Emir / Likidite Havuzu Testi) aşaması
-                if (lockedStrategy.status === "PENDING") {
-                    let reachedEntry = false;
-                    // Kademeli bandın içine veya stop avı iğnesine değdi mi?
-                    if (lockedStrategy.side === "LONG" && markPrice <= lockedStrategy.entryHigh) reachedEntry = true;
-                    if (lockedStrategy.side === "SHORT" && markPrice >= lockedStrategy.entryLow) reachedEntry = true;
-
-                    if (reachedEntry) {
-                        lockedStrategy.status = "ACTIVE"; 
-                        localStorage.setItem(lockKey, JSON.stringify(lockedStrategy));
-                    }
-                }
-
-                // Aktif Pozisyon Takibi (Long: TP üstte, SL altta / Short: TP altta, SL üstte)
-                if (lockedStrategy.status === "ACTIVE") {
-                    if (lockedStrategy.side === "LONG") {
-                        if (markPrice >= lockedStrategy.tp) {
-                            lockedStrategy.status = "CLOSED";
-                            lockedStrategy.closeReason = "🟢 Likidite Hedefi (TP) Geldi!";
-                        } else if (markPrice <= lockedStrategy.sl) {
-                            lockedStrategy.status = "CLOSED";
-                            lockedStrategy.closeReason = "🔴 Likidite Stopu Patladı (SL).";
-                        }
-                    } else if (lockedStrategy.side === "SHORT") {
-                        if (markPrice <= lockedStrategy.tp) {
-                            lockedStrategy.status = "CLOSED";
-                            lockedStrategy.closeReason = "🟢 Likidite Hedefi (TP) Geldi!";
-                        } else if (markPrice >= lockedStrategy.sl) {
-                            lockedStrategy.status = "CLOSED";
-                            lockedStrategy.closeReason = "🔴 Likidite Stopu Patladı (SL).";
-                        }
-                    }
-                    localStorage.setItem(lockKey, JSON.stringify(lockedStrategy));
-                }
-
-            } else {
-                // Yeni Strateji Oluşturma (Kademeli Giriş Bandı + Likidite Teması)
-                let side = fundingRate > 0 ? "LONG" : "SHORT";
-                
-                let entryHigh, entryLow, tpPrice, slPrice;
-
-                if (side === "LONG") {
-                    // Long için kademeli giriş bandı (Ortalamanın altı ve üstü küçük bir aralık)
-                    entryHigh = longVal * 1.002;
-                    entryLow = longVal * 0.992; // Likidite iğnesi için alt sınır
-                    tpPrice = entryHigh * 1.03; // Long TP üstte
-                    slPrice = entryLow * 0.98;   // Long SL altta
-                } else {
-                    // Short için kademeli giriş bandı
-                    entryHigh = shortVal * 1.008; // Likidite iğnesi için üst sınır
-                    entryLow = shortVal * 0.998;
-                    tpPrice = entryLow * 0.97;  // Short TP altta
-                    slPrice = entryHigh * 1.02;  // Short SL üstte
-                }
-
-                lockedStrategy = {
-                    side: side,
-                    entryHigh: entryHigh,
-                    entryLow: entryLow,
-                    entryText: $${entryLow.toFixed(2)} - $${entryHigh.toFixed(2)},
-                    tp: tpPrice,
-                    sl: slPrice,
-                    status: "PENDING",
-                    closeReason: ""
-                };
-
-localStorage.setItem(lockKey, JSON.stringify(lockedStrategy));
-            }
-
-            // Arayüze Yansıtma
-            if (lockedStrategy.status === "CLOSED") {
-                document.getElementById("ai-market-status").innerHTML = 🛑 <strong>İşlem Sonuçlandı:</strong> ${lockedStrategy.closeReason}. Yeni sinyal bekleniyor.;
-                document.getElementById("ai-entry-zone").innerText = "Tamamlandı";
-                document.getElementById("ai-tp-zone").innerText = "-";
-                document.getElementById("ai-sl-zone").innerText = "-";
-            } else {
-                let statusText = lockedStrategy.status === "ACTIVE" 
-                    ? <span style="color:var(--long-color); font-weight:bold;">🟢 LİKİDİTE TEST EDİLDİ (Aktif Pozisyon)</span> 
-                    : <span style="color:var(--accent-yellow); font-weight:bold;">⏳ LİMİT BANT (Stop Avı Bekleniyor)</span>;
-
-                document.getElementById("ai-market-status").innerHTML = Yön: <strong>${lockedStrategy.side} (Kademeli Bant)</strong> | Durum: ${statusText};
-                document.getElementById("ai-entry-zone").innerText = lockedStrategy.entryText;
-                document.getElementById("ai-tp-zone").innerText = $${lockedStrategy.tp.toFixed(2)};
-                document.getElementById("ai-sl-zone").innerText = $${lockedStrategy.sl.toFixed(2)};
-            }
         }
 
         loadCoinList();
-        setInterval(fetchMarketData, 30000);
+        setInterval(fetchMarketData, 10000);
     </script>
 </body>
 </html>
