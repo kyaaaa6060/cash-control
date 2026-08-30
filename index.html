@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cash Control - Grafik ve Panel</title>
+    <title>Cash Control - Dinamik Grafik & Tam Basamak</title>
     <style>
         body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; height: 100vh; overflow: hidden; position: relative; }
         
@@ -37,7 +37,7 @@
         
         .prices-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #121418; padding: 8px 10px; border-radius: 6px; margin-bottom: 10px; text-align: center; border: 1px solid #23272e; }
         .price-item .lbl { font-size: 10px; color: #848e9c; margin-bottom: 2px; }
-        .price-item .val { font-size: 14px; font-weight: bold; }
+        .price-item .val { font-size: 13px; font-weight: bold; word-break: break-all; }
         
         .source-label { font-size: 11px; color: #848e9c; margin-bottom: 6px; text-align: center; }
         .source-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
@@ -59,32 +59,13 @@
         .result-card.avg { border-left: 3px solid #f0b90b; }
         .res-title { font-size: 12px; font-weight: bold; color: #fff; display: flex; align-items: center; gap: 5px; }
         .res-sub { font-size: 10px; color: #848e9c; margin-top: 2px; }
-        .res-val { font-size: 15px; font-weight: bold; }
+        .res-val { font-size: 14px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <!-- Arka Planda Çalışan TradingView Grafiği -->
-    <div id="tradingview-container">
-        <div class="tradingview-widget-container" style="height:100%;width:100%">
-            <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
-            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-            {
-                "width": "100%",
-                "height": "100%",
-                "symbol": "BINANCE:BTCUSDT",
-                "interval": "15",
-                "timezone": "Europe/Istanbul",
-                "theme": "dark",
-                "style": "1",
-                "locale": "tr",
-                "allow_symbol_change": true,
-                "calendar": false,
-                "support_host": "https://www.tradingview.com"
-            }
-            </script>
-        </div>
-    </div>
+    <!-- Arka Planda Çalışan TradingView Grafik Alanı -->
+    <div id="tradingview-container"></div>
 
     <!-- Sağ Üst Köşe Panel Açma/Kapama Tuşu -->
     <div class="top-control-bar">
@@ -207,6 +188,44 @@
             modal.classList.toggle('hidden');
         }
 
+        // TradingView Grafiğini seçilen coine göre dinamik yükleyen fonksiyon
+        function updateTradingViewChart(symbol) {
+            let container = document.getElementById('tradingview-container');
+            container.innerHTML = ''; // Eski grafiği temizle
+            
+            let widgetDiv = document.createElement('div');
+            widgetDiv.className = "tradingview-widget-container";
+            widgetDiv.style.height = "100%";
+            widgetDiv.style.width = "100%";
+            
+            let innerDiv = document.createElement('div');
+            innerDiv.className = "tradingview-widget-container__widget";
+            innerDiv.style.height = "calc(100% - 32px)";
+            innerDiv.style.width = "100%";
+            widgetDiv.appendChild(innerDiv);
+            
+            let script = document.createElement('script');
+            script.type = "text/javascript";
+            script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
+            script.async = true;
+            script.innerHTML = JSON.stringify({
+                "width": "100%",
+                "height": "100%",
+                "symbol": "BINANCE:" + symbol + "USDT",
+                "interval": "15",
+                "timezone": "Europe/Istanbul",
+                "theme": "dark",
+                "style": "1",
+                "locale": "tr",
+                "allow_symbol_change": true,
+                "calendar": false,
+                "support_host": "https://www.tradingview.com"
+            });
+            
+            widgetDiv.appendChild(script);
+            container.appendChild(widgetDiv);
+        }
+
         async function loadCoins() {
             try {
                 let res = await fetch('/api/coins');
@@ -232,6 +251,7 @@
                     }
                     
                     if(currentSymbol) {
+                        updateTradingViewChart(currentSymbol);
                         fetchStats(currentSymbol);
                         startRealtimeSync();
                     }
@@ -249,22 +269,23 @@
                     let d = json.data;
                     let ai = d.ai_analysis;
                     
-                    document.getElementById('markPrice').innerText = "$" + d.markPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    // Virgülden sonraki TÜM basamakların tam olarak görünmesi sağlandı
+                    document.getElementById('markPrice').innerText = "$" + d.markPrice;
                     
                     document.getElementById('aiComment').innerText = ai.comment;
-                    document.getElementById('valEntry').innerText = "$" + ai.entry.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                    document.getElementById('valTP').innerText = "$" + ai.tp.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                    document.getElementById('valSL').innerText = "$" + ai.sl.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    document.getElementById('valEntry').innerText = "$" + ai.entry;
+                    document.getElementById('valTP').innerText = "$" + ai.tp;
+                    document.getElementById('valSL').innerText = "$" + ai.sl;
                     
                     let srcData = d.sources[currentSource] || d.sources["trak"];
                     
-                    document.getElementById('longVal').innerText = "$" + srcData.long_avg.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    document.getElementById('longVal').innerText = "$" + srcData.long_avg;
                     document.getElementById('longSub').innerText = `(${srcData.long_count} işlem, $${srcData.long_size.toFixed(1)}K size)`;
                     
-                    document.getElementById('shortVal').innerText = "$" + srcData.short_avg.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    document.getElementById('shortVal').innerText = "$" + srcData.short_avg;
                     document.getElementById('shortSub').innerText = `(${srcData.short_count} işlem, $${srcData.short_size.toFixed(1)}K size)`;
                     
-                    document.getElementById('avgVal').innerText = "$" + srcData.general_avg.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    document.getElementById('avgVal').innerText = "$" + srcData.general_avg;
                     
                     let now = new Date();
                     document.getElementById('currentTime').innerText = now.toLocaleDateString('tr-TR') + " " + now.toLocaleTimeString('tr-TR') + " (TRT)";
@@ -277,6 +298,7 @@
         function onCoinChange() {
             let select = document.getElementById('coinSelect');
             currentSymbol = select.value;
+            updateTradingViewChart(currentSymbol); // Seçilen coinin grafiğini anında yenile
             fetchStats(currentSymbol);
         }
 
