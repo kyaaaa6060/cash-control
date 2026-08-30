@@ -284,7 +284,7 @@
             <div class="metric-val" id="general-val" style="color: var(--accent-yellow);">$0,0000</div>
         </div>
 
-        <!-- PROFESYONEL TRADER & AI STRATEJİ PANELİ (SABİTLENMİŞ SEVİYELER) -->
+        <!-- PROFESYONEL TRADER & AI STRATEJİ PANELİ (KİLİTLİ SEVİYELER) -->
         <div class="trader-panel">
             <div class="trader-header">
                 <span>⚡ Profesyonel Trader & AI Strateji Masası (Kilitli Sinyal)</span>
@@ -400,6 +400,7 @@
             let shortVal = sourceData.short_avg * multiplier;
             let genVal = sourceData.general_avg * multiplier;
 
+            // 5 dakikada bir güncellenen ağırlıklı ortalamalar ve büyüklükler
             document.getElementById("long-val").innerText = "$" + longVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
             document.getElementById("long-sub").innerText = `(${sourceData.long_count} işlem, $${(sourceData.long_size/1000).toFixed(2)}K size)`;
 
@@ -408,16 +409,14 @@
 
             document.getElementById("general-val").innerText = "$" + genVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
 
-            // --- TARAYICI HAFIZASI (LOCALSTORAGE) İLE KALICI KİLİT ---
+            // --- TARAYICI HAFIZASI (LOCALSTORAGE) İLE SABİTLENMİŞ İŞLEM SEVİYELERİ ---
             let lockKey = `trader_lock_${selectedCoin}_${currentSource}`;
             let savedLock = localStorage.getItem(lockKey);
             let lockedStrategy;
 
             if (savedLock) {
-                // Daha önce kaydedilmişse, tarayıcı hafızasından aynen getir (Asla değişmez)
                 lockedStrategy = JSON.parse(savedLock);
             } else {
-                // İlk defa açılıyorsa hesapla ve tarayıcıya kalıcı olarak kaydet
                 let markPrice = cachedResponse.data.markPrice;
                 let fundingRate = cachedResponse.data.fundingRate || 0;
 
@@ -453,7 +452,7 @@
                 localStorage.setItem(lockKey, JSON.stringify(lockedStrategy));
             }
 
-            // Sabit değerleri ekrana yazdır
+            // Kilitli işlem seviyeleri ekranda sabit kalır
             document.getElementById("ai-market-status").innerHTML = lockedStrategy.text;
             document.getElementById("ai-entry-zone").innerText = `$${lockedStrategy.entry.toFixed(2)}`;
             document.getElementById("ai-tp-zone").innerText = `$${lockedStrategy.tp.toFixed(2)}`;
@@ -461,7 +460,8 @@
         }
 
         loadCoinList();
-        setInterval(fetchMarketData, 10000);
+        // 5 dakikada bir (300000 milisaniye) verileri otomatik günceller
+        setInterval(fetchMarketData, 300000);
     </script>
 </body>
 </html>
