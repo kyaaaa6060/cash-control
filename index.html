@@ -178,6 +178,7 @@
             color: var(--accent-yellow);
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 6px;
             margin-bottom: 8px;
             border-bottom: 1px solid var(--card-border);
@@ -206,6 +207,15 @@
             background: rgba(0,0,0,0.2);
             padding: 6px 8px;
             border-radius: 6px;
+        }
+        .reset-btn {
+            background: rgba(246, 70, 93, 0.2);
+            border: 1px solid var(--short-color);
+            color: var(--short-color);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -278,6 +288,7 @@
         <div class="trader-panel">
             <div class="trader-header">
                 <span>⚡ Profesyonel Trader & AI Strateji Masası (Kilitli Sinyal)</span>
+                <button class="reset-btn" onclick="resetStrategyLock()">Kilidi Yenile</button>
             </div>
             <div class="trader-desc" id="ai-market-status">
                 Strateji kilitleniyor...
@@ -303,16 +314,6 @@
         let currentSource = "all";
         let currentTab = "guncel";
         let cachedResponse = null;
-        
-        // İşlem seviyelerinin sürekli değişmemesi için kilit değişkenleri
-        let lockedStrategy = {
-            coin: "",
-            source: "",
-            entry: 0,
-            tp: 0,
-            sl: 0,
-            text: ""
-        };
 
         async function loadCoinList() {
             try {
@@ -354,8 +355,6 @@
         }
 
         function onCoinChange() {
-            // Coin değiştiğinde kilidi sıfırla ki yeni coin için sabit sinyal oluşturulsun
-            lockedStrategy.coin = "";
             fetchMarketData();
         }
 
@@ -366,8 +365,6 @@
             document.querySelectorAll('.source-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
             
-            // Kaynak değiştiğinde kilidi sıfırla
-            lockedStrategy.source = "";
             updateViewData();
         }
 
@@ -375,6 +372,13 @@
             currentTab = tabName;
             document.getElementById("tab-guncel").className = tabName === 'guncel' ? "tab-item active" : "tab-item";
             document.getElementById("tab-gecmis").className = tabName === 'gecmis' ? "tab-item active" : "tab-item";
+            updateViewData();
+        }
+
+        function resetStrategyLock() {
+            let selectedCoin = document.getElementById("coin-select").value;
+            let lockKey = `trader_lock_${selectedCoin}_${currentSource}`;
+            localStorage.removeItem(lockKey);
             updateViewData();
         }
 
@@ -404,11 +408,18 @@
 
             document.getElementById("general-val").innerText = "$" + genVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
 
-            // --- SABİTLENMİŞ STRATEJİ KONTROLÜ (Sürekli Değişmemesi İçin) ---
-            if (lockedStrategy.coin !== selectedCoin || lockedStrategy.source !== currentSource) {
+            // --- TARAYICI HAFIZASI (LOCALSTORAGE) İLE KALICI KİLİT ---
+            let lockKey = `trader_lock_${selectedCoin}_${currentSource}`;
+            let savedLock = localStorage.getItem(lockKey);
+            let lockedStrategy;
+
+            if (savedLock) {
+                // Daha önce kaydedilmişse, tarayıcı hafızasından aynen getir (Asla değişmez)
+                lockedStrategy = JSON.parse(savedLock);
+            } else {
+                // İlk defa açılıyorsa hesapla ve tarayıcıya kalıcı olarak kaydet
                 let markPrice = cachedResponse.data.markPrice;
                 let fundingRate = cachedResponse.data.fundingRate || 0;
-                let longSize = sourceData.long_size;
 
                 let actionText = "";
                 let entryPrice = markPrice;
@@ -432,16 +443,17 @@
                     slPrice = markPrice * 0.988;
                 }
 
-                // Kilitleme verilerini kaydet
-                lockedStrategy.coin = selectedCoin;
-                lockedStrategy.source = currentSource;
-                lockedStrategy.entry = entryPrice;
-                lockedStrategy.tp = tpPrice;
-                lockedStrategy.sl = slPrice;
-                lockedStrategy.text = actionText;
+                lockedStrategy = {
+                    entry: entryPrice,
+                    tp: tpPrice,
+                    sl: slPrice,
+                    text: actionText
+                };
+
+                localStorage.setItem(lockKey, JSON.stringify(lockedStrategy));
             }
 
-            // Kilitlenen sabit değerleri ekrana yazdır (Veriler arka planda güncellense bile burası sabit kalır)
+            // Sabit değerleri ekrana yazdır
             document.getElementById("ai-market-status").innerHTML = lockedStrategy.text;
             document.getElementById("ai-entry-zone").innerText = `$${lockedStrategy.entry.toFixed(2)}`;
             document.getElementById("ai-tp-zone").innerText = `$${lockedStrategy.tp.toFixed(2)}`;
