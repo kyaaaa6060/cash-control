@@ -73,5 +73,5 @@ def run_background_worker():
         # Her 15 saniyede bir piyasayı arkada tara
         time.sleep(15)
 
-if __name__ == "__main__":
+if name == "main":
     run_background_worker()
