@@ -10,10 +10,13 @@
         /* Arka Plandaki TradingView Grafik Alanı */
         #tradingview-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
 
-        /* Üst Kontrol / Panel Açma Tuşu Barı */
+        /* Üst Kontrol / Panel Açma ve Çıkış Tuşu Barı */
         .top-control-bar { position: absolute; top: 15px; right: 20px; z-index: 10; display: flex; gap: 10px; align-items: center; }
         .toggle-panel-btn { background: #f0b90b; color: #0b0e11; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: 0.2s; }
         .toggle-panel-btn:hover { background: #fcd535; }
+        
+        .logout-btn { background: #1e2329; color: #f6465d; border: 1px solid #2f363d; padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: 0.2s; }
+        .logout-btn:hover { background: rgba(246, 70, 93, 0.15); border-color: #f6465d; }
 
         /* Rol Gösterge Rozeti (Panel İçinde) */
         .role-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 6px; }
@@ -90,7 +93,7 @@
 </head>
 <body>
 
-    <!-- ŞİFRE GİRİŞ KİLİDİ (İpucu Kaldırıldı) -->
+    <!-- ŞİFRE GİRİŞ KİLİDİ -->
     <div id="authOverlay" class="auth-overlay">
         <div class="auth-card">
             <div class="auth-title">🔐 Cash Control</div>
@@ -104,9 +107,10 @@
     <!-- Arka Planda Çalışan TradingView Grafik Alanı -->
     <div id="tradingview-container"></div>
 
-    <!-- Sağ Üst Köşe Panel Açma/Kapama Tuşu -->
+    <!-- Sağ Üst Köşe Panel Açma ve Çıkış Tuşları -->
     <div class="top-control-bar">
         <button class="toggle-panel-btn" onclick="togglePanel()">📊 Veri Göster / Gizle</button>
+        <button class="logout-btn" onclick="logoutSession()">🔒 Çıkış Yap</button>
     </div>
 
     <!-- Ön Plandaki Açılır/Kapanır Ana Panel (Modal) -->
@@ -249,7 +253,6 @@
         let activeTrades = JSON.parse(localStorage.getItem('cashControl_activeTrades')) || {};
         let savedPivots = JSON.parse(localStorage.getItem('cashControl_savedPivots')) || {};
 
-        // Şifreler arka planda güvenle tanımlıdır (Admin: 1453, Kullanıcı: 1234)
         const ADMIN_PASS = "1453";
         const USER_PASS = "1234";
 
@@ -287,6 +290,12 @@
             }
 
             loadCoins();
+        }
+
+        // ÇIKIŞ YAP FONKSİYONU
+        function logoutSession() {
+            localStorage.removeItem('cashControl_role');
+            location.reload(); // Sayfayı yenileyerek doğrudan kilit ekranına döndürür
         }
 
         function saveActiveTrades() {
