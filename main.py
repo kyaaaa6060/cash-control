@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="Cash Control Engine - Full Clean", version="13.9")
+app = FastAPI(title="Cash Control Engine - Native Match", version="14.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,6 +22,7 @@ CACHE_DURATION = 5
 
 ACTIVE_TRADES = {}
 
+# Bulut sunucu (Render vb.) engellerine karşı kusursuz yedek havuz
 FALLBACK_COINS = {
     "BTC": 65000.0, "ETH": 3500.0, "SOL": 150.0, "AVAX": 25.0, 
     "XRP": 0.55, "BNB": 580.0, "ADA": 0.40, "DOGE": 0.12, 
