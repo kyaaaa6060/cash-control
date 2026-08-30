@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cash Control - Hız ve İvme Tabanlı Formasyon Motoru</title>
+    <title>Cash Control - Ağırlıklı Ortalama & Terste Kalanlar</title>
     <style>
         :root {
             --bg-color: #0b0e14;
@@ -13,10 +13,9 @@
             --text-main: #d1d4dc;
             --text-muted: #787b86;
             --btn-bg: #1e222d;
+            --btn-hover: #2a2e39;
             --long-color: #0ecb81;
             --short-color: #f6465d;
-            --purple-glow: #9333ea;
-            --cyan-accent: #00f2fe;
         }
 
         body {
@@ -24,23 +23,19 @@
             color: var(--text-main);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            padding: 10px;
         }
 
         .modal-container {
             background-color: var(--card-bg);
             border: 1px solid var(--card-border);
             border-radius: 12px;
-            width: 640px;
-            max-width: 100%;
+            width: 620px;
             padding: 20px;
-            box-shadow: 0 12px 32px rgba(0,0,0,0.7);
-            position: relative;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.6);
         }
 
         .header-title {
@@ -50,136 +45,30 @@
             font-size: 15px;
             font-weight: 600;
             color: var(--accent-yellow);
-            margin-bottom: 12px;
+            margin-bottom: 15px;
             border-bottom: 1px solid var(--card-border);
             padding-bottom: 10px;
         }
-
-        .scenario-box {
-            background: linear-gradient(135deg, rgba(30,34,45,0.95), rgba(19,23,34,0.98));
-            border: 1px solid var(--card-border);
-            border-left: 3px solid var(--cyan-accent);
-            padding: 12px 14px;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            font-size: 12px;
-            color: var(--text-muted);
-            line-height: 1.6;
-        }
-
-        .scenario-title {
-            color: var(--cyan-accent);
-            font-weight: 600;
-            margin-bottom: 6px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 13px;
-        }
-
-        .scenario-box strong {
-            color: var(--text-main);
-        }
-
-        .badges-wrapper {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-            margin-bottom: 6px;
-        }
-
-        .action-badge {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-weight: 700;
-            font-size: 11px;
-        }
-        .badge-long { background-color: rgba(14, 203, 129, 0.15); color: var(--long-color); border: 1px solid rgba(14, 203, 129, 0.3); }
-        .badge-short { background-color: rgba(246, 70, 93, 0.15); color: var(--short-color); border: 1px solid rgba(246, 70, 93, 0.3); }
-        .badge-neutral { background-color: rgba(240, 185, 11, 0.15); color: var(--accent-yellow); border: 1px solid rgba(240, 185, 11, 0.3); }
-        
-        .status-badge {
-            background-color: rgba(240, 185, 11, 0.1);
-            color: var(--accent-yellow);
-            border: 1px solid rgba(240, 185, 11, 0.3);
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-weight: 700;
-            font-size: 11px;
-        }
-
-        .speed-badge {
-            background-color: rgba(0, 242, 254, 0.15);
-            color: var(--cyan-accent);
-            border: 1px solid rgba(0, 242, 254, 0.3);
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-weight: 700;
-            font-size: 11px;
-        }
-
-        .formation-badge {
-            background-color: rgba(147, 51, 234, 0.15);
-            color: #c084fc;
-            border: 1px solid rgba(147, 51, 234, 0.3);
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-weight: 700;
-            font-size: 11px;
-        }
-
-        .stats-grid-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-top: 8px;
-        }
-
-        .stat-card-mini {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid var(--card-border);
-            padding: 6px 10px;
-            border-radius: 6px;
-            font-size: 11px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .trade-plan-box {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            background: var(--btn-bg);
-            border: 1px solid var(--card-border);
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            text-align: center;
-        }
-        .plan-item div:first-child { font-size: 11px; color: var(--text-muted); margin-bottom: 2px; }
-        .plan-item div:last-child { font-size: 13px; font-weight: 700; color: var(--text-main); }
 
         .section-label {
             text-align: center;
             font-size: 12px;
             color: var(--text-muted);
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
 
         .source-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 6px;
-            margin-bottom: 12px;
+            gap: 8px;
+            margin-bottom: 15px;
         }
 
         .source-btn {
             background-color: var(--btn-bg);
             border: 1px solid var(--card-border);
             color: var(--text-muted);
-            padding: 8px 4px;
+            padding: 10px 6px;
             border-radius: 8px;
             font-size: 11px;
             font-weight: 500;
@@ -208,7 +97,7 @@
             padding: 8px 12px;
             border-radius: 8px;
             border: 1px solid var(--card-border);
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
 
         .selector-row select {
@@ -222,39 +111,21 @@
         }
 
         .cache-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            text-align: center;
             font-size: 11px;
             color: var(--accent-yellow);
             background: rgba(240, 185, 11, 0.08);
-            padding: 6px 10px;
+            padding: 5px;
             border-radius: 6px;
-            margin-bottom: 12px;
+            margin-bottom: 15px;
             border: 1px dashed rgba(240, 185, 11, 0.2);
-        }
-
-        .global-reset-btn {
-            background: rgba(246, 70, 93, 0.15);
-            color: var(--short-color);
-            border: 1px solid rgba(246, 70, 93, 0.3);
-            padding: 4px 8px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 11px;
-            font-weight: 700;
-            transition: all 0.2s;
-        }
-        .global-reset-btn:hover {
-            background: var(--short-color);
-            color: #fff;
         }
 
         .tabs-row {
             display: flex;
             justify-content: center;
             gap: 20px;
-            margin-bottom: 12px;
+            margin-bottom: 15px;
             border-bottom: 1px solid var(--card-border);
             padding-bottom: 8px;
         }
@@ -277,16 +148,16 @@
             background-color: var(--btn-bg);
             border: 1px solid var(--card-border);
             border-radius: 8px;
-            padding: 10px 14px;
-            margin-bottom: 6px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .metric-title { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
-        .metric-sub { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
-        .metric-val { font-size: 14px; font-weight: 700; }
+        .metric-title { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+        .metric-sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+        .metric-val { font-size: 16px; font-weight: 700; }
 
         .dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; }
         .dot-green { background-color: var(--long-color); }
@@ -298,58 +169,26 @@
 
     <div class="modal-container">
         <div class="header-title">
-            <span id="modal-main-title">📊 Hız & İvme Odaklı Analiz Motoru</span>
+            <span id="modal-main-title">📊 Ağırlıklı Ortalama Analizi</span>
             <span style="cursor: pointer;">✕</span>
-        </div>
-
-        <div class="scenario-box">
-            <div class="scenario-title">
-                <span>⚡ Hacim İvmesi & Akış Motoru</span>
-                <span id="plan-time-label" style="font-size: 11px; font-weight: normal; color: var(--text-muted);">🕒 Bekleniyor...</span>
-            </div>
-            <div id="scenario-text" style="margin-top: 6px;">İvme ve hız katsayıları hesaplanıyor...</div>
-            <div class="stats-grid-row">
-                <div class="stat-card-mini">
-                    <span>🎯 Confluence Skoru:</span>
-                    <strong id="win-rate-val" style="color: var(--long-color);">%0.0</strong>
-                </div>
-                <div class="stat-card-mini">
-                    <span>⚡ Artış Hızı (İvme):</span>
-                    <strong id="velocity-val" style="color: var(--cyan-accent);">0.0x</strong>
-                </div>
-            </div>
-        </div>
-
-        <div class="trade-plan-box">
-            <div class="plan-item">
-                <div>GİRİŞ (ENTRY)</div>
-                <div id="plan-entry" style="color: var(--accent-yellow);">$0.00</div>
-            </div>
-            <div class="plan-item">
-                <div>KÂR AL (TP)</div>
-                <div id="plan-tp" style="color: var(--long-color);">$0.00</div>
-            </div>
-            <div class="plan-item">
-                <div>STOP OL (SL)</div>
-                <div id="plan-sl" style="color: var(--short-color);">$0.00</div>
-            </div>
         </div>
 
         <div class="section-label">Veri Kaynağı Seçin:</div>
         
         <div class="source-grid">
-            <button class="source-btn" id="src-copy" onclick="setSource('copy', 'Sadece Copy Liderler')">Copy Liderler</button>
-            <button class="source-btn" id="src-whale" onclick="setSource('whale', 'Sadece Balinalar')">Balinalar</button>
-            <button class="source-btn active" id="src-all" onclick="setSource('all', 'Genel Terste Kalanlar')">Genel Terste</button>
-            <button class="source-btn" id="src-pct6_20" onclick="setSource('pct6_20', 'Zarar (%6-20)')">Zarar (%6-20)</button>
-            <button class="source-btn" id="src-top20" onclick="setSource('all', 'TOP 20 Terste')">TOP 20 Terste</button>
-            <button class="source-btn" id="src-combined" onclick="setSource('combined_avg', 'Tüm Kaynakların Ort.')">Tüm Kaynaklar</button>
+            <button class="source-btn" id="src-copy" onclick="setSource('copy', 'Sadece Copy Liderler')">Sadece Copy Liderler</button>
+            <button class="source-btn" id="src-whale" onclick="setSource('whale', 'Sadece Balinalar')">Sadece Balinalar</button>
+            <button class="source-btn active" id="src-all" onclick="setSource('all', 'Genel Terste Kalanlar')">Genel Terste Kalanlar</button>
+            <button class="source-btn" id="src-pct6_20" onclick="setSource('pct6_20', 'Terste Kalanlar (%6-20 Zarar)')">Terste Kalanlar (%6-20)</button>
+            <button class="source-btn" id="src-top20" onclick="setSource('all', 'TOP 20 Terste Kalanlar')">TOP 20 Terste Kalanlar</button>
+            <button class="source-btn" id="src-oransal" onclick="setSource('all', 'TOP 20 Oransal')">TOP 20 Oransal</button>
+            <button class="source-btn" id="src-combined" onclick="setSource('combined_avg', 'Tüm Kaynakların Ortalaması')">Tüm Kaynakların Ort.</button>
         </div>
 
         <div class="selector-row">
             <div>
                 <span style="font-size: 13px; color: var(--text-muted);">Coin:</span>
-                <select id="coin-select" onchange="onCoinChange()">
+                <select id="coin-select" onchange="updateViewData()">
                     <option value="BTC">Yükleniyor...</option>
                 </select>
             </div>
@@ -359,8 +198,7 @@
         </div>
 
         <div class="cache-info">
-            <div>⏳ Güncelleme: <span id="timer">300</span>s</div>
-            <button class="global-reset-btn" onclick="resetAllSignalsGlobally()" title="Mühürlü planları sıfırlar">🔄 İşlemleri Sıfırla</button>
+            ⏳ Cache yenilenme: <span id="timer">300</span>s
         </div>
 
         <div class="tabs-row">
@@ -373,7 +211,7 @@
                 <div class="metric-title"><span class="dot dot-green"></span> LONG Ort. Giriş:</div>
                 <div class="metric-sub" id="long-sub">(0 işlem, $0.00 size)</div>
             </div>
-            <div class="metric-val" id="long-val" style="color: var(--long-color);">$0.00</div>
+            <div class="metric-val" id="long-val" style="color: var(--long-color);">$0,0000</div>
         </div>
 
         <div class="metric-card">
@@ -381,7 +219,7 @@
                 <div class="metric-title"><span class="dot dot-red"></span> SHORT Ort. Giriş:</div>
                 <div class="metric-sub" id="short-sub">(0 işlem, $0.00 size)</div>
             </div>
-            <div class="metric-val" id="short-val" style="color: var(--short-color);">$0.00</div>
+            <div class="metric-val" id="short-val" style="color: var(--short-color);">$0,0000</div>
         </div>
 
         <div class="metric-card">
@@ -389,7 +227,7 @@
                 <div class="metric-title"><span class="dot dot-yellow"></span> Ortalama Giriş:</div>
                 <div class="metric-sub">Tüm pozisyonların ağırlıklı genel ortalaması</div>
             </div>
-            <div class="metric-val" id="general-val" style="color: var(--accent-yellow);">$0.00</div>
+            <div class="metric-val" id="general-val" style="color: var(--accent-yellow);">$0,0000</div>
         </div>
     </div>
 
@@ -397,196 +235,6 @@
         let currentSource = "all";
         let currentTab = "guncel";
         let cachedResponse = null;
-        let activePlanGlobal = null;
-        let currentCoinGlobal = "BTC";
-
-        function formatPrice(val) {
-            if (val === undefined || val === null || isNaN(val)) return "$0.00";
-            if (val < 0.00001) return "$" + val.toFixed(8);
-            if (val < 0.001) return "$" + val.toFixed(6);
-            if (val < 1) return "$" + val.toFixed(4);
-            if (val < 10) return "$" + val.toLocaleString('en-US', {minimumFractionDigits: 3, maximumFractionDigits: 4});
-            return "$" + val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-        }
-
-        // Hız, İvme ve Hacim Artış Oranı Hesaplayıcı
-        function generateVelocityBasedStrategy(coinSymbol, sourceKey, markPrice, longVal, shortVal, sourceData) {
-            let seed = 0;
-            let combinedStr = coinSymbol + "_" + sourceKey + "_" + Math.floor(markPrice * 10);
-            for (let i = 0; i < combinedStr.length; i++) {
-                seed += combinedStr.charCodeAt(i);
-            }
-
-            // Normal oranların üzerinde ani artış hızını (velocity) simüle ediyoruz
-            let longVelocity = 1.0 + ((seed % 45) / 10); // Örn: 1.0x ile 5.5x arası ivme
-            let shortVelocity = 1.0 + (((seed * 7) % 48) / 10);
-
-            let dominantFlow = "NEUTRAL";
-            let velocityValText = "1.2x";
-            let winBoost = 0;
-
-            // Hangi tarafta artış hızı (velocity) daha yüksekse sinyal o yöne tetiklenir
-            if (longVelocity > shortVelocity && longVelocity >= 2.2) {
-                dominantFlow = "LONG";
-                velocityValText = "+" + longVelocity.toFixed(1) + "x Hız";
-                winBoost = 5.0;
-            } else if (shortVelocity > longVelocity && shortVelocity >= 2.2) {
-                dominantFlow = "SHORT";
-                velocityValText = "+" + shortVelocity.toFixed(1) + "x Hız";
-                winBoost = 5.0;
-            } else {
-                // Hızlar dengeliyse genel hacim büyüklüğüne ve formasyona bakılır
-                if (sourceData.long_size >= sourceData.short_size) {
-                    dominantFlow = "LONG";
-                    velocityValText = "+1.4x (Normal)";
-                    winBoost = 2.0;
-                } else {
-                    dominantFlow = "SHORT";
-                    velocityValText = "+1.5x (Normal)";
-                    winBoost = 2.0;
-                }
-            }
-
-            let formations = [
-                { name: "Momentum Kırılımı (Breakout)", win: 83.4 },
-                { name: "Hacim Patlaması & Likidasyon Sıkışması", win: 86.1 },
-                { name: "Agresif Akış Kanalı", win: 81.9 },
-                { name: "İvme Destekli Bayrak", win: 84.5 }
-            ];
-            let chosenForm = formations[seed % formations.length];
-            let finalScore = Math.min(96.5, Math.max(76.0, chosenForm.win + winBoost));
-
-            let rawEntry = 0;
-            let rawTp = 0;
-            let rawSl = 0;
-
-            if (dominantFlow === "LONG") {
-                rawEntry = longVal > 0 ? longVal * 0.999 : markPrice * 0.996;
-                rawTp = rawEntry * 1.025;
-                rawSl = rawEntry * 0.985;
-            } else {
-                rawEntry = shortVal > 0 ? shortVal * 1.001 : markPrice * 1.004;
-                rawTp = rawEntry * 0.975;
-                rawSl = rawEntry * 1.015;
-            }
-
-            return {
-                signalType: dominantFlow,
-                formationName: chosenForm.name,
-                velocityText: velocityValText,
-                entry: rawEntry,
-                tp: rawTp,
-                sl: rawSl,
-                confluenceScore: "%" + finalScore.toFixed(1)
-            };
-        }
-
-        function clearSignalPlan(coinSymbol, sourceKey) {
-            localStorage.removeItem(`signal_type_${coinSymbol}_${sourceKey}`);
-            localStorage.removeItem(`signal_time_${coinSymbol}_${sourceKey}`);
-            localStorage.removeItem(`signal_entry_${coinSymbol}_${sourceKey}`);
-            localStorage.removeItem(`signal_tp_${coinSymbol}_${sourceKey}`);
-            localStorage.removeItem(`signal_sl_${coinSymbol}_${sourceKey}`);
-            localStorage.removeItem(`signal_form_${coinSymbol}_${sourceKey}`);
-            localStorage.removeItem(`signal_score_${coinSymbol}_${sourceKey}`);
-            localStorage.removeItem(`signal_vel_${coinSymbol}_${sourceKey}`);
-        }
-
-        function getPersistentSignalPlan(coinSymbol, sourceKey, flowObj, markPrice) {
-            let typeKey = `signal_type_${coinSymbol}_${sourceKey}`;
-            let timeKey = `signal_time_${coinSymbol}_${sourceKey}`;
-            let entryKey = `signal_entry_${coinSymbol}_${sourceKey}`;
-            let tpKey = `signal_tp_${coinSymbol}_${sourceKey}`;
-            let slKey = `signal_sl_${coinSymbol}_${sourceKey}`;
-            let formKey = `signal_form_${coinSymbol}_${sourceKey}`;
-            let scoreKey = `signal_score_${coinSymbol}_${sourceKey}`;
-            let velKey = `signal_vel_${coinSymbol}_${sourceKey}`;
-
-            let savedType = localStorage.getItem(typeKey);
-            let savedEntry = localStorage.getItem(entryKey);
-            let savedTp = localStorage.getItem(tpKey);
-            let savedSl = localStorage.getItem(slKey);
-
-            if (savedType && savedEntry && savedTp && savedSl) {
-                let sEntry = parseFloat(savedEntry);
-                let sTp = parseFloat(savedTp);
-                let sSl = parseFloat(savedSl);
-
-                let isShortPlan = savedType.includes("SHORT");
-                let isLongPlan = savedType.includes("LONG");
-
-                let hitTp = false;
-                let hitSl = false;
-
-                if (isShortPlan) {
-                    if (markPrice <= sTp || markPrice >= sSl) {
-                        if (markPrice <= sTp) hitTp = true;
-                        if (markPrice >= sSl) hitSl = true;
-                    }
-                } else if (isLongPlan) {
-                    if (markPrice >= sTp || markPrice <= sSl) {
-                        if (markPrice >= sTp) hitTp = true;
-                        if (markPrice <= sSl) hitSl = true;
-                    }
-                }
-
-                // TP veya SL olduysa eski planı tamamen uçur ve boş dön
-                if (hitTp || hitSl) {
-                    clearSignalPlan(coinSymbol, sourceKey);
-                    return null; 
-                } else {
-                    return {
-                        signalType: savedType,
-                        timeStr: localStorage.getItem(timeKey),
-                        entry: sEntry,
-                        tp: sTp,
-                        sl: sSl,
-                        formationName: localStorage.getItem(formKey),
-                        confluenceScore: localStorage.getItem(scoreKey),
-                        velocityText: localStorage.getItem(velKey)
-                    };
-                }
-            }
-
-            // Yeni planı mühürle
-            let now = new Date();
-            let dateStr = now.toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul' });
-            let timeStr = now.toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            let formattedTime = `${dateStr} ${timeStr}`;
-
-            localStorage.setItem(typeKey, flowObj.signalType);
-            localStorage.setItem(timeKey, formattedTime);
-            localStorage.setItem(entryKey, flowObj.entry);
-            localStorage.setItem(tpKey, flowObj.tp);
-            localStorage.setItem(slKey, flowObj.sl);
-            localStorage.setItem(formKey, flowObj.formationName);
-            localStorage.setItem(scoreKey, flowObj.confluenceScore);
-            localStorage.setItem(velKey, flowObj.velocityText);
-
-            return {
-                signalType: flowObj.signalType,
-                timeStr: formattedTime,
-                entry: flowObj.entry,
-                tp: flowObj.tp,
-                sl: flowObj.sl,
-                formationName: flowObj.formationName,
-                confluenceScore: flowObj.confluenceScore,
-                velocityText: flowObj.velocityText
-            };
-        }
-
-        function resetAllSignalsGlobally() {
-            if(confirm("Tüm mühürlü işlem planları ve ivme verileri sıfırlansın mı?")) {
-                let keysToRemove = [];
-                for (let i = 0; i < localStorage.length; i++) {
-                    let key = localStorage.key(i);
-                    if (key && key.startsWith("signal_")) keysToRemove.push(key);
-                }
-                keysToRemove.forEach(k => localStorage.removeItem(k));
-                fetchMarketData();
-                alert("Sistem sıfırlandı, güncel ivme analizi yeniden başlatıldı!");
-            }
-        }
 
         async function loadCoinList() {
             try {
@@ -604,44 +252,36 @@
                     });
                     fetchMarketData();
                 }
-            } catch(e) { console.error("Coinler yüklenemedi", e); }
+            } catch(e) {
+                console.error("Coinler yüklenemedi", e);
+            }
         }
 
         async function fetchMarketData() {
-            currentCoinGlobal = document.getElementById("coin-select").value;
+            let coin = document.getElementById("coin-select").value;
             try {
-                let res = await fetch(`/api/market-stats/${currentCoinGlobal}`);
+                let res = await fetch(`/api/market-stats/${coin}`);
                 let result = await res.json();
+                
                 if(result.status === "success") {
                     cachedResponse = result;
                     document.getElementById("timer").innerText = result.cache_remaining_seconds;
-                    document.getElementById("mark-price").innerText = formatPrice(result.data.markPrice);
+                    document.getElementById("mark-price").innerText = "$" + result.data.markPrice.toLocaleString('en-US', {minimumFractionDigits: 2});
+                    
                     updateViewData();
                 }
-            } catch(e) { console.error("Veri çekilemedi", e); }
+            } catch(e) {
+                console.error("Veri çekilemedi", e);
+            }
         }
-
-        async function fetchLivePriceOnly() {
-            currentCoinGlobal = document.getElementById("coin-select").value;
-            try {
-                let res = await fetch(`/api/market-stats/${currentCoinGlobal}`);
-                let result = await res.json();
-                if(result.status === "success" && cachedResponse) {
-                    cachedResponse.data.markPrice = result.data.markPrice;
-                    document.getElementById("mark-price").innerText = formatPrice(result.data.markPrice);
-                    document.getElementById("timer").innerText = result.cache_remaining_seconds;
-                    updateViewData();
-                }
-            } catch(e) { console.error("Canlı fiyat çekilemedi", e); }
-        }
-
-        function onCoinChange() { fetchMarketData(); }
 
         function setSource(sourceKey, titleText) {
             currentSource = sourceKey;
             document.getElementById("modal-main-title").innerText = "📊 " + titleText;
+            
             document.querySelectorAll('.source-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
+            
             updateViewData();
         }
 
@@ -652,84 +292,35 @@
             updateViewData();
         }
 
-        function updateScenarioText(coinName, markPrice, longVal, shortVal, sourceData) {
-            let scenarioEl = document.getElementById("scenario-text");
-            let timeLabelEl = document.getElementById("plan-time-label");
-            let entryEl = document.getElementById("plan-entry");
-            let tpEl = document.getElementById("plan-tp");
-            let slEl = document.getElementById("plan-sl");
-            let winRateEl = document.getElementById("win-rate-val");
-            let velocityValEl = document.getElementById("velocity-val");
-
-            let rawFlow = generateVelocityBasedStrategy(coinName, currentSource, markPrice, longVal, shortVal, sourceData);
-            let plan = getPersistentSignalPlan(coinName, currentSource, rawFlow, markPrice);
-
-            if (!plan) {
-                timeLabelEl.innerText = "🕒 Bekleniyor...";
-                entryEl.innerText = "$0.00";
-                tpEl.innerText = "$0.00";
-                slEl.innerText = "$0.00";
-                winRateEl.innerText = "%0.0";
-                velocityValEl.innerText = "0.0x";
-                scenarioEl.innerHTML = `<div class="badges-wrapper"><div class="action-badge badge-neutral">🟡 İŞLEM KAPANDI (TP / SL)</div><div class="status-badge">⏳ Yeni İvme Sinyali Bekleniyor</div></div><div style="margin-top: 4px;">Önceki ivme odaklı işlem TP/SL oldu. Hacim artış hızında yeni bir kırılım olana kadar sistem bekleme modundadır.</div>`;
-                return;
-            }
-
-            activePlanGlobal = plan;
-            let actionBadge = "";
-            let statusBadge = "";
-            let speedBadge = `<div class="speed-badge">⚡ İvme: ${plan.velocityText}</div>`;
-            let formationBadge = `<div class="formation-badge">📐 ${plan.formationName}</div>`;
-            let isShort = plan.signalType.includes("SHORT");
-
-            if (isShort) {
-                actionBadge = `<div class="action-badge badge-short">🔴 SHORT İVME BASKISI</div>`;
-                statusBadge = markPrice < plan.entry ? `<div class="status-badge">⏳ Emir Bekleniyor</div>` : `<div class="status-badge" style="background:rgba(246,70,93,0.15); color:var(--short-color); border-color:rgba(246,70,93,0.3);">🚀 İşlem Aktif</div>`;
-            } else {
-                actionBadge = `<div class="action-badge badge-long">🟢 LONG İVME BASKISI</div>`;
-                statusBadge = markPrice > plan.entry ? `<div class="status-badge">⏳ Emir Bekleniyor</div>` : `<div class="status-badge" style="background:rgba(14,203,129,0.15); color:var(--long-color); border-color:rgba(14,203,129,0.3);">🚀 İşlem Aktif</div>`;
-            }
-
-            let explanation = `Normal eğrinin üzerinde <strong>${plan.velocityText}</strong> ile tetiklenen yoğunluk tespit edildi. Giriş <strong>${formatPrice(plan.entry)}</strong> seviyesinden planlandı; hedef <strong>${formatPrice(plan.tp)}</strong>, stop <strong>${formatPrice(plan.sl)}</strong> seviyesindedir.`;
-
-            timeLabelEl.innerText = "🕒 " + plan.timeStr + " (TRT)";
-            entryEl.innerText = formatPrice(plan.entry);
-            tpEl.innerText = formatPrice(plan.tp);
-            slEl.innerText = formatPrice(plan.sl);
-            winRateEl.innerText = plan.confluenceScore;
-            velocityValEl.innerText = plan.velocityText.replace(" Hız", "");
-
-            scenarioEl.innerHTML = `<div class="badges-wrapper">${actionBadge}${speedBadge}${formationBadge}${statusBadge}</div><div style="margin-top: 4px;">${explanation}</div>`;
-        }
-
         async function updateViewData() {
             if (!cachedResponse) return;
+            
             let selectedCoin = document.getElementById("coin-select").value;
             if (cachedResponse.data.symbol !== selectedCoin + "USDT") {
                 await fetchMarketData();
                 return;
             }
 
-            let markPrice = cachedResponse.data.markPrice;
-            let sourceData = cachedResponse.data.sources[currentSource] || cachedResponse.data.sources["all"];
+            let sourceData = cachedResponse.data.sources[currentSource];
+            if (!sourceData) sourceData = cachedResponse.data.sources["all"];
+
             let multiplier = currentTab === "gecmis" ? 0.98 : 1.0;
 
             let longVal = sourceData.long_avg * multiplier;
             let shortVal = sourceData.short_avg * multiplier;
             let genVal = sourceData.general_avg * multiplier;
 
-            document.getElementById("long-val").innerText = formatPrice(longVal);
+            document.getElementById("long-val").innerText = "$" + longVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
             document.getElementById("long-sub").innerText = `(${sourceData.long_count} işlem, $${(sourceData.long_size/1000).toFixed(2)}K size)`;
-            document.getElementById("short-val").innerText = formatPrice(shortVal);
-            document.getElementById("short-sub").innerText = `(${sourceData.short_count} işlem, $${(sourceData.short_size/1000).toFixed(2)}K size)`;
-            document.getElementById("general-val").innerText = formatPrice(genVal);
 
-            updateScenarioText(selectedCoin, markPrice, longVal, shortVal, sourceData);
+            document.getElementById("short-val").innerText = "$" + shortVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
+            document.getElementById("short-sub").innerText = `(${sourceData.short_count} işlem, $${(sourceData.short_size/1000).toFixed(2)}K size)`;
+
+            document.getElementById("general-val").innerText = "$" + genVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
         }
 
         loadCoinList();
-        setInterval(fetchMarketData, 300000); 
-        setInterval(fetchLivePriceOnly, 2000); 
+        setInterval(fetchMarketData, 10000);
     </script>
 </body>
 </html>
