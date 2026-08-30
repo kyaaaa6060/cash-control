@@ -3,428 +3,193 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cash Control - Teknik S/R & AI Strateji</title>
+    <title>Cash Control Engine - Realtime Dashboard</title>
     <style>
-        :root {
-            --bg-color: #0b0e14;
-            --card-bg: #131722;
-            --card-border: #2a2e39;
-            --accent-yellow: #f0b90b;
-            --text-main: #d1d4dc;
-            --text-muted: #787b86;
-            --btn-bg: #1e222d;
-            --btn-hover: #2a2e39;
-            --long-color: #0ecb81;
-            --short-color: #f6465d;
-        }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px 0;
-        }
-
-        .modal-container {
-            background-color: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 12px;
-            width: 680px;
-            padding: 20px;
-            box-shadow: 0 12px 32px rgba(0,0,0,0.6);
-        }
-
-        .header-title {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--accent-yellow);
-            margin-bottom: 15px;
-            border-bottom: 1px solid var(--card-border);
-            padding-bottom: 10px;
-        }
-
-        .section-label {
-            text-align: center;
-            font-size: 12px;
-            color: var(--text-muted);
-            margin-bottom: 10px;
-        }
-
-        .source-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            margin-bottom: 15px;
-        }
-
-        .source-btn {
-            background-color: var(--btn-bg);
-            border: 1px solid var(--card-border);
-            color: var(--text-muted);
-            padding: 8px 6px;
-            border-radius: 8px;
-            font-size: 11px;
-            font-weight: 500;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.2s;
-        }
-
-        .source-btn:hover {
-            border-color: var(--accent-yellow);
-            color: var(--text-main);
-        }
-
-        .source-btn.active {
-            background-color: rgba(240, 185, 11, 0.1);
-            border-color: var(--accent-yellow);
-            color: var(--accent-yellow);
-            font-weight: 600;
-        }
-
-        .selector-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: var(--btn-bg);
-            padding: 8px 12px;
-            border-radius: 8px;
-            border: 1px solid var(--card-border);
-            margin-bottom: 12px;
-        }
-
-        .selector-row select {
-            background: var(--card-bg);
-            color: var(--text-main);
-            border: 1px solid var(--card-border);
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 13px;
-            outline: none;
-        }
-
-        /* YENİ: Grafik Destek/Direnç Seviyeleri Paneli */
-        .sr-panel {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 12px;
-        }
-
-        .sr-card {
-            background: var(--btn-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 8px;
-            padding: 10px;
-            text-align: center;
-        }
-
-        .sr-title { font-size: 11px; font-weight: 600; margin-bottom: 4px; }
-        .sr-val { font-size: 13px; font-weight: 700; }
-
-        /* AI Alanı */
-        .ai-box {
-            background: linear-gradient(135deg, rgba(121, 40, 202, 0.15), rgba(19, 23, 34, 0.9));
-            border: 1px solid rgba(121, 40, 202, 0.4);
-            border-radius: 10px;
-            padding: 12px 15px;
-            margin-bottom: 12px;
-        }
-
-        .ai-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 13px;
-            font-weight: 700;
-            color: #d8b4fe;
-            margin-bottom: 6px;
-        }
-
-        .ai-body {
-            font-size: 12px;
-            color: var(--text-main);
-            line-height: 1.4;
-            margin-bottom: 8px;
-        }
-
-        .ai-footer-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            font-size: 11px;
-            border-top: 1px solid rgba(255,255,255,0.08);
-            padding-top: 6px;
-        }
-
-        .cache-info {
-            text-align: center;
-            font-size: 11px;
-            color: var(--accent-yellow);
-            background: rgba(240, 185, 11, 0.08);
-            padding: 5px;
-            border-radius: 6px;
-            margin-bottom: 12px;
-            border: 1px dashed rgba(240, 185, 11, 0.2);
-        }
-
-        .tabs-row {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-bottom: 12px;
-            border-bottom: 1px solid var(--card-border);
-            padding-bottom: 6px;
-        }
-
-        .tab-item {
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            color: var(--text-muted);
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .tab-item.active {
-            color: var(--accent-yellow);
-        }
-
-        .metric-card {
-            background-color: var(--btn-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 8px;
-            padding: 10px 14px;
-            margin-bottom: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .metric-title { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
-        .metric-sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
-        .metric-val { font-size: 15px; font-weight: 700; }
-
-        .dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; }
-        .dot-green { background-color: var(--long-color); }
-        .dot-red { background-color: var(--short-color); }
-        .dot-yellow { background-color: var(--accent-yellow); }
+        body { background-color: #121212; color: #eaeaea; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2b2b2b; padding-bottom: 15px; margin-bottom: 25px; }
+        h1 { margin: 0; font-size: 22px; color: #fff; }
+        .live-badge { font-size: 12px; color: #0ecb81; background: rgba(14, 203, 129, 0.1); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(14, 203, 129, 0.3); }
+        select { background: #1e1e1e; color: #fff; padding: 10px 15px; border: 1px solid #333; border-radius: 6px; font-size: 16px; outline: none; cursor: pointer; }
+        .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+        @media(max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+        .card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .card h3 { margin-top: 0; font-size: 16px; color: #b0b0b0; border-bottom: 1px solid #2b2b2b; padding-bottom: 10px; }
+        .stat-label { font-size: 13px; color: #888; margin-top: 10px; }
+        .stat-value { font-size: 26px; font-weight: bold; margin-top: 5px; color: #fff; }
+        .ai-box { background: #222; border-left: 5px solid #f0b90b; padding: 15px; border-radius: 4px; margin-top: 15px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #2b2b2b; font-size: 14px; }
+        th { color: #888; font-weight: 600; }
+        tr:hover { background: rgba(255,255,255,0.02); }
     </style>
 </head>
 <body>
-
-    <div class="modal-container">
-        <div class="header-title">
-            <span id="modal-main-title">📊 Ağırlıklı Ortalama & Teknik S/R Analizi</span>
-            <span style="cursor: pointer;">✕</span>
-        </div>
-
-        <div class="section-label">Veri Kaynağı Seçin:</div>
+    <div class="container">
+        <header>
+            <div>
+                <h1>Cash Control Engine</h1>
+                <span class="live-badge">● Canlı Binance Mark (Auto-Sync)</span>
+            </div>
+            <div>
+                <label for="coinSelect" style="font-size: 14px; color: #888; margin-right: 10px;">Coin:</label>
+                <select id="coinSelect" onchange="onCoinChange()"></select>
+            </div>
+        </header>
         
-        <div class="source-grid">
-            <button class="source-btn" id="src-copy" onclick="setSource('copy', 'Sadece Copy Liderler')">Sadece Copy Liderler</button>
-            <button class="source-btn" id="src-whale" onclick="setSource('whale', 'Sadece Balinalar')">Sadece Balinalar</button>
-            <button class="source-btn active" id="src-all" onclick="setSource('all', 'Genel Terste Kalanlar')">Genel Terste Kalanlar</button>
-            <button class="source-btn" id="src-pct6_20" onclick="setSource('pct6_20', 'Terste Kalanlar (%6-20 Zarar)')">Terste Kalanlar (%6-20)</button>
-            <button class="source-btn" id="src-combined" onclick="setSource('combined_avg', 'Tüm Kaynakların Ortalaması')">Tüm Kaynakların Ort.</button>
-            <button class="source-btn" id="src-ai" style="border-color: #7928ca; color: #d8b4fe;" onclick="setSource('all', 'Grafik Strateji Modu')">📈 Grafik Strateji</button>
-        </div>
-
-        <div class="selector-row">
+        <div class="grid">
+            <!-- Sol Kolon: Temel İstatistikler -->
             <div>
-                <span style="font-size: 13px; color: var(--text-muted);">Coin:</span>
-                <select id="coin-select" onchange="updateViewData()">
-                    <option value="BTC">Yükleniyor...</option>
-                </select>
+                <div class="card">
+                    <h3>Piyasa Verileri</h3>
+                    
+                    <div class="stat-label">Anlık Mark Fiyat (Binance)</div>
+                    <div id="markPrice" class="stat-value">-</div>
+                    
+                    <div class="stat-label">Fonlama Oranı (Funding Rate)</div>
+                    <div id="fundingRate" class="stat-value" style="font-size: 20px;">-</div>
+                    
+                    <div class="stat-label">Açık Pozisyon (OI USD)</div>
+                    <div id="openInterest" class="stat-value" style="font-size: 20px;">-</div>
+                </div>
             </div>
-            <div style="font-size: 13px;">
-                Mark Fiyat: <strong id="mark-price" style="color: var(--accent-yellow);">$0.00</strong>
-            </div>
-        </div>
-
-        <div class="sr-panel">
-            <div class="sr-card" style="border-left: 3px solid var(--short-color);">
-                <div class="sr-title" style="color: var(--short-color);">🔴 Kritik Direnç (R1 / R2)</div>
-                <div class="sr-val" id="res-val">$0.00 / $0.00</div>
-            </div>
-            <div class="sr-card" style="border-left: 3px solid var(--long-color);">
-                <div class="sr-title" style="color: var(--long-color);">🟢 Kritik Destek (S1 / S2)</div>
-                <div class="sr-val" id="sup-val">$0.00 / $0.00</div>
-            </div>
-        </div>
-
-        <div class="ai-box">
-            <div class="ai-header">
-                <span>🤖 Grafik & S/R Strateji Önerisi</span>
-                <span id="ai-signal-badge" style="background: rgba(14,203,129,0.2); color: #0ecb81; padding: 2px 8px; border-radius: 4px; font-size: 11px;">YÜKLENİYOR...</span>
-            </div>
-            <div class="ai-body" id="ai-comment">
-                Mum verileri ve grafik formasyonları işleniyor...
-            </div>
-            <div class="ai-footer-grid">
-                <div>🔍 <strong>Formasyon:</strong> <span id="ai-formation" style="color: var(--accent-yellow);">-</span></div>
-                <div>⚡ <strong>Teknik Güven:</strong> <span id="ai-confidence" style="color: var(--long-color);">-%</span></div>
-            </div>
-        </div>
-
-        <div class="cache-info">
-            ⏳ Cache yenilenme: <span id="timer">300</span>s | Funding: <span id="funding-rate" style="font-weight:700;">%0.00</span>
-        </div>
-
-        <div class="tabs-row">
-            <div class="tab-item active" id="tab-guncel" onclick="setTab('guncel')">🟡 Güncel Ortalama</div>
-            <div class="tab-item" id="tab-gecmis" onclick="setTab('gecmis')">⚪ Geçmiş Simülasyon</div>
-        </div>
-
-        <div class="metric-card">
+            
+            <!-- Sağ Kolon: Strateji ve Kaynak Tablosu -->
             <div>
-                <div class="metric-title"><span class="dot dot-green"></span> LONG Ort. Giriş:</div>
-                <div class="metric-sub" id="long-sub">(0 işlem, $0.00 size)</div>
-            </div>
-            <div class="metric-val" id="long-val" style="color: var(--long-color);">$0,0000</div>
-        </div>
+                <div class="card">
+                    <h3>🤖 Grafik & S/R Strateji Önerisi</h3>
+                    <div class="ai-box" id="aiBox">
+                        <div id="aiSignal" style="font-weight: bold; font-size: 16px;">Veri Bekleniyor...</div>
+                        <div id="aiComment" style="margin-top: 8px; color: #ccc; font-size: 14px; line-height: 1.4;">Analiz yükleniyor...</div>
+                        <div style="margin-top: 12px; font-size: 13px; color: #aaa; border-top: 1px solid #333; padding-top: 8px;">
+                            Formasyon: <span id="aiFormation" style="color:#fff; font-weight:bold;">-</span> | 
+                            Hedef: <span id="aiTarget" style="color:#0ecb81; font-weight:bold;">-</span>
+                        </div>
+                    </div>
+                </div>
 
-        <div class="metric-card">
-            <div>
-                <div class="metric-title"><span class="dot dot-red"></span> SHORT Ort. Giriş:</div>
-                <div class="metric-sub" id="short-sub">(0 işlem, $0.00 size)</div>
+                <div class="card">
+                    <h3>Kaynak Dağılımı (Kanal & Ortalama)</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Kaynak</th>
+                                <th>Long Ort.</th>
+                                <th>Short Ort.</th>
+                                <th>Genel Ort.</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sourcesTableBody">
+                            <tr><td colspan="4" style="text-align: center; color: #666;">Yükleniyor...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div class="metric-val" id="short-val" style="color: var(--short-color);">$0,0000</div>
-        </div>
-
-        <div class="metric-card">
-            <div>
-                <div class="metric-title"><span class="dot dot-yellow"></span> Genel Ağırlıklı Ort:</div>
-                <div class="metric-sub">Tüm pozisyonların genel ortalaması</div>
-            </div>
-            <div class="metric-val" id="general-val" style="color: var(--accent-yellow);">$0,0000</div>
         </div>
     </div>
 
     <script>
-        let currentSource = "all";
-        let currentTab = "guncel";
-        let cachedResponse = null;
+        let currentSymbol = "";
+        let updateInterval = null;
 
         async function loadCoinList() {
             try {
-                let res = await fetch("/api/coins");
+                let res = await fetch('/api/coins');
                 let data = await res.json();
-                if(data.status === "success") {
-                    let select = document.getElementById("coin-select");
-                    select.innerHTML = "";
+                if(data.status === 'success') {
+                    let select = document.getElementById('coinSelect');
+                    let oldVal = select.value;
+                    select.innerHTML = '';
+                    
                     data.coins.forEach(coin => {
-                        let opt = document.createElement("option");
+                        let opt = document.createElement('option');
                         opt.value = coin;
-                        opt.innerText = coin + "USDT";
-                        if(coin === "BTC") opt.selected = true;
+                        opt.text = coin + "USDT";
                         select.appendChild(opt);
                     });
-                    fetchMarketData();
+                    
+                    // Eğer daha önceden seçili coin varsa koru, yoksa ilkini seç
+                    if (data.coins.includes(oldVal)) {
+                        select.value = oldVal;
+                        currentSymbol = oldVal;
+                    } else if(data.coins.length > 0) {
+                        currentSymbol = data.coins[0];
+                        select.value = currentSymbol;
+                    }
+                    
+                    if(currentSymbol) {
+                        fetchCoinStats(currentSymbol);
+                        startAutoRefresh();
+                    }
                 }
             } catch(e) {
-                console.error("Coinler yüklenemedi", e);
+                console.error("Coin listesi alınamadı:", e);
             }
         }
 
-        async function fetchMarketData() {
-            let coin = document.getElementById("coin-select").value;
+        async function fetchCoinStats(symbol) {
+            if(!symbol) return;
             try {
-                let res = await fetch(`/api/market-stats/${coin}`);
-                let result = await res.json();
-                
-                if(result.status === "success") {
-                    cachedResponse = result;
-                    document.getElementById("timer").innerText = result.cache_remaining_seconds;
-                    document.getElementById("mark-price").innerText = "$" + result.data.markPrice.toLocaleString('en-US', {minimumFractionDigits: 2});
+                let res = await fetch(`/api/market-stats/${symbol}`);
+                let json = await res.json();
+                if(json.status === 'success') {
+                    let d = json.data;
                     
-                    let fund = result.data.fundingRate;
-                    let fundEl = document.getElementById("funding-rate");
-                    fundEl.innerText = (fund > 0 ? "+" : "") + fund.toFixed(4) + "%";
-                    fundEl.style.color = fund > 0 ? "var(--long-color)" : "var(--short-color)";
-
-                    // Destek ve Direnç Seviyelerini Bas
-                    let sr = result.data.sr_levels;
-                    if(sr) {
-                        document.getElementById("res-val").innerText = `$${sr.resistance_1.toFixed(2)} / $${sr.resistance_2.toFixed(2)}`;
-                        document.getElementById("sup-val").innerText = `$${sr.support_1.toFixed(2)} / $${sr.support_2.toFixed(2)}`;
-                    }
-
-                    // AI ve Grafik Formasyon Bilgilerini Bas
-                    let ai = result.data.ai_analysis;
-                    if(ai) {
-                        let badge = document.getElementById("ai-signal-badge");
-                        badge.innerText = ai.signal;
-                        badge.style.background = ai.signalColor + "22";
-                        badge.style.color = ai.signalColor;
-
-                        document.getElementById("ai-comment").innerText = ai.comment;
-                        document.getElementById("ai-formation").innerText = ai.formation + " (" + ai.formationTF + ")";
-                        document.getElementById("ai-confidence").innerText = "%" + ai.confidence;
-                    }
+                    // Fiyatları ve değerleri güncelle
+                    document.getElementById('markPrice').innerText = "$" + d.markPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4});
                     
-                    updateViewData();
+                    let fundEl = document.getElementById('fundingRate');
+                    fundEl.innerText = d.fundingRate.toFixed(4) + "%";
+                    fundEl.style.color = d.fundingRate >= 0 ? "#0ecb81" : "#f6465d";
+                    
+                    document.getElementById('openInterest').innerText = "$" + Math.round(d.openInterestUSD).toLocaleString('en-US');
+                    
+                    // AI Analiz / Strateji Kutusu Güncelleme
+                    let ai = d.ai_analysis;
+                    document.getElementById('aiSignal').innerText = ai.signal;
+                    document.getElementById('aiSignal').style.color = ai.signalColor;
+                    document.getElementById('aiBox').style.borderColor = ai.signalColor;
+                    document.getElementById('aiComment').innerText = ai.comment;
+                    document.getElementById('aiFormation').innerText = ai.formation;
+                    document.getElementById('aiTarget').innerText = ai.targetPrice > 0 ? "$" + ai.targetPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4}) : "Beklemede";
+                    
+                    // Tabloyu Güncelle
+                    let tbody = document.getElementById('sourcesTableBody');
+                    tbody.innerHTML = '';
+                    for(let [srcName, sData] of Object.entries(d.sources)) {
+                        let row = `<tr>
+                            <td><strong>${srcName.toUpperCase()}</strong></td>
+                            <td>$${sData.long_avg.toFixed(2)}</td>
+                            <td>$${sData.short_avg.toFixed(2)}</td>
+                            <td>$${sData.general_avg.toFixed(2)}</td>
+                        </tr>`;
+                        tbody.innerHTML += row;
+                    }
                 }
             } catch(e) {
-                console.error("Veri çekilemedi", e);
+                console.error("İstatistik güncellenirken hata:", e);
             }
         }
 
-        function setSource(sourceKey, titleText) {
-            currentSource = sourceKey;
-            document.getElementById("modal-main-title").innerText = "📊 " + titleText;
-            
-            document.querySelectorAll('.source-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            updateViewData();
+        function onCoinChange() {
+            let select = document.getElementById('coinSelect');
+            currentSymbol = select.value;
+            fetchCoinStats(currentSymbol);
         }
 
-        function setTab(tabName) {
-            currentTab = tabName;
-            document.getElementById("tab-guncel").className = tabName === 'guncel' ? "tab-item active" : "tab-item";
-            document.getElementById("tab-gecmis").className = tabName === 'gecmis' ? "tab-item active" : "tab-item";
-            updateViewData();
+        function startAutoRefresh() {
+            if(updateInterval) clearInterval(updateInterval);
+            // Sayfa yenilenmeden arka planda her 5 saniyede bir sessizce verileri tazeler
+            updateInterval = setInterval(() => {
+                if(currentSymbol) {
+                    fetchCoinStats(currentSymbol);
+                }
+            }, 5000);
         }
 
-        async function updateViewData() {
-            if (!cachedResponse) return;
-            
-            let selectedCoin = document.getElementById("coin-select").value;
-            if (cachedResponse.data.symbol !== selectedCoin + "USDT") {
-                await fetchMarketData();
-                return;
-            }
-
-            let sourceData = cachedResponse.data.sources[currentSource];
-            if (!sourceData) sourceData = cachedResponse.data.sources["all"];
-
-            let multiplier = currentTab === "gecmis" ? 0.98 : 1.0;
-
-            let longVal = sourceData.long_avg * multiplier;
-            let shortVal = sourceData.short_avg * multiplier;
-            let genVal = sourceData.general_avg * multiplier;
-
-            document.getElementById("long-val").innerText = "$" + longVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
-            document.getElementById("long-sub").innerText = `(${sourceData.long_count} işlem, $${(sourceData.long_size/1000).toFixed(2)}K size)`;
-
-            document.getElementById("short-val").innerText = "$" + shortVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
-            document.getElementById("short-sub").innerText = `(${sourceData.short_count} işlem, $${(sourceData.short_size/1000).toFixed(2)}K size)`;
-
-            document.getElementById("general-val").innerText = "$" + genVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
-        }
-
-        loadCoinList();
-        setInterval(fetchMarketData, 10000);
+        window.onload = () => {
+            loadCoinList();
+        };
     </script>
 </body>
 </html>
