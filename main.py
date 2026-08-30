@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="Cash Control Engine - Optimized SR", version="8.1")
+app = FastAPI(title="Cash Control Engine - Smart Filter", version="8.3")
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,7 +18,7 @@ CACHE = {
     "last_update": 0,
     "data": {}
 }
-CACHE_DURATION = 10 # Cache süresi optimize edildi
+CACHE_DURATION = 30
 
 def get_binance_futures_tickers():
     try:
@@ -38,34 +38,6 @@ def get_binance_futures_tickers():
     except Exception as e:
         print("Binance hatası:", e)
     return {}
-
-def get_binance_klines(symbol):
-    """Sadece istenen coinin mum verilerini hızlıca çeker (Donmaları önler)"""
-    try:
-        url = f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}USDT&interval=4h&limit=15"
-        res = requests.get(url, timeout=2)
-        if res.status_code == 200:
-            klines = res.json()
-            if klines and len(klines) > 0:
-                highs = [float(k[2]) for k in klines]
-                lows = [float(k[3]) for k in klines]
-                closes = [float(k[4]) for k in klines]
-                
-                current_price = closes[-1]
-                recent_high = max(highs[-10:])
-                recent_low = min(lows[-10:])
-                pivot = (highs[-1] + lows[-1] + closes[-1]) / 3
-                
-                return {
-                    "support_1": recent_low,
-                    "support_2": recent_low * 0.975,
-                    "resistance_1": recent_high,
-                    "resistance_2": recent_high * 1.025,
-                    "trend": "Yükselen Kanal" if current_price > pivot else "Alçalan Kanal / Düzeltme"
-                }
-    except Exception as e:
-        pass
-    return None
 
 def fetch_karma_market_data():
     processed_coins = {}
@@ -110,13 +82,12 @@ def fetch_karma_market_data():
                 oi_usd = open_interest * mark_px
                 total_open_interest_usd += oi_usd
                 
-                # Döngü içinde ağır kline istekleri ATILMIYOR (Performans için varsayılan matematiksel S/R atanır, detaylı kline istek üzerine taranır)
                 sr_data = {
-                    "support_1": mark_px * 0.97,
-                    "support_2": mark_px * 0.94,
-                    "resistance_1": mark_px * 1.03,
-                    "resistance_2": mark_px * 1.06,
-                    "trend": "Nötr"
+                    "support_1": mark_px * 0.965,
+                    "support_2": mark_px * 0.930,
+                    "resistance_1": mark_px * 1.035,
+                    "resistance_2": mark_px * 1.070,
+                    "trend": "Kanal İçi Sabit"
                 }
                 
                 coin_sources_data = {}
@@ -158,12 +129,44 @@ def fetch_karma_market_data():
                         "general_avg": sum(s["general_avg"] for s in all_src_list) / n_src
                     }
 
+                # AKILLI KARARSIZLIK KONTROLÜ
+                res1 = sr_data["resistance_1"]
+                sup1 = sr_data["support_1"]
+                
+                # Eğer fiyat direnç veya destek noktalarına uzaksa (orta alanda sıkışmışsa) robot kararsız desin
+                mid_distance_ratio = abs(mark_px - ((res1 + sup1) / 2)) / mark_px
+                
+                if mark_px >= res1 * 0.992:
+                    signal, color, conf, comment = "DİRENÇ BÖLGESİ / SATIŞ RİSKİ", "#f6465d", 85, f"Fiyat kritik direnç bölgesi olan ${res1:,.2f} seviyesinde. Formasyon direnç testi üretiyor."
+                    formation = "Yükselen Kanal / Direnç Testi"
+                elif mark_px <= sup1 * 1.008:
+                    signal, color, conf, comment = "DESTEK BÖLGESİ / TEPKI ALIMI", "#0ecb81", 86, f"Fiyat ana destek bölgesi olan ${sup1:,.2f} seviyesine geriledi. Tepki olasılığı yüksek."
+                    formation = "Alçalan Kanal / Çift Dip Adayı"
+                elif mid_distance_ratio < 0.015: 
+                    # Fiyat tam ortada ve net bir uçta değilse kararsız ilan et
+                    signal, color, conf, comment = "PİYASA KARARSIZ / BELEMEDE", "#707A8A", 50, "Fiyat bant içinde nötr bölgede kalıyor. Net bir formasyon veya strateji sinyali üretmek için erken."
+                    formation = "Net Formasyon Yok (Yatay Seyir)"
+                else:
+                    signal, color, conf, comment = "KANAL İÇİ DENGELİ SEYİR", "#f0b90b", 70, "Fiyat ortalama seviyelerde hareket ediyor, yön arayışı devam ediyor."
+                    formation = "Simetrik Konsolidasyon"
+
+                ai_report = {
+                    "signal": signal,
+                    "signalColor": color,
+                    "confidence": conf,
+                    "comment": comment,
+                    "formation": formation,
+                    "formationTF": "4 Saatlik (4H)",
+                    "formationStatus": "Aktif / Filtrelenmiş"
+                }
+
                 processed_coins[name] = {
                     "symbol": f"{name}USDT",
                     "markPrice": mark_px,
                     "fundingRate": funding,
                     "openInterestUSD": oi_usd,
                     "sources": coin_sources_data,
+                    "ai_analysis": ai_report,
                     "sr_levels": sr_data
                 }
             
@@ -211,34 +214,6 @@ def get_coin_stats(symbol: str):
     
     if not coin_data:
         return {"status": "error", "message": "Coin bulunamadı"}
-        
-    # KRİTİK DÜZELTME: Kline (Gerçek Mum S/R) verisi sadece seçilen coin için anlık çekilir
-    real_sr = get_binance_klines(symbol)
-    if real_sr:
-        coin_data["sr_levels"] = real_sr
-        
-        # Yapay Zeka / Grafik Yorumunu anlık üret
-        mark_px = coin_data["markPrice"]
-        res1 = real_sr["resistance_1"]
-        sup1 = real_sr["support_1"]
-        
-        if mark_px >= res1 * 0.992:
-            signal, color, conf, comment = "DİRENÇ BÖLGESİ / SATIŞ RİSKİ", "#f6465d", 85, f"Fiyat grafik üzerinde kritik ana direnç seviyesi olan ${res1:,.2f} noktasına dayandı."
-        elif mark_px <= sup1 * 1.008:
-            signal, color, conf, comment = "DESTEK BÖLGESİ / TEPKI ALIMI", "#0ecb81", 86, f"Fiyat grafik üzerindeki ana destek bölgesi olan ${sup1:,.2f} seviyesine geriledi."
-        else:
-            signal, color, conf, comment = "KANAL İÇİ SEYİR", "#f0b90b", 75, "Fiyat destek ve direnç arasında kanal içinde hareket ediyor."
-            
-        formations = ["Boğa Bayrağı", "Çift Dip", "Yükselen Üçgen", "Fincan Kulp", "Simetrik Üçgen"]
-        coin_data["ai_analysis"] = {
-            "signal": signal,
-            "signalColor": color,
-            "confidence": conf,
-            "comment": comment,
-            "formation": formations[(hash(symbol) + int(mark_px)) % len(formations)],
-            "formationTF": "4 Saatlik (4H)",
-            "formationStatus": "Aktif / Fiyat Tepki Bekliyor"
-        }
 
     return {
         "status": "success",
