@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="Cash Control Engine - Multi-Exchange (Hyperliquid, Binance, MEXC, OKX)", version="6.1")
+app = FastAPI(title="Cash Control Engine - Multi-Exchange (Hyperliquid, Binance, MEXC, OKX)", version="6.2")
 
 app.add_middleware(
     CORSMiddleware,
@@ -37,6 +37,34 @@ def get_binance_futures_tickers():
             return tickers
     except Exception as e:
         print("Binance hatası:", e)
+    return {}
+
+def get_binance_smart_money_ratios(symbol):
+    """
+    Binance API anahtarı istemeden Top Trader ve Global Long/Short oranlarını çeker.
+    """
+    try:
+        ratios = {}
+        # 1. Global Hesap Long/Short Oranı
+        global_url = f"https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol={symbol}USDT&period=5m&limit=1"
+        res = requests.get(global_url, timeout=3)
+        if res.status_code == 200 and res.json():
+            data = res.json()[0]
+            ratios["global_long_ratio"] = float(data.get("longAccount", 0.5))
+            ratios["global_short_ratio"] = float(data.get("shortAccount", 0.5))
+            ratios["long_short_ratio"] = float(data.get("longShortRatio", 1.0))
+
+        # 2. Top Trader (Balina / Copy Liderler) Pozisyon Oranı
+        top_url = f"https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol={symbol}USDT&period=5m&limit=1"
+        res_top = requests.get(top_url, timeout=3)
+        if res_top.status_code == 200 and res_top.json():
+            top_data = res_top.json()[0]
+            ratios["top_long_ratio"] = float(top_data.get("longAccount", 0.5))
+            ratios["top_short_ratio"] = float(top_data.get("shortAccount", 0.5))
+        
+        return ratios
+    except Exception as e:
+        print(f"Binance Smart Money oranı çekilemedi ({symbol}):", e)
     return {}
 
 def get_okx_futures_tickers():
@@ -136,16 +164,29 @@ def fetch_karma_market_data():
                 oi_usd = open_interest * mark_px
                 total_open_interest_usd += oi_usd
                 
+                # Binance üzerinden gerçek Top Trader ve Global oranları çek
+                binance_ratios = get_binance_smart_money_ratios(name)
+                top_long = binance_ratios.get("top_long_ratio", 0.55)
+                global_long = binance_ratios.get("global_long_ratio", 0.50)
+                
                 coin_sources_data = {}
                 for src in sources:
-                    multiplier = 1.0 if src == "all" else (0.95 if src == "whale" else 1.02)
-                    
-                    long_avg = mark_px * 0.985 * multiplier
-                    short_avg = mark_px * 1.015 * multiplier
+                    # Kaynak türüne göre gerçek Binance oranlarını harmanla
+                    if src == "whale":
+                        factor = top_long
+                    elif src == "copy":
+                        factor = top_long * 1.05
+                    elif src == "pct6_20":
+                        factor = 1.0 - global_long  # Terste kalanlar için ters oran mantığı
+                    else:
+                        factor = global_long
+
+                    long_avg = mark_px * (1 - (factor * 0.02))
+                    short_avg = mark_px * (1 + ((1 - factor) * 0.02))
                     general_avg = (long_avg + short_avg) / 2
                     
-                    long_count = int(1500 + (hash(name + src) % 1500))
-                    short_count = int(800 + (hash(src + name) % 800))
+                    long_count = int(1500 * factor)
+                    short_count = int(1500 * (1 - factor))
                     long_size = (long_count * mark_px * 0.05)
                     short_size = (short_count * mark_px * 0.04)
                     
