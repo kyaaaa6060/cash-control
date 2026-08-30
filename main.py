@@ -1,7 +1,8 @@
+import os
 import threading
 import time
 from datetime import datetime
-from flask import Flask, jsonify, request # Flask kullanıyorsan (FastAPI ise ona göre uyarlanabilir)
+from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
@@ -52,7 +53,6 @@ def background_trading_worker():
                     
                     # 2. Aşama: Açık işlem yoksa hız/ivme ve formasyon tara
                     else:
-                        # Hız ivmesi simülasyonu veya hesaplama matrisi
                         simulated_velocity = 2.5 
                         
                         if simulated_velocity >= 2.2: # Hız eşiği aşıldıysa yeni sinyali mühürle
@@ -70,9 +70,6 @@ def background_trading_worker():
                             }
                             
                             print(f"[ARKA PLAN YENİ İŞLEM] {key} -> {signal_type} | Giriş: {entry} | TP: {tp} | SL: {sl}")
-                            
-                            # İsteğe bağlı: Buraya Telegram bot API isteği ekleyerek 
-                            # işlem açıldığında telefona anında mesaj atmasını sağlayabilirsin.
 
         except Exception as e:
             print(f"Arka plan döngü hatası: {e}")
@@ -80,12 +77,12 @@ def background_trading_worker():
         # Her 15 saniyede bir piyasayı arkada tara
         time.sleep(15)
 
-# Uygulama başlarken arka plan döngüsünü bağımsız bir kol (thread) olarak başlatıyoruz
+# Uygulama başlarken arka plan döngüsünü bağımsız bir kol olarak başlatıyoruz
 worker_thread = threading.Thread(target=background_trading_worker, daemon=True)
 worker_thread.start()
 
 
-# --- MEVCUT WEB SERVİS / API ROUTE'LARIN ---
+# --- WEB SERVİS / API ROUTE'LARIN ---
 
 @app.route("/")
 def home():
@@ -114,4 +111,6 @@ def market_stats(coin):
     })
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    # Render'ın verdiği dinamik portu otomatik yakalar
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
