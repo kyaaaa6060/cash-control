@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="Cash Control Engine - Full UI Sync & Patterns", version="13.3")
+app = FastAPI(title="Cash Control Engine - Debug Mode", version="13.4")
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,14 +20,12 @@ CACHE = {
 }
 CACHE_DURATION = 5 
 
-# Tüm cihazların ortak göreceği aktif işlemler hafızası
 ACTIVE_TRADES = {}
 
 def get_binance_futures_tickers():
-    """Binance Futures üzerinden anlık Mark Fiyatları ve Fonlama Oranlarını çeker"""
     try:
         url = "https://fapi.binance.com/fapi/v1/premiumIndex"
-        res = requests.get(url, timeout=2)
+        res = requests.get(url, timeout=5) # Süre uzatıldı
         if res.status_code == 200:
             tickers = {}
             for item in res.json():
@@ -39,15 +37,16 @@ def get_binance_futures_tickers():
                         "fundingRate": float(item.get("lastFundingRate", 0)) * 100
                     }
             return tickers
+        else:
+            print("Binance HTTP Durum Kodu:", res.status_code)
     except Exception as e:
-        print("Binance Mark Price hatası:", e)
+        print("Binance Mark Price KRİTİK HATA:", e)
     return {}
 
 def get_binance_klines(symbol):
-    """Binance'den son mum verilerini (OHLCV) çekerek formasyon analizi için hazırlar"""
     try:
         url = f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}USDT&interval=15m&limit=30"
-        res = requests.get(url, timeout=2)
+        res = requests.get(url, timeout=5)
         if res.status_code == 200:
             data = res.json()
             closes = [float(candle[4]) for candle in data]
@@ -55,11 +54,10 @@ def get_binance_klines(symbol):
             lows = [float(candle[3]) for candle in data]
             return closes, highs, lows
     except Exception as e:
-        pass
+        print("Klines Hatası:", e)
     return [], [], []
 
 def detect_chart_pattern(symbol, mark_px):
-    """Fiyat hareketlerine ve mum dizilimine bakarak basit teknik formasyonlar üretir"""
     closes, highs, lows = get_binance_klines(symbol)
     if len(closes) < 20:
         return [{"name": "Yükselen Kanal (Ascending Channel)", "type": "bullish", "confidence": "%78.5"}]
@@ -69,7 +67,6 @@ def detect_chart_pattern(symbol, mark_px):
     avg_price = mark_px
 
     patterns = []
-    
     if recent_trend > 0:
         if volatility < (avg_price * 0.02):
             patterns.append({"name": "Boğa Flaması (Bull Flag)", "type": "bullish", "confidence": "%84.2"})
@@ -87,7 +84,6 @@ def detect_chart_pattern(symbol, mark_px):
     return patterns
 
 def fmt(val):
-    """Fiyatın büyüklüğüne göre dinamik basamak formatı"""
     if val < 0.0001:
         return f"{val:,.6f}"
     elif val < 1:
@@ -108,7 +104,7 @@ def fetch_karma_market_data():
     payload = {"type": "metaAndAssetCtxs"}
     
     try:
-        res = requests.post(hl_url, json=payload, headers={"Content-Type": "application/json"}, timeout=2)
+        res = requests.post(hl_url, json=payload, headers={"Content-Type": "application/json"}, timeout=5)
         if res.status_code == 200:
             data = res.json()
             universe = data[0].get("universe", [])
@@ -167,22 +163,11 @@ def fetch_karma_market_data():
                     }
                 
                 trade = ACTIVE_TRADES[name]
-                
-                hitTP = (trade["type"] == 'LONG' and mark_px >= trade["tp"]) or (trade["type"] == 'SHORT' and mark_px <= trade["tp"])
-                hitSL = (trade["type"] == 'LONG' and mark_px <= trade["sl"]) or (trade["type"] == 'SHORT' and mark_px >= trade["sl"])
-                
-                if hitTP or hitSL or not trade["inTrade"]:
-                    trade["inTrade"] = True
-                    trade["entry"] = mark_px
-                    trade["tp"] = mark_px * 1.028
-                    trade["sl"] = mark_px * 0.978
-                    trade["type"] = "LONG"
-
                 detected_patterns = detect_chart_pattern(name, mark_px)
 
                 ai_report = {
                     "signal": "LONG İVME BASKISI",
-                    "comment": f"Normal eğrinin üzerinde +4.7x Hız ile tetiklenen yoğunluk tespit edildi. Giriş ${fmt(trade['entry'])} seviyesinden planlandı; hedef ${fmt(trade['tp'])}, stop ${fmt(trade['sl'])} seviyesindedir.",
+                    "comment": f"Normal eğrinin üzerinde +4.7x Hız ile tetiklenen yoğunluk tespit edildi. Giriş ${fmt(trade['entry'])} seviyesinden planlandı.",
                     "confluence": 88.4,
                     "entry": trade["entry"],
                     "tp": trade["tp"],
@@ -205,8 +190,10 @@ def fetch_karma_market_data():
                 "avgMarketPrice": sum(all_prices) / len(all_prices) if all_prices else 0
             }
             return processed_coins
+        else:
+            print("Hyperliquid HTTP Durum Kodu:", res.status_code)
     except Exception as e:
-        print("Veri hatası:", e)
+        print("Hyperliquid KRİTİK HATA:", e)
         
     return {}
 
