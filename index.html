@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cash Control - Hız ve Mark Fiyatı</title>
+    <title>Cash Control - Tam Görünüm</title>
     <style>
         body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; display: flex; justify-content: center; }
         .main-card { background: #181a20; border: 1px solid #2b2b2b; border-radius: 12px; width: 100%; max-width: 850px; padding: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
@@ -11,8 +11,8 @@
         .title { display: flex; align-items: center; gap: 8px; font-weight: bold; color: #fff; font-size: 15px; }
         .close-btn { color: #f0b90b; cursor: pointer; font-size: 18px; }
         
-        .ivme-box { background: #1e2329; border: 1px solid #2f363d; border-radius: 8px; padding: 15px; margin-bottom: 20px; position: relative; }
-        .ivme-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 13px; color: #848e9c; }
+        .ivme-box { background: #1e2329; border: 1px solid #2f363d; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+        .ivme-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 13px; color: #848e9c; flex-wrap: wrap; gap: 5px; }
         .badge-long { background: rgba(14, 203, 129, 0.15); color: #0ecb81; border: 1px solid rgba(14, 203, 129, 0.4); padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; }
         .badge-speed { background: rgba(112, 122, 138, 0.2); color: #c9d1d9; border: 1px solid #3a4149; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
         .badge-breakout { background: rgba(138, 43, 226, 0.2); color: #d8b4fe; border: 1px solid rgba(138, 43, 226, 0.4); padding: 4px 8px; border-radius: 4px; font-size: 12px; }
@@ -21,39 +21,48 @@
         .ivme-desc { font-size: 13px; color: #b7bdc6; line-height: 1.5; margin-bottom: 12px; }
         .ivme-footer { display: flex; gap: 20px; font-size: 12px; color: #848e9c; border-top: 1px solid #2b2b2b; padding-top: 10px; }
         
-        .prices-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; background: #121418; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; border: 1px solid #23272e; }
+        .prices-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; background: #121418; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center; border: 1px solid #23272e; }
         .price-item .lbl { font-size: 11px; color: #848e9c; margin-bottom: 4px; }
-        .price-item .val { font-size: 16px; font-weight: bold; }
+        .price-item .val { font-size: 15px; font-weight: bold; }
         
         .source-label { font-size: 12px; color: #848e9c; margin-bottom: 8px; text-align: center; }
-        .source-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
-        .src-btn { background: #1e2329; border: 1px solid #2f363d; color: #848e9c; padding: 10px; border-radius: 6px; font-size: 13px; cursor: pointer; text-align: center; transition: 0.2s; }
+        .source-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
+        .src-btn { background: #1e2329; border: 1px solid #2f363d; color: #848e9c; padding: 9px; border-radius: 6px; font-size: 12px; cursor: pointer; text-align: center; transition: 0.2s; }
         .src-btn.active { background: #2b2b23; border-color: #f0b90b; color: #f0b90b; font-weight: bold; }
         
-        .bottom-bar { display: flex; justify-content: space-between; align-items: center; background: #121418; padding: 12px 15px; border-radius: 8px; border: 1px solid #23272e; }
-        .coin-select { background: #1e2329; color: #fff; border: 1px solid #2f363d; padding: 6px 12px; border-radius: 6px; outline: none; cursor: pointer; }
+        .bottom-bar { display: flex; justify-content: space-between; align-items: center; background: #121418; padding: 10px 15px; border-radius: 8px; border: 1px solid #23272e; margin-bottom: 12px; }
+        .coin-select { background: #1e2329; color: #fff; border: 1px solid #2f363d; padding: 5px 10px; border-radius: 6px; outline: none; cursor: pointer; }
         .mark-display { font-size: 14px; font-weight: bold; color: #f0b90b; }
         
-        .refresh-status-bar { display: flex; justify-content: space-between; align-items: center; background: #261f12; border: 1px solid #4a3818; padding: 8px 12px; border-radius: 6px; margin-top: 15px; font-size: 12px; color: #f0b90b; }
-        .reset-btn { background: #2b2b2b; color: #eaeaea; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        .refresh-status-bar { display: flex; justify-content: space-between; align-items: center; background: #261f12; border: 1px solid #4a3818; padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 12px; color: #f0b90b; }
+        .reset-btn { background: #2b2b2b; color: #eaeaea; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
         
-        .mode-footer { display: flex; justify-content: center; gap: 20px; margin-top: 15px; font-size: 12px; color: #848e9c; align-items: center; }
+        .mode-footer { display: flex; justify-content: center; gap: 15px; margin-bottom: 15px; font-size: 12px; color: #848e9c; align-items: center; }
+        
+        /* İkinci görseldeki alt ortalama kartları stili */
+        .result-card { background: #1e2329; border: 1px solid #2f363d; border-radius: 8px; padding: 14px 18px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .result-card.long { border-left: 4px solid #0ecb81; }
+        .result-card.short { border-left: 4px solid #f6465d; }
+        .result-card.avg { border-left: 4px solid #f0b90b; }
+        .res-title { font-size: 13px; font-weight: bold; color: #fff; display: flex; align-items: center; gap: 6px; }
+        .res-sub { font-size: 11px; color: #848e9c; margin-top: 3px; }
+        .res-val { font-size: 18px; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="main-card">
         <div class="header-top">
-            <div class="title">📊 Tüm Kaynakların Ort.</div>
+            <div class="title">📊 Tüm Kaynakların Ortalaması</div>
             <div class="close-btn">✕</div>
         </div>
 
-        <!-- Hacim İvmesi & Akış Motoru Kutusu -->
+        <!-- Hacim İvmesi & Akış Motoru -->
         <div class="ivme-box">
             <div class="ivme-top">
                 <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
                     <span class="badge-long">⚡ LONG İVME BASKISI</span>
-                    <span class="badge-speed" id="ivmeSpeed">⚡ İvme: +4.7x Hız</span>
+                    <span class="badge-speed">⚡ İvme: +4.7x Hız</span>
                     <span class="badge-breakout">📈 Momentum Kırılımı (Breakout)</span>
                     <span class="badge-active">🚀 İşlem Aktif</span>
                 </div>
@@ -61,8 +70,8 @@
             </div>
             <div class="ivme-desc" id="aiComment">Analiz yükleniyor...</div>
             <div class="ivme-footer">
-                <div>🎯 Confluence Skoru: <span id="confluenceScore" style="color: #0ecb81; font-weight: bold;">-%</span></div>
-                <div>⚡ Artış Hızı (İvme): <span id="speedVal" style="color: #fff; font-weight: bold;">+4.7x</span></div>
+                <div>🎯 Confluence Skoru: <span style="color: #0ecb81; font-weight: bold;">%88.4</span></div>
+                <div>⚡ Artış Hızı (İvme): <span style="color: #fff; font-weight: bold;">+4.7x</span></div>
             </div>
         </div>
 
@@ -84,12 +93,13 @@
 
         <div class="source-label">Veri Kaynağı Seçin:</div>
         <div class="source-grid">
-            <div class="src-btn" onclick="setSource('copy', this)">Copy Liderler</div>
-            <div class="src-btn" onclick="setSource('whale', this)">Balinalar</div>
-            <div class="src-btn" onclick="setSource('all', this)">Genel Terste</div>
-            <div class="src-btn" onclick="setSource('pct6_20', this)">Zarar (%6-20)</div>
-            <div class="src-btn" onclick="setSource('top20', this)">TOP 20 Terste</div>
-            <div class="src-btn active" onclick="setSource('trak', this)">Tüm Kaynaklar</div>
+            <div class="src-btn" onclick="setSource('copy', this)">Sadece Copy Liderler</div>
+            <div class="src-btn" onclick="setSource('whale', this)">Sadece Balinalar</div>
+            <div class="src-btn" onclick="setSource('genel_terste', this)">Genel Terste Kalanlar</div>
+            <div class="src-btn" onclick="setSource('ters_6_20', this)">Terste Kalanlar (%6-20)</div>
+            <div class="src-btn" onclick="setSource('top20_terste', this)">TOP 20 Terste Kalanlar</div>
+            <div class="src-btn" onclick="setSource('top20_oransal', this)">TOP 20 Oransal</div>
+            <div class="src-btn active" onclick="setSource('trak', this)" style="grid-column: span 3;">Tüm Kaynakların Ort.</div>
         </div>
 
         <!-- Coin Seçimi ve Anlık Mark Fiyat -->
@@ -104,9 +114,9 @@
             </div>
         </div>
 
-        <!-- Otomatik Güncelleme Durum Çubuğu -->
+        <!-- Otomatik Güncelleme Barı -->
         <div class="refresh-status-bar">
-            <div>⏳ Güncelleme: <span id="refreshCountdown">5s</span></div>
+            <div>⏳ Cache yenilenme: <span id="refreshCountdown">5s</span></div>
             <button class="reset-btn" onclick="manualRefresh()">İşlemleri Sıfırla</button>
         </div>
 
@@ -114,6 +124,33 @@
             <div>🟡 <strong>Güncel</strong></div>
             <div style="color: #444;">○</div>
             <div>Geçmiş</div>
+        </div>
+
+        <!-- ALT KISIM: İkinci görseldeki Long, Short ve Ortalama Kartları -->
+        <div id="resultCardsContainer">
+            <div class="result-card long">
+                <div>
+                    <div class="res-title"><span style="color: #0ecb81;">●</span> LONG Ort. Giriş:</div>
+                    <div class="res-sub" id="longSub">(- işlem, -$ size)</div>
+                </div>
+                <div class="res-val" id="longVal" style="color: #0ecb81;">$-</div>
+            </div>
+
+            <div class="result-card short">
+                <div>
+                    <div class="res-title"><span style="color: #f6465d;">●</span> SHORT Ort. Giriş:</div>
+                    <div class="res-sub" id="shortSub">(- işlem, -$ size)</div>
+                </div>
+                <div class="res-val" id="shortVal" style="color: #f6465d;">$-</div>
+            </div>
+
+            <div class="result-card avg">
+                <div>
+                    <div class="res-title"><span style="color: #f0b90b;">●</span> Ortalama Giriş:</div>
+                    <div class="res-sub">Tüm pozisyonların ağırlıklı genel ortalaması</div>
+                </div>
+                <div class="res-val" id="avgVal" style="color: #f0b90b;">$-</div>
+            </div>
         </div>
     </div>
 
@@ -164,17 +201,26 @@
                     let d = json.data;
                     let ai = d.ai_analysis;
                     
-                    // Anlık Mark Fiyatı Bas
+                    // Anlık Mark Fiyat
                     document.getElementById('markPrice').innerText = "$" + d.markPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4});
                     
-                    // AI & Strateji Verileri
+                    // AI Açıklama ve Fiyatlar
                     document.getElementById('aiComment').innerText = ai.comment;
-                    document.getElementById('confluenceScore').innerText = "%" + ai.confluence;
                     document.getElementById('valEntry').innerText = "$" + ai.entry.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     document.getElementById('valTP').innerText = "$" + ai.tp.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     document.getElementById('valSL').innerText = "$" + ai.sl.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     
-                    // Zaman damgası
+                    // Seçilen kaynağa göre alt kartları güncelle
+                    let srcData = d.sources[currentSource] || d.sources["trak"];
+                    
+                    document.getElementById('longVal').innerText = "$" + srcData.long_avg.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
+                    document.getElementById('longSub').innerText = `(${srcData.long_count} işlem, $${srcData.long_size.toFixed(1)}K size)`;
+                    
+                    document.getElementById('shortVal').innerText = "$" + srcData.short_avg.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
+                    document.getElementById('shortSub').innerText = `(${srcData.short_count} işlem, $${srcData.short_size.toFixed(1)}K size)`;
+                    
+                    document.getElementById('avgVal').innerText = "$" + srcData.general_avg.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
+                    
                     let now = new Date();
                     document.getElementById('currentTime').innerText = now.toLocaleDateString('tr-TR') + " " + now.toLocaleTimeString('tr-TR') + " (TRT)";
                 }
@@ -202,7 +248,6 @@
 
         function startRealtimeSync() {
             if(autoInterval) clearInterval(autoInterval);
-            
             let secondsLeft = 5;
             setInterval(() => {
                 secondsLeft--;
