@@ -10,9 +10,13 @@
         /* Arka Plandaki TradingView Grafik Alanı */
         #tradingview-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
 
-        /* Üst Kontrol / Panel Açma ve Çıkış Tuşu Barı */
-        .top-control-bar { position: absolute; top: 15px; right: 20px; z-index: 10; display: flex; gap: 10px; align-items: center; }
-        .toggle-panel-btn { background: #f0b90b; color: #0b0e11; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: 0.2s; }
+        /* Üst Kontrol / Panel Açma, Zaman Seçimi ve Çıkış Tuşu Barı */
+        .top-control-bar { position: absolute; top: 15px; right: 20px; z-index: 10; display: flex; gap: 8px; align-items: center; }
+        
+        .timeframe-select { background: #1e2329; color: #f0b90b; border: 1px solid #2f363d; padding: 8px 10px; border-radius: 6px; font-weight: bold; font-size: 13px; outline: none; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .timeframe-select:focus { border-color: #f0b90b; }
+
+        .toggle-panel-btn { background: #f0b90b; color: #0b0e11; border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: 0.2s; }
         .toggle-panel-btn:hover { background: #fcd535; }
         
         .logout-btn { background: #1e2329; color: #f6465d; border: 1px solid #2f363d; padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: 0.2s; }
@@ -107,8 +111,19 @@
     <!-- Arka Planda Çalışan TradingView Grafik Alanı -->
     <div id="tradingview-container"></div>
 
-    <!-- Sağ Üst Köşe Panel Açma ve Çıkış Tuşları -->
+    <!-- Sağ Üst Köşe Kontrol Barı (Zaman Dilimi Seçici, Panel Açma, Çıkış) -->
     <div class="top-control-bar">
+        <select id="timeframeSelect" class="timeframe-select" onchange="onTimeframeChange()">
+            <option value="5">5 Dakika</option>
+            <option value="15" selected>15 Dakika</option>
+            <option value="30">30 Dakika</option>
+            <option value="60">1 Saat</option>
+            <option value="120">2 Saat</option>
+            <option value="180">3 Saat</option>
+            <option value="240">4 Saat</option>
+            <option value="D">1 Günlük</option>
+            <option value="W">1 Haftalık</option>
+        </select>
         <button class="toggle-panel-btn" onclick="togglePanel()">📊 Veri Göster / Gizle</button>
         <button class="logout-btn" onclick="logoutSession()">🔒 Çıkış Yap</button>
     </div>
@@ -246,6 +261,7 @@
 
     <script>
         let currentSymbol = "BTC";
+        let currentTimeframe = "15";
         let currentSource = "trak";
         let autoInterval = null;
         let currentUserRole = null;
@@ -292,10 +308,9 @@
             loadCoins();
         }
 
-        // ÇIKIŞ YAP FONKSİYONU
         function logoutSession() {
             localStorage.removeItem('cashControl_role');
-            location.reload(); // Sayfayı yenileyerek doğrudan kilit ekranına döndürür
+            location.reload();
         }
 
         function saveActiveTrades() {
@@ -312,7 +327,7 @@
             modal.classList.toggle('hidden');
         }
 
-        function updateTradingViewChart(symbol) {
+        function updateTradingViewChart(symbol, timeframe) {
             let container = document.getElementById('tradingview-container');
             container.innerHTML = ''; 
             
@@ -335,7 +350,7 @@
                 "width": "100%",
                 "height": "100%",
                 "symbol": "BINANCE:" + symbol + "USDT",
-                "interval": "15",
+                "interval": timeframe,
                 "timezone": "Europe/Istanbul",
                 "theme": "dark",
                 "style": "1",
@@ -374,8 +389,8 @@
                     }
                     
                     if(currentSymbol) {
-                        updateTradingViewChart(currentSymbol);
-                        fetchStats(currentSymbol);
+                        updateTradingViewChart(currentSymbol, currentTimeframe);
+                        fetchStats(currentSymbol, currentTimeframe);
                         startRealtimeSync();
                     }
                 }
@@ -412,9 +427,9 @@
             return savedPivots[symbol];
         }
 
-        async function fetchStats(symbol) {
+        async function fetchStats(symbol, timeframe) {
             try {
-                let res = await fetch(`/api/market-stats/${symbol}`);
+                let res = await fetch(`/api/market-stats/${symbol}?timeframe=${timeframe}`);
                 let json = await res.json();
                 if(json.status === 'success') {
                     let d = json.data;
@@ -422,7 +437,7 @@
                     let markPrice = parseFloat(d.markPrice);
                     
                     document.getElementById('markPrice').innerText = "$" + d.markPrice;
-                    document.getElementById('aiComment').innerText = ai.comment;
+                    document.getElementById('aiComment').innerText = `[${timeframe} Periyot] ` + ai.comment;
 
                     if (!activeTrades[symbol]) {
                         activeTrades[symbol] = { inTrade: false, entry: null, tp: null, sl: null, type: null };
@@ -500,20 +515,27 @@
         function onCoinChange() {
             let select = document.getElementById('coinSelect');
             currentSymbol = select.value;
-            updateTradingViewChart(currentSymbol);
-            fetchStats(currentSymbol);
+            updateTradingViewChart(currentSymbol, currentTimeframe);
+            fetchStats(currentSymbol, currentTimeframe);
+        }
+
+        function onTimeframeChange() {
+            let select = document.getElementById('timeframeSelect');
+            currentTimeframe = select.value;
+            updateTradingViewChart(currentSymbol, currentTimeframe);
+            fetchStats(currentSymbol, currentTimeframe);
         }
 
         function setSource(src, element) {
             document.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
             element.classList.add('active');
             currentSource = src;
-            fetchStats(currentSymbol);
+            fetchStats(currentSymbol, currentTimeframe);
         }
 
         function manualRefresh() {
             if (currentUserRole !== 'admin') return;
-            fetchStats(currentSymbol);
+            fetchStats(currentSymbol, currentTimeframe);
         }
 
         function startRealtimeSync() {
@@ -524,7 +546,7 @@
                 if(secondsLeft <= 0) {
                     secondsLeft = 5;
                     if(currentSymbol) {
-                        fetchStats(currentSymbol);
+                        fetchStats(currentSymbol, currentTimeframe);
                     }
                 }
                 let countEl = document.getElementById('refreshCountdown');
