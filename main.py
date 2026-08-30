@@ -1,10 +1,12 @@
 import time
+import json
+import os
 import requests
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="Cash Control Engine - Full UI Sync", version="13.2")
+app = FastAPI(title="Cash Control Engine - Live Trade Tracking", version="13.3")
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,8 +22,29 @@ CACHE = {
 }
 CACHE_DURATION = 5 
 
-# Tüm cihazların ortak göreceği aktif işlemler hafızası
-ACTIVE_TRADES = {}
+# Aktif işlemler ve geçmiş arşivin tutulacağı dosya
+HISTORY_FILE = "trade_history.json"
+
+def load_trade_history():
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    return {"active": {}, "closed": []}
+
+def save_trade_history(data):
+    try:
+        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        print("Geçmiş kayıt hatası:", e)
+
+# Hafızayı ve dosyayı senkronize et
+TRADE_STORE = load_trade_history()
+ACTIVE_TRADES = TRADE_STORE.get("active", {})
+CLOSED_TRADES = TRADE_STORE.get("closed", [])
 
 def get_binance_futures_tickers():
     """Binance Futures üzerinden anlık Mark Fiyatları ve Fonlama Oranlarını çeker"""
@@ -44,7 +67,6 @@ def get_binance_futures_tickers():
     return {}
 
 def fmt(val):
-    """Fiyatın büyüklüğüne göre dinamik basamak formatı"""
     if val < 0.0001:
         return f"{val:,.6f}"
     elif val < 1:
@@ -60,7 +82,6 @@ def fetch_karma_market_data():
     all_prices = []
     
     binance_data = get_binance_futures_tickers()
-    
     hl_url = "https://api.hyperliquid.xyz/info"
     payload = {"type": "metaAndAssetCtxs"}
     
@@ -114,27 +135,52 @@ def fetch_karma_market_data():
                         "general_avg": general_avg
                     }
 
-                # Sunucu tarafında ortak işlem yönetimi
+                # --- CANLI İŞLEM VE BAŞARI TAKİP MEKANİZMASI ---
                 if name not in ACTIVE_TRADES:
+                    # Yeni işlem açılıyor ve kaydediliyor
                     ACTIVE_TRADES[name] = {
-                        "inTrade": True,
+                        "symbol": f"{name}USDT",
+                        "type": "LONG",
                         "entry": mark_px,
                         "tp": mark_px * 1.028,
                         "sl": mark_px * 0.978,
-                        "type": "LONG"
+                        "start_time": time.strftime("%Y-%m-%d %H:%M:%S")
                     }
                 
                 trade = ACTIVE_TRADES[name]
                 
+                # Fiyat TP veya SL hedefine ulaştı mı kontrol et
                 hitTP = (trade["type"] == 'LONG' and mark_px >= trade["tp"]) or (trade["type"] == 'SHORT' and mark_px <= trade["tp"])
                 hitSL = (trade["type"] == 'LONG' and mark_px <= trade["sl"]) or (trade["type"] == 'SHORT' and mark_px >= trade["sl"])
                 
-                if hitTP or hitSL or not trade["inTrade"]:
-                    trade["inTrade"] = True
-                    trade["entry"] = mark_px
-                    trade["tp"] = mark_px * 1.028
-                    trade["sl"] = mark_px * 0.978
-                    trade["type"] = "LONG"
+                if hitTP or hitSL:
+                    # İşlem kapandı, geçmiş arşive (CLOSED_TRADES) ekle
+                    result_status = "WIN" if hitTP else "LOSS"
+                    closed_record = {
+                        "symbol": trade["symbol"],
+                        "type": trade["type"],
+                        "entry": trade["entry"],
+                        "exit_price": mark_px,
+                        "result": result_status,
+                        "closed_at": time.strftime("%Y-%m-%d %H:%M:%S")
+                    }
+                    CLOSED_TRADES.insert(0, closed_record) # En yeni en üstte
+                    if len(CLOSED_TRADES) > 50:  # Son 50 işlemi tut
+                        CLOSED_TRADES.pop()
+                    
+                    # Eski işlemi sil ve anında YENİ bir işlem başlat
+                    ACTIVE_TRADES[name] = {
+                        "symbol": f"{name}USDT",
+                        "type": "LONG",
+                        "entry": mark_px,
+                        "tp": mark_px * 1.028,
+                        "sl": mark_px * 0.978,
+                        "start_time": time.strftime("%Y-%m-%d %H:%M:%S")
+                    }
+                    trade = ACTIVE_TRADES[name]
+                    
+                    # Dosyaya kalıcı olarak kaydet
+                    save_trade_history({"active": ACTIVE_TRADES, "closed": CLOSED_TRADES})
 
                 ai_report = {
                     "signal": "LONG İVME BASKISI",
@@ -175,11 +221,13 @@ def read_index():
 
 @app.get("/api/coins")
 def get_all_coins():
-    global CACHE
+    global CACHE, ACTIVE_TRADES, CLOSED_TRADES
     current_time = time.time()
     if current_time - CACHE["last_update"] > CACHE_DURATION or not CACHE["data"]:
         CACHE["data"] = fetch_karma_market_data()
         CACHE["last_update"] = current_time
+        # Güncellenen verileri dosyaya da yansıt
+        save_trade_history({"active": ACTIVE_TRADES, "closed": CLOSED_TRADES})
     
     coins = [k for k in CACHE["data"].keys() if not k.startswith("_")]
     return {"status": "success", "coins": sorted(coins)}
@@ -204,6 +252,14 @@ def get_coin_stats(symbol: str):
         "cache_remaining_seconds": int(CACHE_DURATION - (current_time - CACHE["last_update"])),
         "data": coin_data,
         "global": global_data
+    }
+
+# Geçmiş başarı/sonuç istatistiklerini çekmek için ek endpoint (Görünümü bozmadan arka planda çalışır)
+@app.get("/api/trade-history")
+def get_trade_history():
+    return {
+        "status": "success",
+        "closed_trades": CLOSED_TRADES
     }
 
 if __name__ == "__main__":
