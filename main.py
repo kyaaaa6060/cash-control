@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="Cash Control Engine - Safe Mode", version="13.8")
+app = FastAPI(title="Cash Control Engine - Full Clean", version="13.9")
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,7 +22,6 @@ CACHE_DURATION = 5
 
 ACTIVE_TRADES = {}
 
-# Bulut sunucularda (Render vb.) API engeline karşı zengin yedek coin listesi
 FALLBACK_COINS = {
     "BTC": 65000.0, "ETH": 3500.0, "SOL": 150.0, "AVAX": 25.0, 
     "XRP": 0.55, "BNB": 580.0, "ADA": 0.40, "DOGE": 0.12, 
@@ -44,8 +43,8 @@ def get_binance_futures_tickers():
                         "fundingRate": float(item.get("lastFundingRate", 0)) * 100
                     }
             return tickers
-    except Exception as e:
-        print("Binance API engellendi veya zaman aşımı:", e)
+    except Exception:
+        pass
     return {}
 
 def get_binance_klines(symbol):
@@ -68,12 +67,10 @@ def detect_chart_pattern(symbol, mark_px):
         return [{"name": "Boğa Flaması (Bull Flag)", "type": "bullish", "confidence": "%84.2"}]
     
     recent_trend = closes[-1] - closes[-5]
-    patterns = []
     if recent_trend > 0:
-        patterns.append({"name": "Boğa Flaması (Bull Flag)", "type": "bullish", "confidence": "%84.2"})
+        return [{"name": "Boğa Flaması (Bull Flag)", "type": "bullish", "confidence": "%84.2"}]
     else:
-        patterns.append({"name": "Çift Dip (Double Bottom)", "type": "bullish", "confidence": "%89.1"})
-    return patterns
+        return [{"name": "Çift Dip (Double Bottom)", "type": "bullish", "confidence": "%89.1"}]
 
 def fmt(val):
     if val < 0.0001:
@@ -92,7 +89,6 @@ def fetch_karma_market_data():
     
     binance_data = get_binance_futures_tickers()
     
-    # Hyperliquid'den veri çekmeyi dene
     universe = []
     ctxs = []
     try:
@@ -104,7 +100,6 @@ def fetch_karma_market_data():
     except Exception:
         pass
         
-    # Eğer dış API'ler boş döndüyse (Render engeli vb.), garanti yedek listeyi devre sok
     if not universe:
         for name, price in FALLBACK_COINS.items():
             universe.append({"name": name})
