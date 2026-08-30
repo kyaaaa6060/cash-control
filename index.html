@@ -164,7 +164,6 @@
         .dot-red { background-color: var(--short-color); }
         .dot-yellow { background-color: var(--accent-yellow); }
 
-        /* --- PRO TRADER PANELİ (KADEMELİ GİRİŞ & LİKİDİTE) --- */
         .trader-panel {
             background-color: var(--btn-bg);
             border: 1px solid var(--card-border);
@@ -284,7 +283,6 @@
             <div class="metric-val" id="general-val" style="color: var(--accent-yellow);">$0,0000</div>
         </div>
 
-        <!-- PRO TRADER & LİKİDİTE TAKİP MASASI -->
         <div class="trader-panel">
             <div class="trader-header">
                 <span>⚡ Likidite & Kademeli Giriş Takip Masası</span>
@@ -406,7 +404,6 @@
 
             document.getElementById("general-val").innerText = "$" + genVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
 
-            // --- LİKİDİTE İĞNESİ & KADEMELİ GİRİŞ MANTIĞI ---
             let lockKey = `trader_liquidity_track_${selectedCoin}_${currentSource}`;
             let savedLock = localStorage.getItem(lockKey);
             let markPrice = cachedResponse.data.markPrice;
@@ -425,10 +422,8 @@
                     return;
                 }
 
-                // Bekleme (Limit Emir / Likidite Havuzu Testi) aşaması
                 if (lockedStrategy.status === "PENDING") {
                     let reachedEntry = false;
-                    // Kademeli bandın içine veya stop avı iğnesine değdi mi?
                     if (lockedStrategy.side === "LONG" && markPrice <= lockedStrategy.entryHigh) reachedEntry = true;
                     if (lockedStrategy.side === "SHORT" && markPrice >= lockedStrategy.entryLow) reachedEntry = true;
 
@@ -438,7 +433,6 @@
                     }
                 }
 
-                // Aktif Pozisyon Takibi (Long: TP üstte, SL altta / Short: TP altta, SL üstte)
                 if (lockedStrategy.status === "ACTIVE") {
                     if (lockedStrategy.side === "LONG") {
                         if (markPrice >= lockedStrategy.tp) {
@@ -461,23 +455,19 @@
                 }
 
             } else {
-                // Yeni Strateji Oluşturma (Kademeli Giriş Bandı + Likidite Teması)
                 let side = fundingRate > 0 ? "LONG" : "SHORT";
-                
                 let entryHigh, entryLow, tpPrice, slPrice;
 
                 if (side === "LONG") {
-                    // Long için kademeli giriş bandı (Ortalamanın altı ve üstü küçük bir aralık)
                     entryHigh = longVal * 1.002;
-                    entryLow = longVal * 0.992; // Likidite iğnesi için alt sınır
-                    tpPrice = entryHigh * 1.03; // Long TP üstte
-                    slPrice = entryLow * 0.98;   // Long SL altta
+                    entryLow = longVal * 0.992;
+                    tpPrice = entryHigh * 1.03;
+                    slPrice = entryLow * 0.98;
                 } else {
-                    // Short için kademeli giriş bandı
-                    entryHigh = shortVal * 1.008; // Likidite iğnesi için üst sınır
+                    entryHigh = shortVal * 1.008;
                     entryLow = shortVal * 0.998;
-                    tpPrice = entryLow * 0.97;  // Short TP altta
-                    slPrice = entryHigh * 1.02;  // Short SL üstte
+                    tpPrice = entryLow * 0.97;
+                    slPrice = entryHigh * 1.02;
                 }
 
                 lockedStrategy = {
@@ -494,7 +484,6 @@
                 localStorage.setItem(lockKey, JSON.stringify(lockedStrategy));
             }
 
-            // Arayüze Yansıtma
             if (lockedStrategy.status === "CLOSED") {
                 document.getElementById("ai-market-status").innerHTML = `🛑 <strong>İşlem Sonuçlandı:</strong> ${lockedStrategy.closeReason}. Yeni sinyal bekleniyor.`;
                 document.getElementById("ai-entry-zone").innerText = "Tamamlandı";
@@ -512,8 +501,11 @@
             }
         }
 
-        loadCoinList();
-        setInterval(fetchMarketData, 30000);
+        // DOM Tamamen Yüklendiğinde Güvenli Başlatma
+        window.addEventListener('DOMContentLoaded', () => {
+            loadCoinList();
+            setInterval(fetchMarketData, 30000);
+        });
     </script>
 </body>
 </html>
