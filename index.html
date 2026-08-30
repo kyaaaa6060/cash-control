@@ -163,6 +163,50 @@
         .dot-green { background-color: var(--long-color); }
         .dot-red { background-color: var(--short-color); }
         .dot-yellow { background-color: var(--accent-yellow); }
+
+        /* --- PROFESYONEL TRADER & AI STRATEJİ PANELİ --- */
+        .trader-panel {
+            background-color: var(--btn-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 14px;
+            margin-top: 12px;
+        }
+        .trader-header {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--accent-yellow);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 6px;
+        }
+        .trader-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .trader-box {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            padding: 8px;
+            text-align: center;
+        }
+        .trader-box-title { font-size: 10px; color: var(--text-muted); margin-bottom: 4px; }
+        .trader-box-val { font-size: 12px; font-weight: 700; }
+        .trader-desc {
+            font-size: 11px;
+            color: var(--text-main);
+            margin-top: 8px;
+            line-height: 1.4;
+            background: rgba(0,0,0,0.2);
+            padding: 6px 8px;
+            border-radius: 6px;
+        }
     </style>
 </head>
 <body>
@@ -188,7 +232,7 @@
         <div class="selector-row">
             <div>
                 <span style="font-size: 13px; color: var(--text-muted);">Coin:</span>
-                <select id="coin-select" onchange="updateViewData()">
+                <select id="coin-select" onchange="onCoinChange()">
                     <option value="BTC">Yükleniyor...</option>
                 </select>
             </div>
@@ -229,12 +273,46 @@
             </div>
             <div class="metric-val" id="general-val" style="color: var(--accent-yellow);">$0,0000</div>
         </div>
+
+        <!-- PROFESYONEL TRADER & AI STRATEJİ PANELİ (SABİTLENMİŞ SEVİYELER) -->
+        <div class="trader-panel">
+            <div class="trader-header">
+                <span>⚡ Profesyonel Trader & AI Strateji Masası (Kilitli Sinyal)</span>
+            </div>
+            <div class="trader-desc" id="ai-market-status">
+                Strateji kilitleniyor...
+            </div>
+            <div class="trader-grid">
+                <div class="trader-box">
+                    <div class="trader-box-title">STRATEJİK GİRİŞ</div>
+                    <div class="trader-box-val" id="ai-entry-zone" style="color: var(--accent-yellow);">-</div>
+                </div>
+                <div class="trader-box">
+                    <div class="trader-box-title">HEDEF (TP)</div>
+                    <div class="trader-box-val" id="ai-tp-zone" style="color: var(--long-color);">-</div>
+                </div>
+                <div class="trader-box">
+                    <div class="trader-box-title">STOP (SL)</div>
+                    <div class="trader-box-val" id="ai-sl-zone" style="color: var(--short-color);">-</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
         let currentSource = "all";
         let currentTab = "guncel";
         let cachedResponse = null;
+        
+        // İşlem seviyelerinin sürekli değişmemesi için kilit değişkenleri
+        let lockedStrategy = {
+            coin: "",
+            source: "",
+            entry: 0,
+            tp: 0,
+            sl: 0,
+            text: ""
+        };
 
         async function loadCoinList() {
             try {
@@ -275,6 +353,12 @@
             }
         }
 
+        function onCoinChange() {
+            // Coin değiştiğinde kilidi sıfırla ki yeni coin için sabit sinyal oluşturulsun
+            lockedStrategy.coin = "";
+            fetchMarketData();
+        }
+
         function setSource(sourceKey, titleText) {
             currentSource = sourceKey;
             document.getElementById("modal-main-title").innerText = "📊 " + titleText;
@@ -282,6 +366,8 @@
             document.querySelectorAll('.source-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
             
+            // Kaynak değiştiğinde kilidi sıfırla
+            lockedStrategy.source = "";
             updateViewData();
         }
 
@@ -292,12 +378,12 @@
             updateViewData();
         }
 
-        async function updateViewData() {
+        function updateViewData() {
             if (!cachedResponse) return;
             
             let selectedCoin = document.getElementById("coin-select").value;
             if (cachedResponse.data.symbol !== selectedCoin + "USDT") {
-                await fetchMarketData();
+                fetchMarketData();
                 return;
             }
 
@@ -317,6 +403,49 @@
             document.getElementById("short-sub").innerText = `(${sourceData.short_count} işlem, $${(sourceData.short_size/1000).toFixed(2)}K size)`;
 
             document.getElementById("general-val").innerText = "$" + genVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
+
+            // --- SABİTLENMİŞ STRATEJİ KONTROLÜ (Sürekli Değişmemesi İçin) ---
+            if (lockedStrategy.coin !== selectedCoin || lockedStrategy.source !== currentSource) {
+                let markPrice = cachedResponse.data.markPrice;
+                let fundingRate = cachedResponse.data.fundingRate || 0;
+                let longSize = sourceData.long_size;
+
+                let actionText = "";
+                let entryPrice = markPrice;
+                let tpPrice = 0;
+                let slPrice = 0;
+
+                if (fundingRate > 0.01) {
+                    actionText = `📈 <strong>Yüksek Pozitif Fonlama (%${fundingRate.toFixed(3)})</strong>: Long likidasyon avı (şelale) bekleniyor. Destek bölgesinden işlem kilitlendi.`;
+                    entryPrice = longVal * 0.995;
+                    tpPrice = markPrice * 1.025;
+                    slPrice = longVal * 0.975;
+                } else if (fundingRate < -0.01) {
+                    actionText = `📉 <strong>Negatif Fonlama (%${fundingRate.toFixed(3)})</strong>: Short squeeze (açığa satış patlatma) potansiyeli aktif. Kilitli direnç kırılım stratejisi.`;
+                    entryPrice = shortVal * 1.005;
+                    tpPrice = markPrice * 0.975;
+                    slPrice = shortVal * 1.025;
+                } else {
+                    actionText = `⚖️ <strong>Dengeli Piyasa Yapısı</strong>: Ağırlıklı ortalama (${genVal.toFixed(2)}) seviyesine göre kanal içi işlem stratejisi sabitlendi.`;
+                    entryPrice = genVal;
+                    tpPrice = markPrice * 1.018;
+                    slPrice = markPrice * 0.988;
+                }
+
+                // Kilitleme verilerini kaydet
+                lockedStrategy.coin = selectedCoin;
+                lockedStrategy.source = currentSource;
+                lockedStrategy.entry = entryPrice;
+                lockedStrategy.tp = tpPrice;
+                lockedStrategy.sl = slPrice;
+                lockedStrategy.text = actionText;
+            }
+
+            // Kilitlenen sabit değerleri ekrana yazdır (Veriler arka planda güncellense bile burası sabit kalır)
+            document.getElementById("ai-market-status").innerHTML = lockedStrategy.text;
+            document.getElementById("ai-entry-zone").innerText = `$${lockedStrategy.entry.toFixed(2)}`;
+            document.getElementById("ai-tp-zone").innerText = `$${lockedStrategy.tp.toFixed(2)}`;
+            document.getElementById("ai-sl-zone").innerText = `$${lockedStrategy.sl.toFixed(2)}`;
         }
 
         loadCoinList();
