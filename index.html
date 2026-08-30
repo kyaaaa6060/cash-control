@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cash Control - Kompakt Görünüm</title>
+    <title>Cash Control - Kompakt ve 2 Basamaklı</title>
     <style>
         body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 10px; display: flex; justify-content: center; }
         .main-card { background: #181a20; border: 1px solid #2b2b2b; border-radius: 10px; width: 100%; max-width: 750px; padding: 12px 15px; box-shadow: 0 6px 18px rgba(0,0,0,0.5); }
@@ -39,7 +39,6 @@
         
         .mode-footer { display: flex; justify-content: center; gap: 12px; margin-bottom: 10px; font-size: 11px; color: #848e9c; align-items: center; }
         
-        /* Kompakt Sonuç Kartları */
         .result-card { background: #1e2329; border: 1px solid #2f363d; border-radius: 6px; padding: 10px 14px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
         .result-card.long { border-left: 3px solid #0ecb81; }
         .result-card.short { border-left: 3px solid #f6465d; }
@@ -201,22 +200,24 @@
                     let d = json.data;
                     let ai = d.ai_analysis;
                     
-                    document.getElementById('markPrice').innerText = "$" + d.markPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4});
+                    document.getElementById('markPrice').innerText = "$" + d.markPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     
                     document.getElementById('aiComment').innerText = ai.comment;
+                    // Fiyatlar virgülden sonra tam 2 basamak olacak şekilde ayarlandı
                     document.getElementById('valEntry').innerText = "$" + ai.entry.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     document.getElementById('valTP').innerText = "$" + ai.tp.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     document.getElementById('valSL').innerText = "$" + ai.sl.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     
                     let srcData = d.sources[currentSource] || d.sources["trak"];
                     
-                    document.getElementById('longVal').innerText = "$" + srcData.long_avg.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
+                    // Alt kartlardaki ortalama girişler de virgülden sonra 2 basamağa sabitlendi
+                    document.getElementById('longVal').innerText = "$" + srcData.long_avg.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     document.getElementById('longSub').innerText = `(${srcData.long_count} işlem, $${srcData.long_size.toFixed(1)}K size)`;
                     
-                    document.getElementById('shortVal').innerText = "$" + srcData.short_avg.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
+                    document.getElementById('shortVal').innerText = "$" + srcData.short_avg.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     document.getElementById('shortSub').innerText = `(${srcData.short_count} işlem, $${srcData.short_size.toFixed(1)}K size)`;
                     
-                    document.getElementById('avgVal').innerText = "$" + srcData.general_avg.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
+                    document.getElementById('avgVal').innerText = "$" + srcData.general_avg.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     
                     let now = new Date();
                     document.getElementById('currentTime').innerText = now.toLocaleDateString('tr-TR') + " " + now.toLocaleTimeString('tr-TR') + " (TRT)";
