@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="Cash Control Engine", version="6.4")
+app = FastAPI(title="Cash Control Multi-Exchange Engine", version="7.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,9 +18,9 @@ CACHE = {
     "last_update": 0,
     "data": {}
 }
-CACHE_DURATION = 10
+CACHE_DURATION = 15
 
-def get_binance_futures_tickers():
+def get_binance_tickers():
     try:
         url = "https://fapi.binance.com/fapi/v1/premiumIndex"
         res = requests.get(url, timeout=2)
@@ -29,10 +29,143 @@ def get_binance_futures_tickers():
             for item in res.json():
                 symbol = item.get("symbol", "")
                 if symbol.endswith("USDT"):
-                    base_name = symbol.replace("USDT", "")
-                    tickers[base_name] = {
+                    base = symbol.replace("USDT", "")
+                    tickers[base] = {
                         "markPrice": float(item.get("markPrice", 0)),
                         "fundingRate": float(item.get("lastFundingRate", 0)) * 100
+                    }
+            return tickers
+    except Exception:
+        pass
+    return {}
+
+def get_bybit_tickers():
+    try:
+        url = "https://api.bybit.com/v5/market/tickers?category=linear"
+        res = requests.get(url, timeout=2)
+        if res.status_code == 200:
+            tickers = {}
+            for item in res.json().get("result", {}).get("list", []):
+                symbol = item.get("symbol", "")
+                if symbol.endswith("USDT"):
+                    base = symbol.replace("USDT", "")
+                    tickers[base] = {
+                        "markPrice": float(item.get("markPrice", 0)),
+                        "fundingRate": float(item.get("fundingRate", 0)) * 100
+                    }
+            return tickers
+    except Exception:
+        pass
+    return {}
+
+def get_okx_tickers():
+    try:
+        url = "https://www.okx.com/api/v5/market/tickers?instType=SWAP"
+        res = requests.get(url, timeout=2)
+        if res.status_code == 200:
+            tickers = {}
+            for item in res.json().get("data", []):
+                inst_id = item.get("instId", "")
+                if "-USDT-SWAP" in inst_id:
+                    base = inst_id.split("-")[0]
+                    tickers[base] = {
+                        "markPrice": float(item.get("last", 0)),
+                        "fundingRate": 0.01
+                    }
+            return tickers
+    except Exception:
+        pass
+    return {}
+
+def get_mexc_tickers():
+    try:
+        url = "https://contract.mexc.com/api/v1/contract/ticker"
+        res = requests.get(url, timeout=2)
+        if res.status_code == 200:
+            tickers = {}
+            for item in res.json().get("data", []):
+                symbol = item.get("symbol", "")
+                if symbol.endswith("_USDT"):
+                    base = symbol.replace("_USDT", "")
+                    tickers[base] = {
+                        "markPrice": float(item.get("lastPrice", 0)),
+                        "fundingRate": 0.01
+                    }
+            return tickers
+    except Exception:
+        pass
+    return {}
+
+def get_bitget_tickers():
+    try:
+        url = "https://api.bitget.com/api/v2/mix/market/tickers?productType=USDT-FUTURES"
+        res = requests.get(url, timeout=2)
+        if res.status_code == 200:
+            tickers = {}
+            for item in res.json().get("data", []):
+                symbol = item.get("symbol", "")
+                if symbol.endswith("USDT"):
+                    base = symbol.replace("USDT", "")
+                    tickers[base] = {
+                        "markPrice": float(item.get("markPrice", 0)),
+                        "fundingRate": float(item.get("fundingRate", 0)) * 100
+                    }
+            return tickers
+    except Exception:
+        pass
+    return {}
+
+def get_gate_tickers():
+    try:
+        url = "https://fx-api.gateio.ws/api/v4/futures/usdt/tickers"
+        res = requests.get(url, timeout=2)
+        if res.status_code == 200:
+            tickers = {}
+            for item in res.json():
+                contract = item.get("contract", "")
+                if contract.endswith("_USDT"):
+                    base = contract.replace("_USDT", "")
+                    tickers[base] = {
+                        "markPrice": float(item.get("mark_price", 0)),
+                        "fundingRate": float(item.get("funding_rate", 0)) * 100
+                    }
+            return tickers
+    except Exception:
+        pass
+    return {}
+
+def get_kucoin_tickers():
+    try:
+        url = "https://api-futures.kucoin.com/api/v1/contracts/active"
+        res = requests.get(url, timeout=2)
+        if res.status_code == 200:
+            tickers = {}
+            for item in res.json().get("data", []):
+                symbol = item.get("symbol", "")
+                if symbol.endswith("USDTM"):
+                    base = symbol.replace("USDTM", "")
+                    tickers[base] = {
+                        "markPrice": float(item.get("markPrice", 0)),
+                        "fundingRate": float(item.get("fundingFeeRate", 0)) * 100
+                    }
+            return tickers
+    except Exception:
+        pass
+    return {}
+
+def get_cryptocom_tickers():
+    try:
+        url = "https://deriv.crypto.com/v1/public/get-tickers"
+        res = requests.get(url, timeout=2)
+        if res.status_code == 200:
+            tickers = {}
+            for item in res.json().get("result", {}).get("data", []):
+                instrument = item.get("instrument_name", "")
+                if "_USDT" in instrument:
+                    base = instrument.split("_")[0]
+                    tickers[base] = {
+                        "markPrice": float(item.get("mark_price", 0)),
+                        "fundingRate": 0.01
                     }
             return tickers
     except Exception:
@@ -44,7 +177,17 @@ def fetch_karma_market_data():
     total_open_interest_usd = 0
     all_prices = []
     
-    binance_data = get_binance_futures_tickers()
+    # Tüm borsalardan verileri topla
+    exchanges = {
+        "binance": get_binance_tickers(),
+        "bybit": get_bybit_tickers(),
+        "okx": get_okx_tickers(),
+        "mexc": get_mexc_tickers(),
+        "bitget": get_bitget_tickers(),
+        "gate": get_gate_tickers(),
+        "kucoin": get_kucoin_tickers(),
+        "cryptocom": get_cryptocom_tickers()
+    }
     
     hl_url = "https://api.hyperliquid.xyz/info"
     payload = {"type": "metaAndAssetCtxs"}
@@ -66,9 +209,11 @@ def fetch_karma_market_data():
                 prices = [hl_mark_px] if hl_mark_px > 0 else []
                 fundings = [hl_funding]
                 
-                if name in binance_data and binance_data[name]["markPrice"] > 0:
-                    prices.append(binance_data[name]["markPrice"])
-                    fundings.append(binance_data[name]["fundingRate"])
+                # Tüm borsalardaki verileri harmanla
+                for ex_name, ex_data in exchanges.items():
+                    if name in ex_data and ex_data[name]["markPrice"] > 0:
+                        prices.append(ex_data[name]["markPrice"])
+                        fundings.append(ex_data[name]["fundingRate"])
                 
                 if not prices:
                     continue
@@ -140,7 +285,7 @@ def fetch_karma_market_data():
             }
             return processed_coins
     except Exception as e:
-        print("Veri çekme hatası:", e)
+        print("Genel veri çekme hatası:", e)
         
     return {}
 
@@ -175,7 +320,6 @@ def get_coin_stats(symbol: str):
     coin_data = CACHE["data"].get(symbol)
     
     if not coin_data:
-        # Fallback veri (hiçbir şey boş kalmasın)
         coin_data = {
             "symbol": f"{symbol}USDT",
             "markPrice": 60000.0,
