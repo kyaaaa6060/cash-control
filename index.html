@@ -164,7 +164,7 @@
         .dot-red { background-color: var(--short-color); }
         .dot-yellow { background-color: var(--accent-yellow); }
 
-        /* --- OTOMATİK TAKİP EDEN TRADER & POZİSYON PANELİ --- */
+        /* --- PRO TRADER PANELİ (KADEMELİ GİRİŞ & LİKİDİTE) --- */
         .trader-panel {
             background-color: var(--btn-bg);
             border: 1px solid var(--card-border);
@@ -284,18 +284,18 @@
             <div class="metric-val" id="general-val" style="color: var(--accent-yellow);">$0,0000</div>
         </div>
 
-        <!-- OTOMATİK TAKİP EDEN TRADER PANELİ -->
+        <!-- PRO TRADER & LİKİDİTE TAKİP MASASI -->
         <div class="trader-panel">
             <div class="trader-header">
-                <span>⚡ Otomatik Pozisyon ve Hedef Takip Masası</span>
+                <span>⚡ Likidite & Kademeli Giriş Takip Masası</span>
                 <button class="reset-btn" onclick="resetStrategyLock()">Yeni Sinyal Al</button>
             </div>
             <div class="trader-desc" id="ai-market-status">
-                Piyasa takip ediliyor...
+                Piyasa likiditesi taranıyor...
             </div>
             <div class="trader-grid">
                 <div class="trader-box">
-                    <div class="trader-box-title">STRATEJİK GİRİŞ</div>
+                    <div class="trader-box-title">KADEMELİ GİRİŞ (ZONE)</div>
                     <div class="trader-box-val" id="ai-entry-zone" style="color: var(--accent-yellow);">-</div>
                 </div>
                 <div class="trader-box">
@@ -375,7 +375,7 @@
 
         function resetStrategyLock() {
             let selectedCoin = document.getElementById("coin-select").value;
-            let lockKey = `trader_auto_track_${selectedCoin}_${currentSource}`;
+            let lockKey = `trader_liquidity_track_${selectedCoin}_${currentSource}`;
             localStorage.removeItem(lockKey);
             updateViewData();
         }
@@ -406,8 +406,8 @@
 
             document.getElementById("general-val").innerText = "$" + genVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
 
-            // --- OTOMATİK HEDEF, STOP VE DURUM KONTROLÜ (MARK PRICE BAZLI) ---
-            let lockKey = `trader_auto_track_${selectedCoin}_${currentSource}`;
+            // --- LİKİDİTE İĞNESİ & KADEMELİ GİRİŞ MANTIĞI ---
+            let lockKey = `trader_liquidity_track_${selectedCoin}_${currentSource}`;
             let savedLock = localStorage.getItem(lockKey);
             let markPrice = cachedResponse.data.markPrice;
             let fundingRate = cachedResponse.data.fundingRate || 0;
@@ -417,69 +417,84 @@
             if (savedLock) {
                 lockedStrategy = JSON.parse(savedLock);
 
-                // Eğer işlem KAPATILDIYSA (Hedef veya Stop olduysa), paneli BOŞALT
                 if (lockedStrategy.status === "CLOSED") {
-                    document.getElementById("ai-market-status").innerHTML = `🛑 <strong>İşlem Sonuçlandı:</strong> ${lockedStrategy.closeReason}. Yeni işlem için bekleniyor.`;
-                    document.getElementById("ai-entry-zone").innerText = "Bekliyor...";
+                    document.getElementById("ai-market-status").innerHTML = `🛑 <strong>İşlem Sonuçlandı:</strong> ${lockedStrategy.closeReason}. Yeni sinyal bekleniyor.`;
+                    document.getElementById("ai-entry-zone").innerText = "Tamamlandı";
                     document.getElementById("ai-tp-zone").innerText = "-";
                     document.getElementById("ai-sl-zone").innerText = "-";
                     return;
                 }
 
-                // Eğer pozisyon BEKLEME (Limit Emir) aşamasındaysa -> Giriş fiyatına ulaşıldı mı kontrol et
+                // Bekleme (Limit Emir / Likidite Havuzu Testi) aşaması
                 if (lockedStrategy.status === "PENDING") {
                     let reachedEntry = false;
-                    if (lockedStrategy.side === "LONG" && markPrice <= lockedStrategy.entry) reachedEntry = true;
-                    if (lockedStrategy.side === "SHORT" && markPrice >= lockedStrategy.entry) reachedEntry = true;
+                    // Kademeli bandın içine veya stop avı iğnesine değdi mi?
+                    if (lockedStrategy.side === "LONG" && markPrice <= lockedStrategy.entryHigh) reachedEntry = true;
+                    if (lockedStrategy.side === "SHORT" && markPrice >= lockedStrategy.entryLow) reachedEntry = true;
 
                     if (reachedEntry) {
-                        lockedStrategy.status = "ACTIVE"; // Artık işlemde!
+                        lockedStrategy.status = "ACTIVE"; 
                         localStorage.setItem(lockKey, JSON.stringify(lockedStrategy));
                     }
                 }
 
-                // Eğer pozisyon AKTİF ise -> Hedef (TP) veya Stop (SL) geldi mi kontrol et
+                // Aktif Pozisyon Takibi (Long: TP üstte, SL altta / Short: TP altta, SL üstte)
                 if (lockedStrategy.status === "ACTIVE") {
                     if (lockedStrategy.side === "LONG") {
                         if (markPrice >= lockedStrategy.tp) {
                             lockedStrategy.status = "CLOSED";
-                            lockedStrategy.closeReason = "🟢 Hedef (TP) Başarıyla Geldi!";
+                            lockedStrategy.closeReason = "🟢 Likidite Hedefi (TP) Geldi!";
                         } else if (markPrice <= lockedStrategy.sl) {
                             lockedStrategy.status = "CLOSED";
-                            lockedStrategy.closeReason = "🔴 Stop Olundu (SL Patladı).";
+                            lockedStrategy.closeReason = "🔴 Likidite Stopu Patladı (SL).";
                         }
                     } else if (lockedStrategy.side === "SHORT") {
                         if (markPrice <= lockedStrategy.tp) {
                             lockedStrategy.status = "CLOSED";
-                            lockedStrategy.closeReason = "🟢 Hedef (TP) Başarıyla Geldi!";
+                            lockedStrategy.closeReason = "🟢 Likidite Hedefi (TP) Geldi!";
                         } else if (markPrice >= lockedStrategy.sl) {
                             lockedStrategy.status = "CLOSED";
-                            lockedStrategy.closeReason = "🔴 Stop Olundu (SL Patladı).";
+                            lockedStrategy.closeReason = "🔴 Likidite Stopu Patladı (SL).";
                         }
                     }
                     localStorage.setItem(lockKey, JSON.stringify(lockedStrategy));
                 }
 
             } else {
-                // Yeni Strateji Üret ve Kaydet
+                // Yeni Strateji Oluşturma (Kademeli Giriş Bandı + Likidite Teması)
                 let side = fundingRate > 0 ? "LONG" : "SHORT";
-                let entryPrice = side === "LONG" ? longVal * 0.995 : shortVal * 1.005;
-                let tpPrice = side === "LONG" ? entryPrice * 1.025 : entryPrice * 0.975; // Long TP üstte, Short TP altta
-                let slPrice = side === "LONG" ? entryPrice * 0.985 : entryPrice * 1.015; // Long SL altta, Short SL üstte
+                
+                let entryHigh, entryLow, tpPrice, slPrice;
+
+                if (side === "LONG") {
+                    // Long için kademeli giriş bandı (Ortalamanın altı ve üstü küçük bir aralık)
+                    entryHigh = longVal * 1.002;
+                    entryLow = longVal * 0.992; // Likidite iğnesi için alt sınır
+                    tpPrice = entryHigh * 1.03; // Long TP üstte
+                    slPrice = entryLow * 0.98;   // Long SL altta
+                } else {
+                    // Short için kademeli giriş bandı
+                    entryHigh = shortVal * 1.008; // Likidite iğnesi için üst sınır
+                    entryLow = shortVal * 0.998;
+                    tpPrice = entryLow * 0.97;  // Short TP altta
+                    slPrice = entryHigh * 1.02;  // Short SL üstte
+                }
 
                 lockedStrategy = {
                     side: side,
-                    entry: entryPrice,
+                    entryHigh: entryHigh,
+                    entryLow: entryLow,
+                    entryText: `$${entryLow.toFixed(2)} - $${entryHigh.toFixed(2)}`,
                     tp: tpPrice,
                     sl: slPrice,
-                    status: "PENDING", // Başlangıçta emir bekleniyor
+                    status: "PENDING",
                     closeReason: ""
                 };
 
                 localStorage.setItem(lockKey, JSON.stringify(lockedStrategy));
             }
 
-            // Ekran Yazdırma Mantığı
+            // Arayüze Yansıtma
             if (lockedStrategy.status === "CLOSED") {
                 document.getElementById("ai-market-status").innerHTML = `🛑 <strong>İşlem Sonuçlandı:</strong> ${lockedStrategy.closeReason}. Yeni sinyal bekleniyor.`;
                 document.getElementById("ai-entry-zone").innerText = "Tamamlandı";
@@ -487,18 +502,17 @@
                 document.getElementById("ai-sl-zone").innerText = "-";
             } else {
                 let statusText = lockedStrategy.status === "ACTIVE" 
-                    ? `<span style="color:var(--long-color); font-weight:bold;">🟢 İŞLEM AKTİF (Pozisyonda)</span>` 
-                    : `<span style="color:var(--accent-yellow); font-weight:bold;">⏳ LİMİT EMİR (Giriş Bekleniyor)</span>`;
+                    ? `<span style="color:var(--long-color); font-weight:bold;">🟢 LİKİDİTE TEST EDİLDİ (Aktif Pozisyon)</span>` 
+                    : `<span style="color:var(--accent-yellow); font-weight:bold;">⏳ LİMİT BANT (Stop Avı Bekleniyor)</span>`;
 
-                document.getElementById("ai-market-status").innerHTML = `Yön: <strong>${lockedStrategy.side}</strong> | Durum: ${statusText}`;
-                document.getElementById("ai-entry-zone").innerText = `$${lockedStrategy.entry.toFixed(2)}`;
+                document.getElementById("ai-market-status").innerHTML = `Yön: <strong>${lockedStrategy.side} (Kademeli Bant)</strong> | Durum: ${statusText}`;
+                document.getElementById("ai-entry-zone").innerText = lockedStrategy.entryText;
                 document.getElementById("ai-tp-zone").innerText = `$${lockedStrategy.tp.toFixed(2)}`;
                 document.getElementById("ai-sl-zone").innerText = `$${lockedStrategy.sl.toFixed(2)}`;
             }
         }
 
         loadCoinList();
-        // Her 30 saniyede bir arka planda fiyatları ve hedefleri kontrol eder
         setInterval(fetchMarketData, 30000);
     </script>
 </body>
