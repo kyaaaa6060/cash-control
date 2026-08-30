@@ -3,130 +3,142 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cash Control Engine - Live Dashboard</title>
+    <title>Cash Control Engine - Modal Dashboard</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- TradingView Widget Script -->
     <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col relative overflow-hidden">
 
-    <!-- Header -->
-    <header class="bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center">
-        <h1 class="text-xl font-bold tracking-wider text-emerald-400">⚡ CASH CONTROL ENGINE</h1>
-        <div class="flex items-center gap-4">
-            <select id="coinSelect" onchange="changeCoin()" class="bg-slate-800 border border-slate-700 text-white rounded px-3 py-1.5 focus:outline-none focus:border-emerald-500">
-                <option value="">Coinler Yükleniyor...</option>
-            </select>
-        </div>
-    </header>
+    <!-- Arka Plandaki TradingView Grafik Alanı -->
+    <div class="absolute inset-0 z-0 opacity-40">
+        <div id="tradingview_chart" class="w-full h-full"></div>
+    </div>
 
-    <!-- Main Content -->
-    <main class="flex-1 p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <!-- Grafik Alanı -->
-        <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col h-[650px]">
-            <div class="flex justify-between items-center mb-3">
-                <h2 id="chartTitle" class="text-lg font-semibold text-slate-300">Grafik - Yükleniyor...</h2>
-                <span id="markPriceVal" class="text-emerald-400 font-mono font-bold">$0.00</span>
-            </div>
-            <div id="tradingview_chart" class="w-full flex-1 rounded bg-slate-950 overflow-hidden"></div>
-        </div>
-
-        <!-- Sağ Panel / Analiz Kartı -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between shadow-2xl">
-            <div>
-                <!-- Üst Başlık & Etiketler -->
-                <div class="flex justify-between items-center mb-3">
-                    <div class="flex items-center gap-2">
-                        <span class="bg-emerald-950 border border-emerald-800 text-emerald-400 text-xs px-2 py-1 rounded font-semibold">📊 Tüm Kaynakların Ortalaması</span>
-                    </div>
-                    <span class="text-slate-500 text-xs cursor-pointer hover:text-white">✕</span>
+    <!-- Ekranı Kaplayan Koyu Overlay ve Ortalanmış Modal Kart -->
+    <div class="relative z-10 flex-1 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div class="bg-[#111827] border border-slate-700/80 rounded-2xl w-full max-w-xl p-5 shadow-2xl flex flex-col space-y-3 font-mono">
+            
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold text-slate-200">📊 Tüm Kaynakların Ortalaması</span>
+                    <span class="bg-emerald-950/80 border border-emerald-700 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-sans font-semibold">👤 Kullanıcı Panel</span>
                 </div>
+                <button class="text-slate-400 hover:text-white text-base font-bold px-1.5 py-0.5 rounded hover:bg-slate-800">✕</button>
+            </div>
 
-                <!-- Sinyal Rozetleri -->
-                <div class="bg-slate-950 border border-slate-800 rounded-lg p-3 mb-3 space-y-2">
-                    <div class="flex flex-wrap items-center gap-2 text-xs">
-                        <span id="signalBadge" class="bg-emerald-900/60 text-emerald-300 border border-emerald-700 px-2 py-0.5 rounded font-bold">LONG İVME</span>
-                        <span id="ivmeBadge" class="bg-amber-950 text-amber-400 border border-amber-800 px-2 py-0.5 rounded">+4.7x</span>
+            <!-- Sinyal & İvme Bildirim Kutusu -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 space-y-2">
+                <div class="flex flex-wrap items-center justify-between gap-1 text-[11px]">
+                    <div class="flex items-center gap-1.5">
+                        <span class="bg-emerald-900/70 text-emerald-300 border border-emerald-700 px-2 py-0.5 rounded font-bold">⚡ LONG İVME</span>
+                        <span class="bg-amber-950 text-amber-400 border border-amber-800 px-2 py-0.5 rounded font-bold">+4.7x</span>
                         <span class="bg-purple-950 text-purple-300 border border-purple-800 px-2 py-0.5 rounded">Breakout</span>
                         <span class="bg-red-950 text-red-300 border border-red-800 px-2 py-0.5 rounded">Aktif</span>
                     </div>
-                    <p id="aiComment" class="text-xs text-slate-300 leading-relaxed font-mono">Veriler analiz ediliyor...</p>
-                    <div class="flex justify-between text-xs text-slate-400 pt-1 border-t border-slate-800/60">
-                        <span id="confluenceVal">Confluence: %88.4</span>
-                        <span id="timestampVal">--:--:--</span>
-                    </div>
+                    <span id="timestampVal" class="text-[10px] text-slate-500 font-sans">30.08.2026 21:33:13 (TRT)</span>
                 </div>
-
-                <!-- Pivot & Formasyonlar Grid -->
-                <div class="grid grid-cols-2 gap-2 mb-3">
-                    <div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs">
-                        <div class="text-slate-400 font-semibold mb-1.5 flex items-center gap-1">🛡️ Pivot Destek & Direnç</div>
-                        <div class="flex justify-between text-slate-400"><span>Direnç 2:</span> <span id="res2" class="text-red-400 font-mono">$0.00</span></div>
-                        <div class="flex justify-between text-slate-400"><span>Direnç 1:</span> <span id="res1" class="text-red-400 font-mono">$0.00</span></div>
-                        <div class="flex justify-between text-slate-400"><span>Destek 1:</span> <span id="sup1" class="text-emerald-400 font-mono">$0.00</span></div>
-                        <div class="flex justify-between text-slate-400"><span>Destek 2:</span> <span id="sup2" class="text-emerald-400 font-mono">$0.00</span></div>
-                    </div>
-                    <div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs flex flex-col justify-between">
-                        <div class="text-slate-400 font-semibold mb-1">📈 Aktif Formasyonlar</div>
-                        <div id="patternBox" class="text-center text-slate-500 italic py-4">Aktif Formasyon Bulunamadı</div>
-                    </div>
-                </div>
-
-                <!-- Giriş, TP, SL Kutuları -->
-                <div class="grid grid-cols-3 gap-2 mb-3 text-center">
-                    <div class="bg-slate-950 border border-slate-800 rounded-lg p-2">
-                        <div class="text-[10px] text-slate-400">GİRİŞ (ENTRY)</div>
-                        <div id="boxEntry" class="text-amber-400 font-mono font-bold text-sm">$0.00</div>
-                    </div>
-                    <div class="bg-slate-950 border border-slate-800 rounded-lg p-2">
-                        <div class="text-[10px] text-slate-400">KÂR AL (TP)</div>
-                        <div id="boxTP" class="text-emerald-400 font-mono font-bold text-sm">$0.00</div>
-                    </div>
-                    <div class="bg-slate-950 border border-slate-800 rounded-lg p-2">
-                        <div class="text-[10px] text-slate-400">STOP OL (SL)</div>
-                        <div id="boxSL" class="text-red-400 font-mono font-bold text-sm">$0.00</div>
-                    </div>
-                </div>
-
-                <!-- Veri Kaynağı Seçim Butonları -->
-                <div class="mb-3">
-                    <div class="text-[10px] text-slate-400 mb-1.5 text-center">Veri Kaynağı Seçin:</div>
-                    <div class="grid grid-cols-3 gap-1.5 text-[10px]">
-                        <button onclick="setSource('copy')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded py-1 text-slate-300">Sadece Copy</button>
-                        <button onclick="setSource('whale')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded py-1 text-slate-300">Sadece Balina</button>
-                        <button onclick="setSource('genel_terste')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded py-1 text-slate-300">Genel Terste</button>
-                        <button onclick="setSource('ters_6_20')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded py-1 text-slate-300">Ters (%6-20)</button>
-                        <button onclick="setSource('top20_terste')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded py-1 text-slate-300">TOP 20 Ters</button>
-                        <button onclick="setSource('top20_oransal')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded py-1 text-slate-300">TOP 20 Oran</button>
-                    </div>
-                    <button onclick="setSource('trak')" class="w-full mt-1.5 bg-slate-800 hover:bg-slate-700 border border-amber-600/50 rounded py-1 text-amber-400 font-semibold text-xs">Tüm Kaynakların Ort.</button>
+                <p id="aiComment" class="text-[11px] text-slate-300 leading-relaxed">Normal eğrinin üzerinde +4.7x Hız ile tetiklenen yoğunluk tespit edildi. Giriş $702.13 seviyesinden planlandı; hedef $721.79, stop $686.68 seviyesindedir.</p>
+                <div class="flex items-center gap-4 text-[11px] text-slate-400 pt-1 border-t border-slate-800/60">
+                    <span class="text-emerald-400">🎯 Confluence: %88.4</span>
+                    <span class="text-amber-400">⚡ İvme: +4.7x</span>
                 </div>
             </div>
 
-            <!-- Alt Detay Kartları -->
-            <div class="space-y-2 pt-2 border-t border-slate-800 text-xs font-mono">
-                <div class="bg-slate-950 border border-emerald-900/50 rounded p-2 flex justify-between items-center">
+            <!-- Pivot & Aktif Formasyonlar -->
+            <div class="grid grid-cols-2 gap-2 text-xs">
+                <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 space-y-1.5">
+                    <div class="text-slate-400 font-semibold mb-1 flex items-center gap-1 text-[11px]">🛡️ Pivot Destek & Direnç</div>
+                    <div class="flex justify-between text-[11px]"><span class="text-slate-500">Direnç 2:</span> <span id="res2" class="text-red-400">$721.49</span></div>
+                    <div class="flex justify-between text-[11px]"><span class="text-slate-500">Direnç 1:</span> <span id="res1" class="text-red-400">$710.99</span></div>
+                    <div class="flex justify-between text-[11px]"><span class="text-slate-500">Destek 1:</span> <span id="sup1" class="text-emerald-400">$689.97</span></div>
+                    <div class="flex justify-between text-[11px]"><span class="text-slate-500">Destek 2:</span> <span id="sup2" class="text-emerald-400">$679.47</span></div>
+                </div>
+                <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex flex-col justify-between text-xs">
+                    <div class="text-slate-400 font-semibold mb-1 text-[11px]">📈 Aktif Formasyonlar</div>
+                    <div id="patternBox" class="text-center text-slate-500 italic py-6 text-[11px]">Aktif Formasyon Bulunamadı</div>
+                </div>
+            </div>
+
+            <!-- Giriş, TP, SL Kutuları -->
+            <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5">
+                    <div class="text-[9px] text-slate-500 mb-0.5">GİRİŞ (ENTRY)</div>
+                    <div id="boxEntry" class="text-amber-400 font-bold text-sm">$702.13</div>
+                </div>
+                <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5">
+                    <div class="text-[9px] text-slate-500 mb-0.5">KÂR AL (TP)</div>
+                    <div id="boxTP" class="text-emerald-400 font-bold text-sm">$721.79</div>
+                </div>
+                <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5">
+                    <div class="text-[9px] text-slate-500 mb-0.5">STOP OL (SL)</div>
+                    <div id="boxSL" class="text-red-400 font-bold text-sm">$686.68</div>
+                </div>
+            </div>
+
+            <!-- Veri Kaynağı Seçin Bölümü -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 space-y-2">
+                <div class="text-[10px] text-slate-400 text-center">Veri Kaynağı Seçin:</div>
+                <div class="grid grid-cols-3 gap-1.5 text-[11px]">
+                    <button onclick="setSource('copy')" class="bg-slate-800/80 hover:bg-slate-700 border border-slate-700/80 rounded-lg py-1.5 text-slate-300 transition">Sadece Copy</button>
+                    <button onclick="setSource('whale')" class="bg-slate-800/80 hover:bg-slate-700 border border-slate-700/80 rounded-lg py-1.5 text-slate-300 transition">Sadece Balina</button>
+                    <button onclick="setSource('genel_terste')" class="bg-slate-800/80 hover:bg-slate-700 border border-slate-700/80 rounded-lg py-1.5 text-slate-300 transition">Genel Terste</button>
+                    <button onclick="setSource('ters_6_20')" class="bg-slate-800/80 hover:bg-slate-700 border border-slate-700/80 rounded-lg py-1.5 text-slate-300 transition">Ters (%6-20)</button>
+                    <button onclick="setSource('top20_terste')" class="bg-slate-800/80 hover:bg-slate-700 border border-slate-700/80 rounded-lg py-1.5 text-slate-300 transition">TOP 20 Ters</button>
+                    <button onclick="setSource('top20_oransal')" class="bg-slate-800/80 hover:bg-slate-700 border border-slate-700/80 rounded-lg py-1.5 text-slate-300 transition">TOP 20 Oran</button>
+                </div>
+                <button onclick="setSource('trak')" class="w-full bg-slate-800/90 hover:bg-slate-700 border border-amber-500/60 rounded-lg py-1.5 text-amber-400 font-semibold text-xs transition shadow-sm">Tüm Kaynakların Ort.</button>
+            </div>
+
+            <!-- Coin ve Mark Fiyat Satırı -->
+            <div class="flex items-center justify-between bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2 text-xs">
+                <div class="flex items-center gap-2">
+                    <span class="text-slate-400 text-[11px]">Coin:</span>
+                    <select id="coinSelect" onchange="changeCoin()" class="bg-slate-800 border border-slate-700 text-white text-xs rounded-lg px-2.5 py-1 focus:outline-none focus:border-emerald-500">
+                        <option value="">Yükleniyor...</option>
+                    </select>
+                </div>
+                <div class="text-[11px]">
+                    <span class="text-slate-400">Mark Fiyat:</span> 
+                    <span id="markPriceVal" class="text-emerald-400 font-bold">$702.58</span>
+                </div>
+            </div>
+
+            <!-- Cache & Kısıtlı Durum -->
+            <div class="flex justify-between items-center bg-slate-900/60 border border-slate-800/80 rounded-lg px-3 py-1.5 text-[10px] text-slate-400">
+                <span>⏳ Cache: <span id="cacheVal">2s</span></span>
+                <span class="text-slate-500">Kısıtlı</span>
+            </div>
+
+            <!-- Sekmeler (Güncel / Geçmiş) -->
+            <div class="flex justify-center items-center gap-4 text-xs pt-1">
+                <span class="flex items-center gap-1.5 text-amber-400 font-bold cursor-pointer">🟡 Güncel</span>
+                <span class="text-slate-600">○</span>
+                <span class="text-slate-500 hover:text-slate-300 cursor-pointer">Geçmiş</span>
+            </div>
+
+            <!-- Alt Long / Short Ortalama Giriş Kartları -->
+            <div class="space-y-2 pt-1 text-xs">
+                <div class="bg-slate-900/90 border border-emerald-900/60 rounded-xl p-2.5 flex justify-between items-center">
                     <div>
-                        <span class="text-emerald-400 font-bold">🟢 LONG Ort. Giriş:</span>
+                        <div class="text-emerald-400 font-bold text-[11px]">🟢 LONG Ort. Giriş:</div>
                         <div id="longInfo" class="text-[10px] text-slate-500">(1726 işlem, $42.3K size)</div>
                     </div>
-                    <span id="longPriceVal" class="text-emerald-400 font-bold text-sm">$0.00</span>
+                    <span id="longPriceVal" class="text-emerald-400 font-bold text-sm">$696.91</span>
                 </div>
-                <div class="bg-slate-950 border border-red-900/50 rounded p-2 flex justify-between items-center">
+                <div class="bg-slate-900/90 border border-red-900/60 rounded-xl p-2.5 flex justify-between items-center">
                     <div>
-                        <span class="text-red-400 font-bold">🔴 SHORT Ort. Giriş:</span>
+                        <div class="text-red-400 font-bold text-[11px]">🔴 SHORT Ort. Giriş:</div>
                         <div id="shortInfo" class="text-[10px] text-slate-500">(916 işlem, $19.2K size)</div>
                     </div>
-                    <span id="shortPriceVal" class="text-red-400 font-bold text-sm">$0.00</span>
-                </div>
-                <div class="flex justify-between items-center text-[10px] text-slate-500 px-1 pt-1">
-                    <span>⏳ Cache: <span id="cacheVal">3s</span></span>
-                    <span>Aktif Bağlantı</span>
+                    <span id="shortPriceVal" class="text-red-400 font-bold text-sm">$706.01</span>
                 </div>
             </div>
+
         </div>
-    </main>
+    </div>
 
     <!-- JavaScript Mantığı -->
     <script>
@@ -144,11 +156,12 @@
                     data.coins.forEach(coin => {
                         let opt = document.createElement('option');
                         opt.value = coin;
-                        opt.innerText = coin + "/USDT";
-                        if(coin === "BTC") opt.selected = true;
+                        opt.innerText = coin + "USDT";
+                        if(coin === "BNB" || coin === "BTC") opt.selected = true;
                         select.appendChild(opt);
                     });
-                    loadMarketStats(currentSymbol);
+                    let initialCoin = select.value || "BNB";
+                    loadMarketStats(initialCoin);
                 }
             } catch (err) {
                 console.error("Coinler yüklenirken hata:", err);
@@ -164,16 +177,14 @@
                     activeMarketData = json.data;
                     let d = json.data;
                     
-                    document.getElementById('chartTitle').innerText = `${d.symbol} Analizi`;
                     document.getElementById('markPriceVal').innerText = `$${d.markPrice.toLocaleString()}`;
                     document.getElementById('cacheVal').innerText = `${json.cache_remaining_seconds}s`;
                     
                     if(d.ai_analysis) {
                         document.getElementById('aiComment').innerText = d.ai_analysis.comment;
-                        document.getElementById('confluenceVal').innerText = `Confluence: %${d.ai_analysis.confluence}`;
-                        document.getElementById('boxEntry').innerText = `$${d.ai_analysis.entry.toLocaleString()}`;
-                        document.getElementById('boxTP').innerText = `$${d.ai_analysis.tp.toLocaleString()}`;
-                        document.getElementById('boxSL').innerText = `$${d.ai_analysis.sl.toLocaleString()}`;
+                        document.getElementById('boxEntry').innerText = `$${d.ai_analysis.entry.toFixed(2)}`;
+                        document.getElementById('boxTP').innerText = `$${d.ai_analysis.tp.toFixed(2)}`;
+                        document.getElementById('boxSL').innerText = `$${d.ai_analysis.sl.toFixed(2)}`;
                     }
 
                     if(d.pivots) {
@@ -183,11 +194,8 @@
                         document.getElementById('sup2').innerText = `$${d.pivots.destek_2.toFixed(2)}`;
                     }
 
-                    const now = new Date();
-                    document.getElementById('timestampVal').innerText = now.toLocaleTimeString() + " (TRT)";
-
                     updateSourceView();
-                    initTradingView(d.symbol);
+                    initTradingView(d.symbol.replace("USDT", ""));
                 }
             } catch (err) {
                 console.error("İstatistikler yüklenirken hata:", err);
@@ -214,7 +222,7 @@
             document.getElementById('tradingview_chart').innerHTML = "";
             new TradingView.widget({
                 "autosize": true,
-                "symbol": "BINANCE:" + symbol,
+                "symbol": "BINANCE:" + symbol + "USDT",
                 "interval": "15",
                 "timezone": "Etc/UTC",
                 "theme": "dark",
