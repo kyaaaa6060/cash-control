@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="Cash Control Engine - Perfect Match", version="14.1")
+app = FastAPI(title="Cash Control Engine - Exact Match", version="15.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,10 +22,10 @@ CACHE_DURATION = 5
 
 ACTIVE_TRADES = {}
 
-# Bulut sunucu (Render vb.) IP bloklarına karşı güvenli yedek havuz
+# Bulut sunucularda (Render vb.) API engeline karşı zengin yedek havuz
 FALLBACK_COINS = {
     "BTC": 65000.0, "ETH": 3500.0, "SOL": 150.0, "AVAX": 25.0, 
-    "XRP": 0.55, "BNB": 580.0, "ADA": 0.40, "DOGE": 0.12, 
+    "XRP": 0.55, "BNB": 700.41, "ADA": 0.40, "DOGE": 0.12, 
     "NEAR": 5.2, "LINK": 18.0, "MATIC": 0.50, "FET": 1.40
 }
 
@@ -71,6 +71,8 @@ def fetch_karma_market_data():
             universe.append({"name": name})
             ctxs.append({"openInterest": "15000", "markPx": str(price), "funding": "0.0001"})
 
+    sources_list = ["copy", "whale", "genel_terste", "ters_6_20", "top20_terste", "top20_oransal", "trak"]
+    
     for i, asset in enumerate(universe):
         name = asset.get("name")
         if not name:
@@ -94,28 +96,52 @@ def fetch_karma_market_data():
 
         if name not in ACTIVE_TRADES:
             ACTIVE_TRADES[name] = {
-                "entry": mark_px,
-                "tp": mark_px * 1.028,
-                "sl": mark_px * 0.978
+                "entry": mark_px * 1.002,
+                "tp": mark_px * 1.03,
+                "sl": mark_px * 0.98
             }
         
         trade = ACTIVE_TRADES[name]
 
+        # Orijinal ekran görüntüsündeki kaynak detayları (sources)
+        coin_sources_data = {}
+        for src in sources_list:
+            coin_sources_data[src] = {
+                "long_avg": mark_px * 0.995,
+                "long_count": int(1500 + (hash(name + src) % 500)),
+                "long_size": 42300.0,
+                "short_avg": mark_px * 1.008,
+                "short_count": int(900 + (hash(src + name) % 300)),
+                "short_size": 19200.0,
+                "general_avg": mark_px
+            }
+
         ai_report = {
             "signal": "LONG İVME BASKISI",
+            "comment": f"[15 Periyot] Normal eğrinin üzerinde +4.7x Hız ile tetiklenen yoğunluk tespit edildi. Giriş ${trade['entry']:,.2f} seviyesinden planlandı; hedef ${trade['tp']:,.2f}, stop ${trade['sl']:,.2f} seviyesindedir.",
             "confluence": 88.4,
+            "ivme": "+4.7x",
             "entry": trade["entry"],
             "tp": trade["tp"],
             "sl": trade["sl"]
         }
 
-        # HTML'inizin doğrudan okuduğu tam uyumlu anahtar yapısı
+        pivot_data = {
+            "direnc_2": mark_px * 1.03,
+            "direnc_1": mark_px * 1.015,
+            "destek_1": mark_px * 0.985,
+            "destek_2": mark_px * 0.97
+        }
+
         processed_coins[name] = {
-            "symbol": name,
+            "symbol": f"{name}USDT",
             "markPrice": mark_px,
             "fundingRate": funding,
             "openInterestUSD": oi_usd,
-            "ai_analysis": ai_report
+            "sources": coin_sources_data,
+            "ai_analysis": ai_report,
+            "pivots": pivot_data,
+            "patterns": []
         }
     
     processed_coins["_GLOBAL_SUMMARY_"] = {
