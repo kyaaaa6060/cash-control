@@ -23,34 +23,116 @@
 
     <!-- Main Content -->
     <main class="flex-1 p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <!-- Sol & Orta: TradingView Grafik Alanı -->
-        <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col h-[600px]">
+        <!-- Grafik Alanı -->
+        <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col h-[650px]">
             <div class="flex justify-between items-center mb-3">
                 <h2 id="chartTitle" class="text-lg font-semibold text-slate-300">Grafik - Yükleniyor...</h2>
                 <span id="markPriceVal" class="text-emerald-400 font-mono font-bold">$0.00</span>
             </div>
-            <!-- TradingView Widget Container -->
             <div id="tradingview_chart" class="w-full flex-1 rounded bg-slate-950 overflow-hidden"></div>
         </div>
 
-        <!-- Sağ: Panel Verileri ve Kaynaklar -->
-        <div class="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col justify-between">
+        <!-- Sağ Panel / Analiz Kartı -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col justify-between shadow-2xl">
             <div>
-                <h2 class="text-lg font-semibold text-slate-300 mb-3">Piyasa Analiz Paneli</h2>
-                <div id="panelContent" class="space-y-3 text-sm font-mono text-slate-400">
-                    <p>Veriler bekleniyor...</p>
+                <!-- Üst Başlık & Etiketler -->
+                <div class="flex justify-between items-center mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="bg-emerald-950 border border-emerald-800 text-emerald-400 text-xs px-2 py-1 rounded font-semibold">📊 Tüm Kaynakların Ortalaması</span>
+                    </div>
+                    <span class="text-slate-500 text-xs cursor-pointer hover:text-white">✕</span>
+                </div>
+
+                <!-- Sinyal Rozetleri -->
+                <div class="bg-slate-950 border border-slate-800 rounded-lg p-3 mb-3 space-y-2">
+                    <div class="flex flex-wrap items-center gap-2 text-xs">
+                        <span id="signalBadge" class="bg-emerald-900/60 text-emerald-300 border border-emerald-700 px-2 py-0.5 rounded font-bold">LONG İVME</span>
+                        <span id="ivmeBadge" class="bg-amber-950 text-amber-400 border border-amber-800 px-2 py-0.5 rounded">+4.7x</span>
+                        <span class="bg-purple-950 text-purple-300 border border-purple-800 px-2 py-0.5 rounded">Breakout</span>
+                        <span class="bg-red-950 text-red-300 border border-red-800 px-2 py-0.5 rounded">Aktif</span>
+                    </div>
+                    <p id="aiComment" class="text-xs text-slate-300 leading-relaxed font-mono">Veriler analiz ediliyor...</p>
+                    <div class="flex justify-between text-xs text-slate-400 pt-1 border-t border-slate-800/60">
+                        <span id="confluenceVal">Confluence: %88.4</span>
+                        <span id="timestampVal">--:--:--</span>
+                    </div>
+                </div>
+
+                <!-- Pivot & Formasyonlar Grid -->
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs">
+                        <div class="text-slate-400 font-semibold mb-1.5 flex items-center gap-1">🛡️ Pivot Destek & Direnç</div>
+                        <div class="flex justify-between text-slate-400"><span>Direnç 2:</span> <span id="res2" class="text-red-400 font-mono">$0.00</span></div>
+                        <div class="flex justify-between text-slate-400"><span>Direnç 1:</span> <span id="res1" class="text-red-400 font-mono">$0.00</span></div>
+                        <div class="flex justify-between text-slate-400"><span>Destek 1:</span> <span id="sup1" class="text-emerald-400 font-mono">$0.00</span></div>
+                        <div class="flex justify-between text-slate-400"><span>Destek 2:</span> <span id="sup2" class="text-emerald-400 font-mono">$0.00</span></div>
+                    </div>
+                    <div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs flex flex-col justify-between">
+                        <div class="text-slate-400 font-semibold mb-1">📈 Aktif Formasyonlar</div>
+                        <div id="patternBox" class="text-center text-slate-500 italic py-4">Aktif Formasyon Bulunamadı</div>
+                    </div>
+                </div>
+
+                <!-- Giriş, TP, SL Kutuları -->
+                <div class="grid grid-cols-3 gap-2 mb-3 text-center">
+                    <div class="bg-slate-950 border border-slate-800 rounded-lg p-2">
+                        <div class="text-[10px] text-slate-400">GİRİŞ (ENTRY)</div>
+                        <div id="boxEntry" class="text-amber-400 font-mono font-bold text-sm">$0.00</div>
+                    </div>
+                    <div class="bg-slate-950 border border-slate-800 rounded-lg p-2">
+                        <div class="text-[10px] text-slate-400">KÂR AL (TP)</div>
+                        <div id="boxTP" class="text-emerald-400 font-mono font-bold text-sm">$0.00</div>
+                    </div>
+                    <div class="bg-slate-950 border border-slate-800 rounded-lg p-2">
+                        <div class="text-[10px] text-slate-400">STOP OL (SL)</div>
+                        <div id="boxSL" class="text-red-400 font-mono font-bold text-sm">$0.00</div>
+                    </div>
+                </div>
+
+                <!-- Veri Kaynağı Seçim Butonları -->
+                <div class="mb-3">
+                    <div class="text-[10px] text-slate-400 mb-1.5 text-center">Veri Kaynağı Seçin:</div>
+                    <div class="grid grid-cols-3 gap-1.5 text-[10px]">
+                        <button onclick="setSource('copy')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded py-1 text-slate-300">Sadece Copy</button>
+                        <button onclick="setSource('whale')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded py-1 text-slate-300">Sadece Balina</button>
+                        <button onclick="setSource('genel_terste')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded py-1 text-slate-300">Genel Terste</button>
+                        <button onclick="setSource('ters_6_20')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded py-1 text-slate-300">Ters (%6-20)</button>
+                        <button onclick="setSource('top20_terste')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded py-1 text-slate-300">TOP 20 Ters</button>
+                        <button onclick="setSource('top20_oransal')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded py-1 text-slate-300">TOP 20 Oran</button>
+                    </div>
+                    <button onclick="setSource('trak')" class="w-full mt-1.5 bg-slate-800 hover:bg-slate-700 border border-amber-600/50 rounded py-1 text-amber-400 font-semibold text-xs">Tüm Kaynakların Ort.</button>
                 </div>
             </div>
-            <div class="mt-4 pt-3 border-t border-slate-800 text-xs text-slate-500 text-center">
-                Cash Control Core v13.9 - Active Connection
+
+            <!-- Alt Detay Kartları -->
+            <div class="space-y-2 pt-2 border-t border-slate-800 text-xs font-mono">
+                <div class="bg-slate-950 border border-emerald-900/50 rounded p-2 flex justify-between items-center">
+                    <div>
+                        <span class="text-emerald-400 font-bold">🟢 LONG Ort. Giriş:</span>
+                        <div id="longInfo" class="text-[10px] text-slate-500">(1726 işlem, $42.3K size)</div>
+                    </div>
+                    <span id="longPriceVal" class="text-emerald-400 font-bold text-sm">$0.00</span>
+                </div>
+                <div class="bg-slate-950 border border-red-900/50 rounded p-2 flex justify-between items-center">
+                    <div>
+                        <span class="text-red-400 font-bold">🔴 SHORT Ort. Giriş:</span>
+                        <div id="shortInfo" class="text-[10px] text-slate-500">(916 işlem, $19.2K size)</div>
+                    </div>
+                    <span id="shortPriceVal" class="text-red-400 font-bold text-sm">$0.00</span>
+                </div>
+                <div class="flex justify-between items-center text-[10px] text-slate-500 px-1 pt-1">
+                    <span>⏳ Cache: <span id="cacheVal">3s</span></span>
+                    <span>Aktif Bağlantı</span>
+                </div>
             </div>
         </div>
     </main>
 
     <!-- JavaScript Mantığı -->
     <script>
-        let tvWidget = null;
         let currentSymbol = "BTC";
+        let activeMarketData = null;
+        let selectedSourceKey = "trak";
 
         async function loadCoins() {
             try {
@@ -79,23 +161,53 @@
                 let res = await fetch(`/api/market-stats/${symbol}`);
                 let json = await res.json();
                 if (json.status === "success") {
+                    activeMarketData = json.data;
                     let d = json.data;
+                    
                     document.getElementById('chartTitle').innerText = `${d.symbol} Analizi`;
                     document.getElementById('markPriceVal').innerText = `$${d.markPrice.toLocaleString()}`;
-                    
-                    let panelHtml = `<div class="p-2 bg-slate-800 rounded">Funding Rate: <span class="text-white">${d.fundingRate.toFixed(4)}%</span></div>`;
-                    panelHtml += `<div class="p-2 bg-slate-800 rounded">Open Interest: <span class="text-white">$${Math.round(d.openInterestUSD).toLocaleString()}</span></div>`;
+                    document.getElementById('cacheVal').innerText = `${json.cache_remaining_seconds}s`;
                     
                     if(d.ai_analysis) {
-                        panelHtml += `<div class="p-2 bg-emerald-950 border border-emerald-800 rounded text-emerald-300">Sinyal: ${d.ai_analysis.signal}</div>`;
+                        document.getElementById('aiComment').innerText = d.ai_analysis.comment;
+                        document.getElementById('confluenceVal').innerText = `Confluence: %${d.ai_analysis.confluence}`;
+                        document.getElementById('boxEntry').innerText = `$${d.ai_analysis.entry.toLocaleString()}`;
+                        document.getElementById('boxTP').innerText = `$${d.ai_analysis.tp.toLocaleString()}`;
+                        document.getElementById('boxSL').innerText = `$${d.ai_analysis.sl.toLocaleString()}`;
                     }
-                    document.getElementById('panelContent').innerHTML = panelHtml;
 
+                    if(d.pivots) {
+                        document.getElementById('res2').innerText = `$${d.pivots.direnc_2.toFixed(2)}`;
+                        document.getElementById('res1').innerText = `$${d.pivots.direnc_1.toFixed(2)}`;
+                        document.getElementById('sup1').innerText = `$${d.pivots.destek_1.toFixed(2)}`;
+                        document.getElementById('sup2').innerText = `$${d.pivots.destek_2.toFixed(2)}`;
+                    }
+
+                    const now = new Date();
+                    document.getElementById('timestampVal').innerText = now.toLocaleTimeString() + " (TRT)";
+
+                    updateSourceView();
                     initTradingView(d.symbol);
                 }
             } catch (err) {
                 console.error("İstatistikler yüklenirken hata:", err);
             }
+        }
+
+        function setSource(sourceKey) {
+            selectedSourceKey = sourceKey;
+            updateSourceView();
+        }
+
+        function updateSourceView() {
+            if (!activeMarketData || !activeMarketData.sources) return;
+            let srcData = activeMarketData.sources[selectedSourceKey];
+            if (!srcData) srcData = activeMarketData.sources["trak"];
+
+            document.getElementById('longPriceVal').innerText = `$${srcData.long_avg.toFixed(2)}`;
+            document.getElementById('shortPriceVal').innerText = `$${srcData.short_avg.toFixed(2)}`;
+            document.getElementById('longInfo').innerText = `(${srcData.long_count} işlem, $${srcData.long_size}K size)`;
+            document.getElementById('shortInfo').innerText = `(${srcData.short_count} işlem, $${srcData.short_size}K size)`;
         }
 
         function initTradingView(symbol) {
@@ -121,7 +233,6 @@
             }
         }
 
-        // Sayfa açıldığında çalıştır ve her 5 saniyede bir güncelle
         loadCoins();
         setInterval(() => {
             let val = document.getElementById('coinSelect').value;
