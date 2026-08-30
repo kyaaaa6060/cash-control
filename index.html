@@ -35,7 +35,7 @@
         .ivme-desc { font-size: 12px; color: #b7bdc6; line-height: 1.4; margin-bottom: 8px; }
         .ivme-footer { display: flex; gap: 15px; font-size: 11px; color: #848e9c; border-top: 1px solid #2b2b2b; padding-top: 6px; }
         
-        /* Yeni Eklenen Alanlar İçin Tasarımlar */
+        /* Destek/Direnç ve Formasyon Izgarası */
         .analysis-extra-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
         .extra-card { background: #121418; border: 1px solid #23272e; border-radius: 6px; padding: 8px 10px; }
         .extra-title { font-size: 11px; font-weight: bold; color: #848e9c; margin-bottom: 6px; border-bottom: 1px solid #23272e; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
@@ -110,9 +110,9 @@
 
             <!-- Destek / Direnç ve Formasyonlar Alanı -->
             <div class="analysis-extra-grid">
-                <!-- Destek / Direnç Kutusu -->
+                <!-- Destek / Direnç Kutusu (Pivot Bazlı) -->
                 <div class="extra-card">
-                    <div class="extra-title">🛡️ Destek & Direnç</div>
+                    <div class="extra-title">🛡️ Pivot Destek & Direnç</div>
                     <div class="extra-content" id="supportResistanceContainer">
                         <div class="level-row"><span class="level-lbl">Direnç 2:</span> <span id="res2" style="color: #f6465d;">$-</span></div>
                         <div class="level-row"><span class="level-lbl">Direnç 1:</span> <span id="res1" style="color: #f6465d;">$-</span></div>
@@ -293,6 +293,29 @@
             }
         }
 
+        // Anlık fiyattan otomatik Pivot Destek/Direnç hesaplayan yardımcı fonksiyon
+        function calculatePivotLevels(markPrice) {
+            let p = parseFloat(markPrice);
+            if (isNaN(p) || p <= 0) return { res2: "-", res1: "-", sup1: "-", sup2: "-" };
+
+            // Kripto piyasası volatilitesine uyumlu standart oranlar (Yaklaşık H, L, C tahmini)
+            let high = p * 1.015;
+            let low = p * 0.985;
+            let pivot = (high + low + p) / 3;
+
+            let r1 = (2 * pivot) - low;
+            let s1 = (2 * pivot) - high;
+            let r2 = pivot + (high - low);
+            let s2 = pivot - (high - low);
+
+            return {
+                res2: r2.toFixed(2),
+                res1: r1.toFixed(2),
+                sup1: s1.toFixed(2),
+                sup2: s2.toFixed(2)
+            };
+        }
+
         async function fetchStats(symbol) {
             try {
                 let res = await fetch(`/api/market-stats/${symbol}`);
@@ -301,7 +324,6 @@
                     let d = json.data;
                     let ai = d.ai_analysis;
                     
-                    // Virgülden sonraki TÜM basamakların tam olarak görünmesi sağlandı
                     document.getElementById('markPrice').innerText = "$" + d.markPrice;
                     
                     document.getElementById('aiComment').innerText = ai.comment;
@@ -309,17 +331,14 @@
                     document.getElementById('valTP').innerText = "$" + ai.tp;
                     document.getElementById('valSL').innerText = "$" + ai.sl;
 
-                    // --- DESTEK & DİRENÇ VERİLERİNİ GÜNCELLEME ---
-                    // Backend yanıtında levels objesi beklenir (Ör: d.levels = {res2, res1, sup1, sup2})
-                    if (d.levels) {
-                        document.getElementById('res2').innerText = "$" + (d.levels.res2 || "-");
-                        document.getElementById('res1').innerText = "$" + (d.levels.res1 || "-");
-                        document.getElementById('sup1').innerText = "$" + (d.levels.sup1 || "-");
-                        document.getElementById('sup2').innerText = "$" + (d.levels.sup2 || "-");
-                    }
+                    // --- PİVOT DESTEK & DİRENÇ HESAPLAMA ---
+                    let pivots = calculatePivotLevels(d.markPrice);
+                    document.getElementById('res2').innerText = "$" + pivots.res2;
+                    document.getElementById('res1').innerText = "$" + pivots.res1;
+                    document.getElementById('sup1').innerText = "$" + pivots.sup1;
+                    document.getElementById('sup2').innerText = "$" + pivots.sup2;
 
-                    // --- AKTİF FORMASYONLAR VERİLERİNİ GÜNCELLEME ---
-                    // Backend yanıtında patterns dizisi beklenir (Ör: d.patterns = [{name: 'Üçgen', target: '105.00'}])
+                    // --- AKTİF FORMASYONLAR ---
                     let patternsContainer = document.getElementById('patternsContainer');
                     patternsContainer.innerHTML = '';
                     
@@ -355,7 +374,7 @@
         function onCoinChange() {
             let select = document.getElementById('coinSelect');
             currentSymbol = select.value;
-            updateTradingViewChart(currentSymbol); // Seçilen coinin grafiğini anında yenile
+            updateTradingViewChart(currentSymbol);
             fetchStats(currentSymbol);
         }
 
