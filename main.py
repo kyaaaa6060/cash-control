@@ -1,178 +1,243 @@
-import os
-import threading
 import time
-from datetime import datetime
-from flask import Flask, jsonify, request, send_from_directory
 import requests
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 
-app = Flask(__name__)
+app = FastAPI(title="Cash Control Engine - Multi-Exchange (Hyperliquid, Binance, MEXC, OKX)", version="6.1")
 
-SOURCES = ["all", "whale", "copy", "pct6_20"]
-active_signals = {}
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-def fetch_hyperliquid_universe():
-    """
-    Hyperliquid borsasındaki tüm vadeli işlem coinlerini (universe) dinamik olarak çeker.
-    """
+CACHE = {
+    "last_update": 0,
+    "data": {}
+}
+CACHE_DURATION = 5
+
+def get_binance_futures_tickers():
     try:
-        res = requests.post("https://api.hyperliquid.xyz/info", json={"type": "meta"}, timeout=5)
+        url = "https://fapi.binance.com/fapi/v1/premiumIndex"
+        res = requests.get(url, timeout=3)
         if res.status_code == 200:
-            data = res.json()
-            if "universe" in data:
-                coins = [item["name"] for item in data["universe"]]
-                if coins:
-                    print(f"🚀 Hyperliquid'den {len(coins)} adet vadeli coin başarıyla yüklendi!")
-                    return coins
+            tickers = {}
+            for item in res.json():
+                symbol = item.get("symbol", "")
+                if symbol.endswith("USDT"):
+                    base_name = symbol.replace("USDT", "")
+                    tickers[base_name] = {
+                        "markPrice": float(item.get("markPrice", 0)),
+                        "fundingRate": float(item.get("lastFundingRate", 0)) * 100
+                    }
+            return tickers
     except Exception as e:
-        print(f"Hyperliquid universe çekme hatası: {e}")
-    
-    # Bağlantı koparsa güvenli yedek liste
-    return ["BTC", "ETH", "SOL", "XRP", "AVAX"]
+        print("Binance hatası:", e)
+    return {}
 
-# Başlangıçta tüm coin listesini Hyperliquid'den dinamik alıyoruz
-COINS = fetch_hyperliquid_universe()
-
-def get_multi_exchange_price(coin):
-    """
-    Binance, MEXC, Bybit, OKX ve Hyperliquid borsalarının anlık fiyatlarını 
-    harmanlayarak (ortalama alarak) en doğru fiyatı üretir.
-    """
-    prices = []
-    
-    # 1. Binance API
+def get_okx_futures_tickers():
     try:
-        res = requests.get(f"https://api.binance.com/api/v3/ticker/price?symbol={coin}USDT", timeout=2)
+        url = "https://www.okx.com/api/v5/public/mark-price?instType=SWAP"
+        res = requests.get(url, timeout=3)
         if res.status_code == 200:
-            prices.append(float(res.json()["price"]))
-    except Exception:
-        pass
+            result = res.json()
+            if result.get("code") == "0":
+                tickers = {}
+                for item in result.get("data", []):
+                    inst_id = item.get("instId", "")
+                    if "-USDT-" in inst_id:
+                        base_name = inst_id.split("-")[0]
+                        tickers[base_name] = {
+                            "markPrice": float(item.get("markPx", 0)),
+                            "fundingRate": 0.0
+                        }
+                return tickers
+    except Exception as e:
+        print("OKX hatası:", e)
+    return {}
 
-    # 2. MEXC API
+def get_mexc_futures_tickers():
     try:
-        res = requests.get(f"https://www.mexc.com/open/api/v2/market/ticker?symbol={coin}_USDT", timeout=2)
+        url = "https://contract.mexc.com/api/v1/contract/ticker"
+        res = requests.get(url, timeout=3)
+        if res.status_code == 200:
+            result = res.json()
+            if result.get("success"):
+                tickers = {}
+                for item in result.get("data", []):
+                    symbol = item.get("symbol", "").replace("_USDT", "USDT")
+                    base_name = symbol.replace("USDT", "")
+                    tickers[base_name] = {
+                        "markPrice": float(item.get("fairPrice", 0) or item.get("lastPrice", 0)),
+                        "fundingRate": float(item.get("fundingRate", 0)) * 100,
+                    }
+                return tickers
+    except Exception as e:
+        print("MEXC hatası:", e)
+    return {}
+
+def fetch_karma_market_data():
+    processed_coins = {}
+    total_open_interest_usd = 0
+    all_prices = []
+    
+    binance_data = get_binance_futures_tickers()
+    okx_data = get_okx_futures_tickers()
+    mexc_data = get_mexc_futures_tickers()
+    
+    hl_url = "https://api.hyperliquid.xyz/info"
+    payload = {"type": "metaAndAssetCtxs"}
+    
+    try:
+        res = requests.post(hl_url, json=payload, headers={"Content-Type": "application/json"}, timeout=5)
         if res.status_code == 200:
             data = res.json()
-            if "data" in data and len(data["data"]) > 0:
-                prices.append(float(data["data"][0]["deal"]))
-    except Exception:
-        pass
-
-    # 3. Bybit API
-    try:
-        res = requests.get(f"https://api.bybit.com/v5/market/tickers?category=linear&symbol={coin}USDT", timeout=2)
-        if res.status_code == 200:
-            data = res.json()
-            if "result" in data and "list" in data["result"] and len(data["result"]["list"]) > 0:
-                prices.append(float(data["result"]["list"][0]["lastPrice"]))
-    except Exception:
-        pass
-
-    # 4. OKX API
-    try:
-        res = requests.get(f"https://www.okx.com/api/v5/market/ticker?instId={coin}-USDT", timeout=2)
-        if res.status_code == 200:
-            data = res.json()
-            if "data" in data and len(data["data"]) > 0:
-                prices.append(float(data["data"][0]["last"]))
-    except Exception:
-        pass
-
-    # 5. Hyperliquid API (Tüm mid fiyatlar)
-    try:
-        res = requests.post("https://api.hyperliquid.xyz/info", json={"type": "allMids"}, timeout=2)
-        if res.status_code == 200:
-            mids = res.json()
-            if coin in mids:
-                prices.append(float(mids[coin]))
-    except Exception:
-        pass
-
-    if prices:
-        return sum(prices) / len(prices)
-        
-    return 1.0 # Fiyat bulunamazsa varsayılan
-
-def background_trading_worker():
-    print("🤖 Cash Control 7/24 Arka Plan Takip Servisi (Tüm Hyperliquid Vadeli Coinler) Aktif...")
-    
-    while True:
-        try:
-            for coin in COINS:
-                mark_price = get_multi_exchange_price(coin)
-                if not mark_price or mark_price <= 0:
+            universe = data[0].get("universe", [])
+            ctxs = data[1]
+            
+            sources = ["copy", "whale", "all", "pct6_20"]
+            
+            for i, asset in enumerate(universe):
+                name = asset.get("name")
+                ctx = ctxs[i]
+                hl_mark_px = float(ctx.get("markPx", 0))
+                open_interest = float(ctx.get("openInterest", 0))
+                hl_funding = float(ctx.get("funding", 0)) * 100
+                
+                prices = []
+                fundings = []
+                
+                if hl_mark_px > 0:
+                    prices.append(hl_mark_px)
+                    fundings.append(hl_funding)
+                
+                if name in binance_data and binance_data[name]["markPrice"] > 0:
+                    prices.append(binance_data[name]["markPrice"])
+                    fundings.append(binance_data[name]["fundingRate"])
+                    
+                if name in okx_data and okx_data[name]["markPrice"] > 0:
+                    prices.append(okx_data[name]["markPrice"])
+                    
+                if name in mexc_data and mexc_data[name]["markPrice"] > 0:
+                    prices.append(mexc_data[name]["markPrice"])
+                    fundings.append(mexc_data[name]["fundingRate"])
+                
+                if not prices:
                     continue
                 
-                for source in SOURCES:
-                    key = f"{coin}_{source}"
+                mark_px = sum(prices) / len(prices)
+                funding = sum(fundings) / len(fundings) if fundings else hl_funding
+                
+                all_prices.append(mark_px)
+                oi_usd = open_interest * mark_px
+                total_open_interest_usd += oi_usd
+                
+                coin_sources_data = {}
+                for src in sources:
+                    multiplier = 1.0 if src == "all" else (0.95 if src == "whale" else 1.02)
                     
-                    if key in active_signals:
-                        plan = active_signals[key]
-                        is_short = "SHORT" in plan["type"]
-                        
-                        hit_tp = mark_price <= plan["tp"] if is_short else mark_price >= plan["tp"]
-                        hit_sl = mark_price >= plan["sl"] if is_short else mark_price <= plan["sl"]
-                        
-                        if hit_tp or hit_sl:
-                            result_msg = "🎯 KÂR AL (TP) OLDU!" if hit_tp else "🛑 STOP (SL) OLDU!"
-                            print(f"[ARKA PLAN İŞLEM KAPANDI] {key} -> {result_msg} | Fiyat: {mark_price}")
-                            del active_signals[key]
+                    long_avg = mark_px * 0.985 * multiplier
+                    short_avg = mark_px * 1.015 * multiplier
+                    general_avg = (long_avg + short_avg) / 2
                     
-                    else:
-                        simulated_velocity = 2.5 
-                        
-                        if simulated_velocity >= 2.2: 
-                            signal_type = "LONG İVME BASKISI" if coin in ["BTC", "ETH", "SOL"] else "SHORT İVME BASKISI"
-                            entry = mark_price
-                            tp = entry * 1.025 if "LONG" in signal_type else entry * 0.975
-                            sl = entry * 0.985 if "LONG" in signal_type else entry * 1.015
-                            
-                            active_signals[key] = {
-                                "type": signal_type,
-                                "entry": entry,
-                                "tp": tp,
-                                "sl": sl,
-                                "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                            }
+                    long_count = int(1500 + (hash(name + src) % 1500))
+                    short_count = int(800 + (hash(src + name) % 800))
+                    long_size = (long_count * mark_px * 0.05)
+                    short_size = (short_count * mark_px * 0.04)
+                    
+                    if src == "pct6_20":
+                        long_avg = mark_px * 1.08
+                        short_avg = mark_px * 0.92
+                    
+                    coin_sources_data[src] = {
+                        "long_avg": long_avg,
+                        "long_count": long_count,
+                        "long_size": long_size,
+                        "short_avg": short_avg,
+                        "short_count": short_count,
+                        "short_size": short_size,
+                        "general_avg": general_avg
+                    }
 
-        except Exception as e:
-            print(f"Arka plan döngü hatası: {e}")
+                if coin_sources_data:
+                    all_src_list = list(coin_sources_data.values())
+                    n_src = len(all_src_list)
+                    coin_sources_data["combined_avg"] = {
+                        "long_avg": sum(s["long_avg"] for s in all_src_list) / n_src,
+                        "long_count": int(sum(s["long_count"] for s in all_src_list) / n_src),
+                        "long_size": sum(s["long_size"] for s in all_src_list) / n_src,
+                        "short_avg": sum(s["short_avg"] for s in all_src_list) / n_src,
+                        "short_count": int(sum(s["short_count"] for s in all_src_list) / n_src),
+                        "short_size": sum(s["short_size"] for s in all_src_list) / n_src,
+                        "general_avg": sum(s["general_avg"] for s in all_src_list) / n_src
+                    }
 
-        # 5 dakikada bir (300 saniye) döngü
-        time.sleep(300)
-
-worker_thread = threading.Thread(target=background_trading_worker, daemon=True)
-worker_thread.start()
-
-
-# --- WEB ARAYÜZÜ VE API ROUTE'LARIN ---
-
-@app.route("/")
-def home():
-    return send_from_directory('.', 'index.html')
-
-@app.route("/api/coins")
-def get_coins():
-    return jsonify({"status": "success", "coins": COINS})
-
-@app.route("/api/market-stats/<coin>")
-def market_stats(coin):
-    price = get_multi_exchange_price(coin)
-    
-    return jsonify({
-        "status": "success",
-        "cache_remaining_seconds": 300,
-        "data": {
-            "symbol": coin + "USDT",
-            "markPrice": price,
-            "sources": {
-                "all": {"long_avg": price * 0.99, "short_avg": price * 1.01, "general_avg": price, "long_count": 14, "long_size": 52000, "short_count": 9, "short_size": 38000},
-                "whale": {"long_avg": price * 0.98, "short_avg": price * 1.02, "general_avg": price, "long_count": 6, "long_size": 180000, "short_count": 4, "short_size": 140000},
-                "copy": {"long_avg": price * 0.995, "short_avg": price * 1.005, "general_avg": price, "long_count": 22, "long_size": 90000, "short_count": 16, "short_size": 65000},
-                "pct6_20": {"long_avg": price * 0.985, "short_avg": price * 1.015, "general_avg": price, "long_count": 11, "long_size": 28000, "short_count": 10, "short_size": 24000}
+                processed_coins[name] = {
+                    "symbol": f"{name}USDT",
+                    "markPrice": mark_px,
+                    "fundingRate": funding,
+                    "openInterestUSD": oi_usd,
+                    "sources": coin_sources_data
+                }
+            
+            global_data = {
+                "totalActiveCoins": len(processed_coins),
+                "totalAUM_OI": total_open_interest_usd,
+                "avgMarketPrice": sum(all_prices) / len(all_prices) if all_prices else 0
             }
-        }
-    })
+            
+            processed_coins["_GLOBAL_SUMMARY_"] = global_data
+            return processed_coins
+    except Exception as e:
+        print("Karma veri hatası:", e)
+        
+    return {}
+
+@app.get("/", response_class=HTMLResponse)
+def read_index():
+    try:
+        with open("index.html", "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "<h3>index.html dosyası bulunamadı!</h3>"
+
+@app.get("/api/coins")
+def get_all_coins():
+    global CACHE
+    current_time = time.time()
+    if current_time - CACHE["last_update"] > CACHE_DURATION or not CACHE["data"]:
+        CACHE["data"] = fetch_karma_market_data()
+        CACHE["last_update"] = current_time
+    
+    coins = [k for k in CACHE["data"].keys() if not k.startswith("_")]
+    return {"status": "success", "coins": sorted(coins)}
+
+@app.get("/api/market-stats/{symbol}")
+def get_coin_stats(symbol: str):
+    global CACHE
+    current_time = time.time()
+    if current_time - CACHE["last_update"] > CACHE_DURATION or not CACHE["data"]:
+        CACHE["data"] = fetch_karma_market_data()
+        CACHE["last_update"] = current_time
+        
+    symbol = symbol.upper()
+    coin_data = CACHE["data"].get(symbol)
+    global_data = CACHE["data"].get("_GLOBAL_SUMMARY_", {})
+    
+    if not coin_data:
+        return {"status": "error", "message": "Coin bulunamadı"}
+        
+    return {
+        "status": "success",
+        "cache_remaining_seconds": int(CACHE_DURATION - (current_time - CACHE["last_update"])),
+        "data": coin_data,
+        "global": global_data
+    }
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
