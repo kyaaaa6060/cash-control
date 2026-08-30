@@ -3,513 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cash Control - Yetkili Panel Mimarisi</title>
-    <style>
-        body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; height: 100vh; overflow: hidden; position: relative; }
-        
-        #tradingview-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
-
-        .top-control-bar { position: absolute; top: 15px; right: 20px; z-index: 10; display: flex; gap: 8px; align-items: center; }
-        
-        .timeframe-select { background: #1e2329; color: #f0b90b; border: 1px solid #2f363d; padding: 8px 10px; border-radius: 6px; font-weight: bold; font-size: 13px; outline: none; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-        .timeframe-select:focus { border-color: #f0b90b; }
-
-        .toggle-panel-btn { background: #f0b90b; color: #0b0e11; border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: 0.2s; }
-        .toggle-panel-btn:hover { background: #fcd535; }
-        
-        .logout-btn { background: #1e2329; color: #f6465d; border: 1px solid #2f363d; padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: 0.2s; }
-        .logout-btn:hover { background: rgba(246, 70, 93, 0.15); border-color: #f6465d; }
-
-        .role-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 6px; }
-        .role-badge.admin { background: rgba(240, 185, 11, 0.2); color: #f0b90b; border: 1px solid rgba(240, 185, 11, 0.4); }
-        .role-badge.user { background: rgba(14, 203, 129, 0.2); color: #0ecb81; border: 1px solid rgba(14, 203, 129, 0.4); }
-
-        .auth-overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(11, 14, 17, 0.95); z-index: 100; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(8px); }
-        .auth-card { background: #181a20; border: 1px solid #2b2b2b; border-radius: 10px; width: 100%; max-width: 350px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); text-align: center; }
-        .auth-title { font-size: 16px; font-weight: bold; color: #fff; margin-bottom: 6px; }
-        .auth-desc { font-size: 11px; color: #848e9c; margin-bottom: 20px; }
-        .auth-input { width: 100%; background: #1e2329; border: 1px solid #2f363d; color: #fff; padding: 10px; border-radius: 6px; font-size: 14px; outline: none; box-sizing: border-box; text-align: center; margin-bottom: 12px; letter-spacing: 2px; }
-        .auth-input:focus { border-color: #f0b90b; }
-        .auth-btn { width: 100%; background: #f0b90b; color: #0b0e11; border: none; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; transition: 0.2s; }
-        .auth-btn:hover { background: #fcd535; }
-        .auth-error { color: #f6465d; font-size: 11px; margin-top: 8px; display: none; }
-
-        .modal-overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.6); z-index: 20; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(3px); transition: 0.3s ease; }
-        .modal-overlay.hidden { display: none; }
-
-        .main-card { background: #181a20; border: 1px solid #2b2b2b; border-radius: 10px; width: 100%; max-width: 750px; max-height: 90vh; overflow-y: auto; padding: 12px 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.7); }
-        
-        .header-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #23272e; padding-bottom: 8px; margin-bottom: 10px; }
-        .title { display: flex; align-items: center; gap: 6px; font-weight: bold; color: #fff; font-size: 14px; }
-        .close-btn { color: #f0b90b; cursor: pointer; font-size: 16px; }
-        
-        .ivme-box { background: #1e2329; border: 1px solid #2f363d; border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; }
-        .ivme-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 12px; color: #848e9c; flex-wrap: wrap; gap: 4px; }
-        .badge-long { background: rgba(14, 203, 129, 0.15); color: #0ecb81; border: 1px solid rgba(14, 203, 129, 0.4); padding: 2px 6px; border-radius: 3px; font-weight: bold; font-size: 11px; }
-        .badge-speed { background: rgba(112, 122, 138, 0.2); color: #c9d1d9; border: 1px solid #3a4149; padding: 2px 6px; border-radius: 3px; font-size: 11px; }
-        .badge-breakout { background: rgba(138, 43, 226, 0.2); color: #d8b4fe; border: 1px solid rgba(138, 43, 226, 0.4); padding: 2px 6px; border-radius: 3px; font-size: 11px; }
-        .badge-active { background: rgba(240, 185, 11, 0.15); color: #f0b90b; border: 1px solid rgba(240, 185, 11, 0.4); padding: 2px 6px; border-radius: 3px; font-size: 11px; }
-        
-        .ivme-desc { font-size: 12px; color: #b7bdc6; line-height: 1.4; margin-bottom: 8px; }
-        .ivme-footer { display: flex; gap: 15px; font-size: 11px; color: #848e9c; border-top: 1px solid #2b2b2b; padding-top: 6px; }
-        
-        .analysis-extra-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-        .extra-card { background: #121418; border: 1px solid #23272e; border-radius: 6px; padding: 8px 10px; }
-        .extra-title { font-size: 11px; font-weight: bold; color: #848e9c; margin-bottom: 6px; border-bottom: 1px solid #23272e; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
-        .extra-content { font-size: 12px; color: #eaeaea; }
-        .level-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 11px; }
-        .level-lbl { color: #848e9c; }
-        .no-pattern { color: #848e9c; font-style: italic; font-size: 11px; text-align: center; padding: 6px; }
-
-        .prices-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #121418; padding: 8px 10px; border-radius: 6px; margin-bottom: 10px; text-align: center; border: 1px solid #23272e; }
-        .price-item .lbl { font-size: 10px; color: #848e9c; margin-bottom: 2px; }
-        .price-item .val { font-size: 13px; font-weight: bold; word-break: break-all; }
-        
-        .source-label { font-size: 11px; color: #848e9c; margin-bottom: 6px; text-align: center; }
-        .source-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
-        .src-btn { background: #1e2329; border: 1px solid #2f363d; color: #848e9c; padding: 6px 8px; border-radius: 5px; font-size: 11px; cursor: pointer; text-align: center; transition: 0.2s; }
-        .src-btn.active { background: #2b2b23; border-color: #f0b90b; color: #f0b90b; font-weight: bold; }
-        
-        .bottom-bar { display: flex; justify-content: space-between; align-items: center; background: #121418; padding: 8px 12px; border-radius: 6px; border: 1px solid #23272e; margin-bottom: 8px; }
-        .coin-select { background: #1e2329; color: #fff; border: 1px solid #2f363d; padding: 4px 8px; border-radius: 4px; outline: none; cursor: pointer; font-size: 12px; }
-        .mark-display { font-size: 13px; font-weight: bold; color: #f0b90b; }
-        
-        .refresh-status-bar { display: flex; justify-content: space-between; align-items: center; background: #261f12; border: 1px solid #4a3818; padding: 6px 10px; border-radius: 5px; margin-bottom: 8px; font-size: 11px; color: #f0b90b; }
-        .reset-btn { background: #2b2b2b; color: #eaeaea; border: none; padding: 3px 6px; border-radius: 3px; cursor: pointer; font-size: 10px; }
-        
-        .mode-footer { display: flex; justify-content: center; gap: 12px; margin-bottom: 10px; font-size: 11px; color: #848e9c; align-items: center; }
-        
-        .result-card { background: #1e2329; border: 1px solid #2f363d; border-radius: 6px; padding: 10px 14px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .result-card.long { border-left: 3px solid #0ecb81; }
-        .result-card.short { border-left: 3px solid #f6465d; }
-        .result-card.avg { border-left: 3px solid #f0b90b; }
-        .res-title { font-size: 12px; font-weight: bold; color: #fff; display: flex; align-items: center; gap: 5px; }
-        .res-sub { font-size: 10px; color: #848e9c; margin-top: 2px; }
-        .res-val { font-size: 14px; font-weight: bold; }
-    </style>
+    <title>Cash Control Engine - Live Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- TradingView Widget Script -->
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
-<body>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
 
-    <div id="authOverlay" class="auth-overlay">
-        <div class="auth-card">
-            <div class="auth-title">🔐 Cash Control</div>
-            <div class="auth-desc">Devam etmek için erişim şifrenizi girin</div>
-            <input type="password" id="passwordInput" class="auth-input" placeholder="••••" onkeydown="if(event.key === 'Enter') checkPassword()">
-            <button class="auth-btn" onclick="checkPassword()">Giriş Yap</button>
-            <div id="authError" class="auth-error">Hatalı Şifre!</div>
+    <!-- Header -->
+    <header class="bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center">
+        <h1 class="text-xl font-bold tracking-wider text-emerald-400">⚡ CASH CONTROL ENGINE</h1>
+        <div class="flex items-center gap-4">
+            <select id="coinSelect" onchange="changeCoin()" class="bg-slate-800 border border-slate-700 text-white rounded px-3 py-1.5 focus:outline-none focus:border-emerald-500">
+                <option value="">Coinler Yükleniyor...</option>
+            </select>
         </div>
-    </div>
+    </header>
 
-    <div id="tradingview-container"></div>
-
-    <div class="top-control-bar">
-        <select id="timeframeSelect" class="timeframe-select" onchange="onTimeframeChange()">
-            <option value="5">5 Dakika</option>
-            <option value="15" selected>15 Dakika</option>
-            <option value="30">30 Dakika</option>
-            <option value="60">1 Saat</option>
-            <option value="120">2 Saat</option>
-            <option value="180">3 Saat</option>
-            <option value="240">4 Saat</option>
-            <option value="D">1 Günlük</option>
-            <option value="W">1 Haftalık</option>
-        </select>
-        <button class="toggle-panel-btn" onclick="togglePanel()">📊 Veri Göster / Gizle</button>
-        <button class="logout-btn" onclick="logoutSession()">🔒 Çıkış Yap</button>
-    </div>
-
-    <div id="panelModal" class="modal-overlay">
-        <div class="main-card">
-            <div class="header-top">
-                <div class="title">
-                    📊 Tüm Kaynakların Ortalaması 
-                    <span id="roleBadgeContainer"></span>
-                </div>
-                <div class="close-btn" onclick="togglePanel()">✕</div>
+    <!-- Main Content -->
+    <main class="flex-1 p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- Sol & Orta: TradingView Grafik Alanı -->
+        <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col h-[600px]">
+            <div class="flex justify-between items-center mb-3">
+                <h2 id="chartTitle" class="text-lg font-semibold text-slate-300">Grafik - Yükleniyor...</h2>
+                <span id="markPriceVal" class="text-emerald-400 font-mono font-bold">$0.00</span>
             </div>
+            <!-- TradingView Widget Container -->
+            <div id="tradingview_chart" class="w-full flex-1 rounded bg-slate-950 overflow-hidden"></div>
+        </div>
 
-            <div class="ivme-box">
-                <div class="ivme-top">
-                    <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                        <span class="badge-long">⚡ LONG İVME</span>
-                        <span class="badge-speed">⚡ +4.7x</span>
-                        <span class="badge-breakout">📈 Breakout</span>
-                        <span class="badge-active">🚀 Aktif</span>
-                    </div>
-                    <div id="currentTime" style="font-size: 10px;">--</div>
-                </div>
-                <div class="ivme-desc" id="aiComment">Analiz yükleniyor...</div>
-                <div class="ivme-footer">
-                    <div>🎯 Confluence: <span style="color: #0ecb81; font-weight: bold;">%88.4</span></div>
-                    <div>⚡ İvme: <span style="color: #fff; font-weight: bold;">+4.7x</span></div>
+        <!-- Sağ: Panel Verileri ve Kaynaklar -->
+        <div class="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col justify-between">
+            <div>
+                <h2 class="text-lg font-semibold text-slate-300 mb-3">Piyasa Analiz Paneli</h2>
+                <div id="panelContent" class="space-y-3 text-sm font-mono text-slate-400">
+                    <p>Veriler bekleniyor...</p>
                 </div>
             </div>
-
-            <div class="analysis-extra-grid">
-                <div class="extra-card">
-                    <div class="extra-title">🛡️ Pivot Destek & Direnç</div>
-                    <div class="extra-content" id="supportResistanceContainer">
-                        <div class="level-row"><span class="level-lbl">Direnç 2:</span> <span id="res2" style="color: #f6465d;">$-</span></div>
-                        <div class="level-row"><span class="level-lbl">Direnç 1:</span> <span id="res1" style="color: #f6465d;">$-</span></div>
-                        <div class="level-row"><span class="level-lbl">Destek 1:</span> <span id="sup1" style="color: #0ecb81;">$-</span></div>
-                        <div class="level-row"><span class="level-lbl">Destek 2:</span> <span id="sup2" style="color: #0ecb81;">$-</span></div>
-                    </div>
-                </div>
-
-                <div class="extra-card">
-                    <div class="extra-title">📐 Aktif Formasyonlar</div>
-                    <div class="extra-content" id="patternsContainer">
-                        <div class="no-pattern">Formasyon aranıyor...</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="prices-grid">
-                <div class="price-item">
-                    <div class="lbl">GİRİŞ (ENTRY)</div>
-                    <div class="val" id="valEntry" style="color: #f0b90b;">$-</div>
-                </div>
-                <div class="price-item">
-                    <div class="lbl">KÂR AL (TP)</div>
-                    <div class="val" id="valTP" style="color: #0ecb81;">$-</div>
-                </div>
-                <div class="price-item">
-                    <div class="lbl">STOP OL (SL)</div>
-                    <div class="val" id="valSL" style="color: #f6465d;">$-</div>
-                </div>
-            </div>
-
-            <div class="source-label">Veri Kaynağı Seçin:</div>
-            <div class="source-grid">
-                <div class="src-btn" onclick="setSource('copy', this)">Sadece Copy</div>
-                <div class="src-btn" onclick="setSource('whale', this)">Sadece Balina</div>
-                <div class="src-btn" onclick="setSource('genel_terste', this)">Genel Terste</div>
-                <div class="src-btn" onclick="setSource('ters_6_20', this)">Ters (%6-20)</div>
-                <div class="src-btn" onclick="setSource('top20_terste', this)">TOP 20 Ters</div>
-                <div class="src-btn" onclick="setSource('top20_oransal', this)">TOP 20 Oran</div>
-                <div class="src-btn active" onclick="setSource('trak', this)" style="grid-column: span 3;">Tüm Kaynakların Ort.</div>
-            </div>
-
-            <div class="bottom-bar">
-                <div>
-                    <span style="font-size: 12px; color: #848e9c; margin-right: 6px;">Coin:</span>
-                    <select id="coinSelect" class="coin-select" onchange="onCoinChange()"></select>
-                </div>
-                <div>
-                    <span style="font-size: 12px; color: #848e9c;">Mark Fiyat: </span>
-                    <span id="markPrice" class="mark-display">$-</span>
-                </div>
-            </div>
-
-            <div class="refresh-status-bar">
-                <div>⏳ Cache: <span id="refreshCountdown">5s</span></div>
-                <button class="reset-btn" id="resetBtn" onclick="manualRefresh()">Sıfırla</button>
-            </div>
-
-            <div class="mode-footer">
-                <div>🟡 <strong>Güncel</strong></div>
-                <div style="color: #444;">○</div>
-                <div>Geçmiş</div>
-            </div>
-
-            <div id="resultCardsContainer">
-                <div class="result-card long">
-                    <div>
-                        <div class="res-title"><span style="color: #0ecb81;">●</span> LONG Ort. Giriş:</div>
-                        <div class="res-sub" id="longSub">(- işlem, -$ size)</div>
-                    </div>
-                    <div class="res-val" id="longVal" style="color: #0ecb81;">$-</div>
-                </div>
-
-                <div class="result-card short">
-                    <div>
-                        <div class="res-title"><span style="color: #f6465d;">●</span> SHORT Ort. Giriş:</div>
-                        <div class="res-sub" id="shortSub">(- işlem, -$ size)</div>
-                    </div>
-                    <div class="res-val" id="shortVal" style="color: #f6465d;">$-</div>
-                </div>
-
-                <div class="result-card avg">
-                    <div>
-                        <div class="res-title"><span style="color: #f0b90b;">●</span> Ortalama Giriş:</div>
-                        <div class="res-sub">Ağırlıklı genel ortalama</div>
-                    </div>
-                    <div class="res-val" id="avgVal" style="color: #f0b90b;">$-</div>
-                </div>
+            <div class="mt-4 pt-3 border-t border-slate-800 text-xs text-slate-500 text-center">
+                Cash Control Core v13.9 - Active Connection
             </div>
         </div>
-    </div>
+    </main>
 
+    <!-- JavaScript Mantığı -->
     <script>
+        let tvWidget = null;
         let currentSymbol = "BTC";
-        let currentTimeframe = "15";
-        let currentSource = "trak";
-        let autoInterval = null;
-        let currentUserRole = null;
-        let savedPivots = JSON.parse(localStorage.getItem('cashControl_savedPivots')) || {};
-
-        const ADMIN_PASS = "1453";
-        const USER_PASS = "1234";
-
-        function checkPassword() {
-            let input = document.getElementById('passwordInput').value;
-            let errorMsg = document.getElementById('authError');
-            
-            if (input === ADMIN_PASS) {
-                currentUserRole = 'admin';
-                initSession();
-            } else if (input === USER_PASS) {
-                currentUserRole = 'user';
-                initSession();
-            } else {
-                errorMsg.style.display = 'block';
-                document.getElementById('passwordInput').value = '';
-            }
-        }
-
-        function initSession() {
-            document.getElementById('authOverlay').style.display = 'none';
-            localStorage.setItem('cashControl_role', currentUserRole);
-            
-            let badgeContainer = document.getElementById('roleBadgeContainer');
-            if(currentUserRole === 'admin') {
-                badgeContainer.innerHTML = `<span class="role-badge admin">👑 Admin Panel</span>`;
-                document.getElementById('resetBtn').style.opacity = "1";
-                document.getElementById('resetBtn').style.pointerEvents = "auto";
-            } else {
-                badgeContainer.innerHTML = `<span class="role-badge user">👤 Kullanıcı Panel</span>`;
-                let resetBtn = document.getElementById('resetBtn');
-                resetBtn.innerText = "Kısıtlı";
-                resetBtn.style.opacity = "0.5";
-                resetBtn.style.pointerEvents = "none";
-            }
-
-            loadCoins();
-        }
-
-        function logoutSession() {
-            localStorage.removeItem('cashControl_role');
-            location.reload();
-        }
-
-        function saveSavedPivots() {
-            localStorage.setItem('cashControl_savedPivots', JSON.stringify(savedPivots));
-        }
-
-        function togglePanel() {
-            let modal = document.getElementById('panelModal');
-            modal.classList.toggle('hidden');
-        }
-
-        function formatPrice(val) {
-            let num = parseFloat(val);
-            if (isNaN(num)) return "$-";
-            if (num < 0.0001) return num.toFixed(6);
-            if (num < 1) return num.toFixed(4);
-            if (num < 10) return num.toFixed(3);
-            return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
-
-        function updateTradingViewChart(symbol, timeframe) {
-            let container = document.getElementById('tradingview-container');
-            container.innerHTML = ''; 
-            
-            let widgetDiv = document.createElement('div');
-            widgetDiv.className = "tradingview-widget-container";
-            widgetDiv.style.height = "100%";
-            widgetDiv.style.width = "100%";
-            
-            let innerDiv = document.createElement('div');
-            innerDiv.className = "tradingview-widget-container__widget";
-            innerDiv.style.height = "calc(100% - 32px)";
-            innerDiv.style.width = "100%";
-            widgetDiv.appendChild(innerDiv);
-            
-            let script = document.createElement('script');
-            script.type = "text/javascript";
-            script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
-            script.async = true;
-            script.innerHTML = JSON.stringify({
-                "width": "100%",
-                "height": "100%",
-                "symbol": "BINANCE:" + symbol + "USDT",
-                "interval": timeframe,
-                "timezone": "Europe/Istanbul",
-                "theme": "dark",
-                "style": "1",
-                "locale": "tr",
-                "allow_symbol_change": true,
-                "calendar": false,
-                "support_host": "https://www.tradingview.com"
-            });
-            
-            widgetDiv.appendChild(script);
-            container.appendChild(widgetDiv);
-        }
 
         async function loadCoins() {
             try {
                 let res = await fetch('/api/coins');
                 let data = await res.json();
-                if(data.status === 'success') {
+                if (data.status === "success" && data.coins.length > 0) {
                     let select = document.getElementById('coinSelect');
-                    let oldVal = select.value;
-                    select.innerHTML = '';
-                    
+                    select.innerHTML = "";
                     data.coins.forEach(coin => {
                         let opt = document.createElement('option');
                         opt.value = coin;
-                        opt.text = coin + "USDT";
+                        opt.innerText = coin + "/USDT";
+                        if(coin === "BTC") opt.selected = true;
                         select.appendChild(opt);
                     });
-                    
-                    if (data.coins.includes(oldVal)) {
-                        select.value = oldVal;
-                        currentSymbol = oldVal;
-                    } else if(data.coins.length > 0) {
-                        currentSymbol = data.coins[0];
-                        select.value = currentSymbol;
-                    }
-                    
-                    if(currentSymbol) {
-                        updateTradingViewChart(currentSymbol, currentTimeframe);
-                        fetchStats(currentSymbol, currentTimeframe);
-                        startRealtimeSync();
-                    }
+                    loadMarketStats(currentSymbol);
                 }
-            } catch(e) {
-                console.error("Coinler yüklenemedi", e);
+            } catch (err) {
+                console.error("Coinler yüklenirken hata:", err);
             }
         }
 
-        function getOrSetPivotLevels(symbol, markPrice) {
-            let p = parseFloat(markPrice);
-            if (isNaN(p) || p <= 0) return { res2: "-", res1: "-", sup1: "-", sup2: "-" };
-
-            if (savedPivots[symbol]) {
-                return savedPivots[symbol];
-            }
-
-            let high = p * 1.015;
-            let low = p * 0.985;
-            let pivot = (high + low + p) / 3;
-
-            let r1 = (2 * pivot) - low;
-            let s1 = (2 * pivot) - high;
-            let r2 = pivot + (high - low);
-            let s2 = pivot - (high - low);
-
-            savedPivots[symbol] = {
-                res2: r2,
-                res1: r1,
-                sup1: s1,
-                sup2: s2
-            };
-            
-            saveSavedPivots();
-            return savedPivots[symbol];
-        }
-
-        async function fetchStats(symbol, timeframe) {
+        async function loadMarketStats(symbol) {
+            currentSymbol = symbol;
             try {
-                let res = await fetch(`/api/market-stats/${symbol}?timeframe=${timeframe}`);
+                let res = await fetch(`/api/market-stats/${symbol}`);
                 let json = await res.json();
-                if(json.status === 'success') {
+                if (json.status === "success") {
                     let d = json.data;
-                    let ai = d.ai_analysis;
+                    document.getElementById('chartTitle').innerText = `${d.symbol} Analizi`;
+                    document.getElementById('markPriceVal').innerText = `$${d.markPrice.toLocaleString()}`;
                     
-                    document.getElementById('markPrice').innerText = "$" + formatPrice(d.markPrice);
-                    document.getElementById('aiComment').innerText = `[${timeframe} Periyot] ` + ai.comment;
-
-                    document.getElementById('valEntry').innerText = "$" + formatPrice(ai.entry);
-                    document.getElementById('valTP').innerText = "$" + formatPrice(ai.tp);
-                    document.getElementById('valSL').innerText = "$" + formatPrice(ai.sl);
-
-                    let pivots = getOrSetPivotLevels(symbol, d.markPrice);
-                    document.getElementById('res2').innerText = "$" + formatPrice(pivots.res2);
-                    document.getElementById('res1').innerText = "$" + formatPrice(pivots.res1);
-                    document.getElementById('sup1').innerText = "$" + formatPrice(pivots.sup1);
-                    document.getElementById('sup2').innerText = "$" + formatPrice(pivots.sup2);
-
-                    let patternsContainer = document.getElementById('patternsContainer');
-                    if (d.patterns && d.patterns.length > 0) {
-                        patternsContainer.innerHTML = d.patterns.map(p => `
-                            <div class="level-row">
-                                <span class="level-lbl" style="color: #fff;">${p.name}</span> 
-                                <span style="color: #0ecb81; font-weight: bold;">${p.confidence}</span>
-                            </div>
-                        `).join('');
-                    } else {
-                        patternsContainer.innerHTML = `<div class="no-pattern">Aktif Formasyon Bulunamadı</div>`;
+                    let panelHtml = `<div class="p-2 bg-slate-800 rounded">Funding Rate: <span class="text-white">${d.fundingRate.toFixed(4)}%</span></div>`;
+                    panelHtml += `<div class="p-2 bg-slate-800 rounded">Open Interest: <span class="text-white">$${Math.round(d.openInterestUSD).toLocaleString()}</span></div>`;
+                    
+                    if(d.ai_analysis) {
+                        panelHtml += `<div class="p-2 bg-emerald-950 border border-emerald-800 rounded text-emerald-300">Sinyal: ${d.ai_analysis.signal}</div>`;
                     }
-                    
-                    let srcData = d.sources[currentSource] || d.sources["trak"];
-                    
-                    document.getElementById('longVal').innerText = "$" + formatPrice(srcData.long_avg);
-                    document.getElementById('longSub').innerText = `(${srcData.long_count} işlem, $${srcData.long_size.toFixed(1)}K size)`;
-                    
-                    document.getElementById('shortVal').innerText = "$" + formatPrice(srcData.short_avg);
-                    document.getElementById('shortSub').innerText = `(${srcData.short_count} işlem, $${srcData.short_size.toFixed(1)}K size)`;
-                    
-                    document.getElementById('avgVal').innerText = "$" + formatPrice(srcData.general_avg);
-                    
-                    let now = new Date();
-                    document.getElementById('currentTime').innerText = now.toLocaleDateString('tr-TR') + " " + now.toLocaleTimeString('tr-TR') + " (TRT)";
+                    document.getElementById('panelContent').innerHTML = panelHtml;
+
+                    initTradingView(d.symbol);
                 }
-            } catch(e) {
-                console.error("Veri çekme hatası:", e);
+            } catch (err) {
+                console.error("İstatistikler yüklenirken hata:", err);
             }
         }
 
-        function onCoinChange() {
-            let select = document.getElementById('coinSelect');
-            currentSymbol = select.value;
-            updateTradingViewChart(currentSymbol, currentTimeframe);
-            fetchStats(currentSymbol, currentTimeframe);
+        function initTradingView(symbol) {
+            document.getElementById('tradingview_chart').innerHTML = "";
+            new TradingView.widget({
+                "autosize": true,
+                "symbol": "BINANCE:" + symbol,
+                "interval": "15",
+                "timezone": "Etc/UTC",
+                "theme": "dark",
+                "style": "1",
+                "locale": "tr",
+                "toolbar_bg": "#f1f3f6",
+                "enable_publishing": false,
+                "container_id": "tradingview_chart"
+            });
         }
 
-        function onTimeframeChange() {
-            let select = document.getElementById('timeframeSelect');
-            currentTimeframe = select.value;
-            updateTradingViewChart(currentSymbol, currentTimeframe);
-            fetchStats(currentSymbol, currentTimeframe);
-        }
-
-        function setSource(src, element) {
-            document.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
-            element.classList.add('active');
-            currentSource = src;
-            fetchStats(currentSymbol, currentTimeframe);
-        }
-
-        function manualRefresh() {
-            if (currentUserRole !== 'admin') return;
-            fetchStats(currentSymbol, currentTimeframe);
-        }
-
-        function startRealtimeSync() {
-            if(autoInterval) clearInterval(autoInterval);
-            let secondsLeft = 5;
-            setInterval(() => {
-                secondsLeft--;
-                if(secondsLeft <= 0) {
-                    secondsLeft = 5;
-                    if(currentSymbol) {
-                        fetchStats(currentSymbol, currentTimeframe);
-                    }
-                }
-                let countEl = document.getElementById('refreshCountdown');
-                if(countEl) countEl.innerText = secondsLeft + "s";
-            }, 1000);
-        }
-
-        window.onload = () => {
-            let savedRole = localStorage.getItem('cashControl_role');
-            if (savedRole === 'admin' || savedRole === 'user') {
-                currentUserRole = savedRole;
-                initSession();
+        function changeCoin() {
+            let val = document.getElementById('coinSelect').value;
+            if(val) {
+                loadMarketStats(val);
             }
-        };
+        }
+
+        // Sayfa açıldığında çalıştır ve her 5 saniyede bir güncelle
+        loadCoins();
+        setInterval(() => {
+            let val = document.getElementById('coinSelect').value;
+            if(val) loadMarketStats(val);
+        }, 5000);
     </script>
 </body>
 </html>
