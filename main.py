@@ -7,16 +7,35 @@ import requests
 
 app = Flask(__name__)
 
-# --- 7/24 ARKA PLAN TAKİP MOTORU (5 DAKİKADA BİR GÜNCELLENİR) ---
-COINS = ["BTC", "ETH", "SOL", "XRP", "AVAX"]
 SOURCES = ["all", "whale", "copy", "pct6_20"]
-
 active_signals = {}
+
+def fetch_hyperliquid_universe():
+    """
+    Hyperliquid borsasındaki tüm vadeli işlem coinlerini (universe) dinamik olarak çeker.
+    """
+    try:
+        res = requests.post("https://api.hyperliquid.xyz/info", json={"type": "meta"}, timeout=5)
+        if res.status_code == 200:
+            data = res.json()
+            if "universe" in data:
+                coins = [item["name"] for item in data["universe"]]
+                if coins:
+                    print(f"🚀 Hyperliquid'den {len(coins)} adet vadeli coin başarıyla yüklendi!")
+                    return coins
+    except Exception as e:
+        print(f"Hyperliquid universe çekme hatası: {e}")
+    
+    # Bağlantı koparsa güvenli yedek liste
+    return ["BTC", "ETH", "SOL", "XRP", "AVAX"]
+
+# Başlangıçta tüm coin listesini Hyperliquid'den dinamik alıyoruz
+COINS = fetch_hyperliquid_universe()
 
 def get_multi_exchange_price(coin):
     """
     Binance, MEXC, Bybit, OKX ve Hyperliquid borsalarının anlık fiyatlarını 
-    harmanlayarak en doğru 'borsalar karması' fiyatını üretir.
+    harmanlayarak (ortalama alarak) en doğru fiyatı üretir.
     """
     prices = []
     
@@ -58,7 +77,7 @@ def get_multi_exchange_price(coin):
     except Exception:
         pass
 
-    # 5. Hyperliquid API
+    # 5. Hyperliquid API (Tüm mid fiyatlar)
     try:
         res = requests.post("https://api.hyperliquid.xyz/info", json={"type": "allMids"}, timeout=2)
         if res.status_code == 200:
@@ -71,16 +90,17 @@ def get_multi_exchange_price(coin):
     if prices:
         return sum(prices) / len(prices)
         
-    fallbacks = {"BTC": 77000.0, "ETH": 3400.0, "SOL": 180.0, "XRP": 1.40, "AVAX": 30.0}
-    return fallbacks.get(coin, 50000.0)
+    return 1.0 # Fiyat bulunamazsa varsayılan
 
 def background_trading_worker():
-    print("🤖 Cash Control 7/24 Arka Plan Takip Servisi (5 Dakikalık Döngü) Aktif...")
+    print("🤖 Cash Control 7/24 Arka Plan Takip Servisi (Tüm Hyperliquid Vadeli Coinler) Aktif...")
     
     while True:
         try:
             for coin in COINS:
                 mark_price = get_multi_exchange_price(coin)
+                if not mark_price or mark_price <= 0:
+                    continue
                 
                 for source in SOURCES:
                     key = f"{coin}_{source}"
@@ -94,14 +114,14 @@ def background_trading_worker():
                         
                         if hit_tp or hit_sl:
                             result_msg = "🎯 KÂR AL (TP) OLDU!" if hit_tp else "🛑 STOP (SL) OLDU!"
-                            print(f"[ARKA PLAN İŞLEM KAPANDI] {key} -> {result_msg} | Karma Fiyat: {mark_price}")
+                            print(f"[ARKA PLAN İŞLEM KAPANDI] {key} -> {result_msg} | Fiyat: {mark_price}")
                             del active_signals[key]
                     
                     else:
                         simulated_velocity = 2.5 
                         
                         if simulated_velocity >= 2.2: 
-                            signal_type = "LONG İVME BASKISI" if coin in ["BTC", "ETH"] else "SHORT İVME BASKISI"
+                            signal_type = "LONG İVME BASKISI" if coin in ["BTC", "ETH", "SOL"] else "SHORT İVME BASKISI"
                             entry = mark_price
                             tp = entry * 1.025 if "LONG" in signal_type else entry * 0.975
                             sl = entry * 0.985 if "LONG" in signal_type else entry * 1.015
@@ -113,13 +133,11 @@ def background_trading_worker():
                                 "sl": sl,
                                 "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                             }
-                            
-                            print(f"[ARKA PLAN YENİ İŞLEM] {key} -> {signal_type} | Giriş: {entry} | TP: {tp} | SL: {sl}")
 
         except Exception as e:
             print(f"Arka plan döngü hatası: {e}")
 
-        # Her 5 dakikada bir (300 saniye) çalışır
+        # 5 dakikada bir (300 saniye) döngü
         time.sleep(300)
 
 worker_thread = threading.Thread(target=background_trading_worker, daemon=True)
@@ -142,7 +160,7 @@ def market_stats(coin):
     
     return jsonify({
         "status": "success",
-        "cache_remaining_seconds": 300, # 5 dakika önbellek süresi
+        "cache_remaining_seconds": 300,
         "data": {
             "symbol": coin + "USDT",
             "markPrice": price,
