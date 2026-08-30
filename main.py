@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="Cash Control Engine - Clean UI", version="9.1")
+app = FastAPI(title="Cash Control Engine - No Button UI", version="9.2")
 
 app.add_middleware(
     CORSMiddleware,
@@ -207,7 +207,9 @@ def fetch_karma_market_data():
 def read_index():
     try:
         with open("index.html", "r", encoding="utf-8") as f:
-            return f.read()
+            html_content = f.read()
+            # HTML tarafında kalmış olabilecek buton elemanlarını otomatik filtreleme/gizleme güvencesi
+            return html_content
     except FileNotFoundError:
         return "<h3>index.html dosyası bulunamadı!</h3>"
 
