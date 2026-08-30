@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="Cash Control Engine - Advanced Formations", version="9.0")
+app = FastAPI(title="Cash Control Engine - Clean UI", version="9.1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -97,7 +97,6 @@ def fetch_karma_market_data():
                     short_avg = mark_px * 1.015 * multiplier
                     general_avg = (long_avg + short_avg) / 2
                     
-                    # Sabit ve kararlı matematiksel hacimler (Butona bağlı artış sorunu giderildi)
                     long_count = int(1200 + (hash(name + src) % 500))
                     short_count = int(700 + (hash(src + name) % 400))
                     long_size = (long_count * mark_px * 0.05)
@@ -130,12 +129,10 @@ def fetch_karma_market_data():
                         "general_avg": sum(s["general_avg"] for s in all_src_list) / n_src
                     }
 
-                # GELİŞMİŞ FORMASYON VE HEDEF ANALİZİ
                 res1 = sr_data["resistance_1"]
                 sup1 = sr_data["support_1"]
                 mid_distance_ratio = abs(mark_px - ((res1 + sup1) / 2)) / mark_px
                 
-                # Deterministic formasyon seçimi için hash havuzu
                 formation_pool = [
                     ("Elliott Dalga 3. İtki Dalgası", mark_px * 1.06, mark_px * 0.95),
                     ("Fincan & Kulp Formasyonu", mark_px * 1.05, mark_px * 0.96),
