@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="Cash Control Engine - Native Match", version="14.0")
+app = FastAPI(title="Cash Control Engine - Perfect Match", version="14.1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,7 +22,7 @@ CACHE_DURATION = 5
 
 ACTIVE_TRADES = {}
 
-# Bulut sunucu (Render vb.) engellerine karşı kusursuz yedek havuz
+# Bulut sunucu (Render vb.) IP bloklarına karşı güvenli yedek havuz
 FALLBACK_COINS = {
     "BTC": 65000.0, "ETH": 3500.0, "SOL": 150.0, "AVAX": 25.0, 
     "XRP": 0.55, "BNB": 580.0, "ADA": 0.40, "DOGE": 0.12, 
@@ -48,41 +48,6 @@ def get_binance_futures_tickers():
         pass
     return {}
 
-def get_binance_klines(symbol):
-    try:
-        url = f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}USDT&interval=15m&limit=30"
-        res = requests.get(url, timeout=2)
-        if res.status_code == 200:
-            data = res.json()
-            closes = [float(candle[4]) for candle in data]
-            highs = [float(candle[2]) for candle in data]
-            lows = [float(candle[3]) for candle in data]
-            return closes, highs, lows
-    except Exception:
-        pass
-    return [], [], []
-
-def detect_chart_pattern(symbol, mark_px):
-    closes, highs, lows = get_binance_klines(symbol)
-    if len(closes) < 10:
-        return [{"name": "Boğa Flaması (Bull Flag)", "type": "bullish", "confidence": "%84.2"}]
-    
-    recent_trend = closes[-1] - closes[-5]
-    if recent_trend > 0:
-        return [{"name": "Boğa Flaması (Bull Flag)", "type": "bullish", "confidence": "%84.2"}]
-    else:
-        return [{"name": "Çift Dip (Double Bottom)", "type": "bullish", "confidence": "%89.1"}]
-
-def fmt(val):
-    if val < 0.0001:
-        return f"{val:,.6f}"
-    elif val < 1:
-        return f"{val:,.4f}"
-    elif val < 10:
-        return f"{val:,.3f}"
-    else:
-        return f"{val:,.2f}"
-
 def fetch_karma_market_data():
     processed_coins = {}
     total_open_interest_usd = 0
@@ -106,8 +71,6 @@ def fetch_karma_market_data():
             universe.append({"name": name})
             ctxs.append({"openInterest": "15000", "markPx": str(price), "funding": "0.0001"})
 
-    sources = ["copy", "whale", "genel_terste", "ters_6_20", "top20_terste", "top20_oransal", "trak"]
-    
     for i, asset in enumerate(universe):
         name = asset.get("name")
         if not name:
@@ -128,58 +91,31 @@ def fetch_karma_market_data():
         all_prices.append(mark_px)
         oi_usd = open_interest * mark_px
         total_open_interest_usd += oi_usd
-        
-        coin_sources_data = {}
-        for src in sources:
-            multiplier = 1.0 if src == "trak" else (0.98 if "whale" in src else 1.01)
-            long_avg = mark_px * 0.995 * multiplier
-            short_avg = mark_px * 1.008 * multiplier
-            general_avg = (long_avg + short_avg) / 2
-            
-            long_count = int(1500 + (hash(name + src) % 800))
-            short_count = int(900 + (hash(src + name) % 500))
-            long_size = (long_count * mark_px * 0.035) / 1000
-            short_size = (short_count * mark_px * 0.03) / 1000
-            
-            coin_sources_data[src] = {
-                "long_avg": long_avg,
-                "long_count": long_count,
-                "long_size": long_size,
-                "short_avg": short_avg,
-                "short_count": short_count,
-                "short_size": short_size,
-                "general_avg": general_avg
-            }
 
         if name not in ACTIVE_TRADES:
             ACTIVE_TRADES[name] = {
-                "inTrade": True,
                 "entry": mark_px,
                 "tp": mark_px * 1.028,
-                "sl": mark_px * 0.978,
-                "type": "LONG"
+                "sl": mark_px * 0.978
             }
         
         trade = ACTIVE_TRADES[name]
-        detected_patterns = detect_chart_pattern(name, mark_px)
 
         ai_report = {
             "signal": "LONG İVME BASKISI",
-            "comment": f"Normal eğrinin üzerinde +4.7x Hız ile tetiklenen yoğunluk tespit edildi. Giriş ${fmt(trade['entry'])} seviyesinden planlandı.",
             "confluence": 88.4,
             "entry": trade["entry"],
             "tp": trade["tp"],
             "sl": trade["sl"]
         }
 
+        # HTML'inizin doğrudan okuduğu tam uyumlu anahtar yapısı
         processed_coins[name] = {
-            "symbol": f"{name}USDT",
+            "symbol": name,
             "markPrice": mark_px,
             "fundingRate": funding,
             "openInterestUSD": oi_usd,
-            "sources": coin_sources_data,
-            "ai_analysis": ai_report,
-            "patterns": detected_patterns
+            "ai_analysis": ai_report
         }
     
     processed_coins["_GLOBAL_SUMMARY_"] = {
