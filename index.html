@@ -3,50 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cash Control - Tam Görünüm</title>
+    <title>Cash Control - Kompakt Görünüm</title>
     <style>
-        body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .main-card { background: #181a20; border: 1px solid #2b2b2b; border-radius: 12px; width: 100%; max-width: 850px; padding: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
-        .header-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #23272e; padding-bottom: 12px; margin-bottom: 15px; }
-        .title { display: flex; align-items: center; gap: 8px; font-weight: bold; color: #fff; font-size: 15px; }
-        .close-btn { color: #f0b90b; cursor: pointer; font-size: 18px; }
+        body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 10px; display: flex; justify-content: center; }
+        .main-card { background: #181a20; border: 1px solid #2b2b2b; border-radius: 10px; width: 100%; max-width: 750px; padding: 12px 15px; box-shadow: 0 6px 18px rgba(0,0,0,0.5); }
+        .header-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #23272e; padding-bottom: 8px; margin-bottom: 10px; }
+        .title { display: flex; align-items: center; gap: 6px; font-weight: bold; color: #fff; font-size: 14px; }
+        .close-btn { color: #f0b90b; cursor: pointer; font-size: 16px; }
         
-        .ivme-box { background: #1e2329; border: 1px solid #2f363d; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
-        .ivme-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 13px; color: #848e9c; flex-wrap: wrap; gap: 5px; }
-        .badge-long { background: rgba(14, 203, 129, 0.15); color: #0ecb81; border: 1px solid rgba(14, 203, 129, 0.4); padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; }
-        .badge-speed { background: rgba(112, 122, 138, 0.2); color: #c9d1d9; border: 1px solid #3a4149; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
-        .badge-breakout { background: rgba(138, 43, 226, 0.2); color: #d8b4fe; border: 1px solid rgba(138, 43, 226, 0.4); padding: 4px 8px; border-radius: 4px; font-size: 12px; }
-        .badge-active { background: rgba(240, 185, 11, 0.15); color: #f0b90b; border: 1px solid rgba(240, 185, 11, 0.4); padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .ivme-box { background: #1e2329; border: 1px solid #2f363d; border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; }
+        .ivme-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 12px; color: #848e9c; flex-wrap: wrap; gap: 4px; }
+        .badge-long { background: rgba(14, 203, 129, 0.15); color: #0ecb81; border: 1px solid rgba(14, 203, 129, 0.4); padding: 2px 6px; border-radius: 3px; font-weight: bold; font-size: 11px; }
+        .badge-speed { background: rgba(112, 122, 138, 0.2); color: #c9d1d9; border: 1px solid #3a4149; padding: 2px 6px; border-radius: 3px; font-size: 11px; }
+        .badge-breakout { background: rgba(138, 43, 226, 0.2); color: #d8b4fe; border: 1px solid rgba(138, 43, 226, 0.4); padding: 2px 6px; border-radius: 3px; font-size: 11px; }
+        .badge-active { background: rgba(240, 185, 11, 0.15); color: #f0b90b; border: 1px solid rgba(240, 185, 11, 0.4); padding: 2px 6px; border-radius: 3px; font-size: 11px; }
         
-        .ivme-desc { font-size: 13px; color: #b7bdc6; line-height: 1.5; margin-bottom: 12px; }
-        .ivme-footer { display: flex; gap: 20px; font-size: 12px; color: #848e9c; border-top: 1px solid #2b2b2b; padding-top: 10px; }
+        .ivme-desc { font-size: 12px; color: #b7bdc6; line-height: 1.4; margin-bottom: 8px; }
+        .ivme-footer { display: flex; gap: 15px; font-size: 11px; color: #848e9c; border-top: 1px solid #2b2b2b; padding-top: 6px; }
         
-        .prices-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; background: #121418; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center; border: 1px solid #23272e; }
-        .price-item .lbl { font-size: 11px; color: #848e9c; margin-bottom: 4px; }
-        .price-item .val { font-size: 15px; font-weight: bold; }
+        .prices-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #121418; padding: 8px 10px; border-radius: 6px; margin-bottom: 10px; text-align: center; border: 1px solid #23272e; }
+        .price-item .lbl { font-size: 10px; color: #848e9c; margin-bottom: 2px; }
+        .price-item .val { font-size: 14px; font-weight: bold; }
         
-        .source-label { font-size: 12px; color: #848e9c; margin-bottom: 8px; text-align: center; }
-        .source-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
-        .src-btn { background: #1e2329; border: 1px solid #2f363d; color: #848e9c; padding: 9px; border-radius: 6px; font-size: 12px; cursor: pointer; text-align: center; transition: 0.2s; }
+        .source-label { font-size: 11px; color: #848e9c; margin-bottom: 6px; text-align: center; }
+        .source-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+        .src-btn { background: #1e2329; border: 1px solid #2f363d; color: #848e9c; padding: 6px 8px; border-radius: 5px; font-size: 11px; cursor: pointer; text-align: center; transition: 0.2s; }
         .src-btn.active { background: #2b2b23; border-color: #f0b90b; color: #f0b90b; font-weight: bold; }
         
-        .bottom-bar { display: flex; justify-content: space-between; align-items: center; background: #121418; padding: 10px 15px; border-radius: 8px; border: 1px solid #23272e; margin-bottom: 12px; }
-        .coin-select { background: #1e2329; color: #fff; border: 1px solid #2f363d; padding: 5px 10px; border-radius: 6px; outline: none; cursor: pointer; }
-        .mark-display { font-size: 14px; font-weight: bold; color: #f0b90b; }
+        .bottom-bar { display: flex; justify-content: space-between; align-items: center; background: #121418; padding: 8px 12px; border-radius: 6px; border: 1px solid #23272e; margin-bottom: 8px; }
+        .coin-select { background: #1e2329; color: #fff; border: 1px solid #2f363d; padding: 4px 8px; border-radius: 4px; outline: none; cursor: pointer; font-size: 12px; }
+        .mark-display { font-size: 13px; font-weight: bold; color: #f0b90b; }
         
-        .refresh-status-bar { display: flex; justify-content: space-between; align-items: center; background: #261f12; border: 1px solid #4a3818; padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 12px; color: #f0b90b; }
-        .reset-btn { background: #2b2b2b; color: #eaeaea; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        .refresh-status-bar { display: flex; justify-content: space-between; align-items: center; background: #261f12; border: 1px solid #4a3818; padding: 6px 10px; border-radius: 5px; margin-bottom: 8px; font-size: 11px; color: #f0b90b; }
+        .reset-btn { background: #2b2b2b; color: #eaeaea; border: none; padding: 3px 6px; border-radius: 3px; cursor: pointer; font-size: 10px; }
         
-        .mode-footer { display: flex; justify-content: center; gap: 15px; margin-bottom: 15px; font-size: 12px; color: #848e9c; align-items: center; }
+        .mode-footer { display: flex; justify-content: center; gap: 12px; margin-bottom: 10px; font-size: 11px; color: #848e9c; align-items: center; }
         
-        /* İkinci görseldeki alt ortalama kartları stili */
-        .result-card { background: #1e2329; border: 1px solid #2f363d; border-radius: 8px; padding: 14px 18px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .result-card.long { border-left: 4px solid #0ecb81; }
-        .result-card.short { border-left: 4px solid #f6465d; }
-        .result-card.avg { border-left: 4px solid #f0b90b; }
-        .res-title { font-size: 13px; font-weight: bold; color: #fff; display: flex; align-items: center; gap: 6px; }
-        .res-sub { font-size: 11px; color: #848e9c; margin-top: 3px; }
-        .res-val { font-size: 18px; font-weight: bold; }
+        /* Kompakt Sonuç Kartları */
+        .result-card { background: #1e2329; border: 1px solid #2f363d; border-radius: 6px; padding: 10px 14px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .result-card.long { border-left: 3px solid #0ecb81; }
+        .result-card.short { border-left: 3px solid #f6465d; }
+        .result-card.avg { border-left: 3px solid #f0b90b; }
+        .res-title { font-size: 12px; font-weight: bold; color: #fff; display: flex; align-items: center; gap: 5px; }
+        .res-sub { font-size: 10px; color: #848e9c; margin-top: 2px; }
+        .res-val { font-size: 15px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -60,18 +60,18 @@
         <!-- Hacim İvmesi & Akış Motoru -->
         <div class="ivme-box">
             <div class="ivme-top">
-                <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                    <span class="badge-long">⚡ LONG İVME BASKISI</span>
-                    <span class="badge-speed">⚡ İvme: +4.7x Hız</span>
-                    <span class="badge-breakout">📈 Momentum Kırılımı (Breakout)</span>
-                    <span class="badge-active">🚀 İşlem Aktif</span>
+                <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                    <span class="badge-long">⚡ LONG İVME</span>
+                    <span class="badge-speed">⚡ +4.7x</span>
+                    <span class="badge-breakout">📈 Breakout</span>
+                    <span class="badge-active">🚀 Aktif</span>
                 </div>
-                <div id="currentTime" style="font-size: 11px;">--</div>
+                <div id="currentTime" style="font-size: 10px;">--</div>
             </div>
             <div class="ivme-desc" id="aiComment">Analiz yükleniyor...</div>
             <div class="ivme-footer">
-                <div>🎯 Confluence Skoru: <span style="color: #0ecb81; font-weight: bold;">%88.4</span></div>
-                <div>⚡ Artış Hızı (İvme): <span style="color: #fff; font-weight: bold;">+4.7x</span></div>
+                <div>🎯 Confluence: <span style="color: #0ecb81; font-weight: bold;">%88.4</span></div>
+                <div>⚡ İvme: <span style="color: #fff; font-weight: bold;">+4.7x</span></div>
             </div>
         </div>
 
@@ -93,31 +93,31 @@
 
         <div class="source-label">Veri Kaynağı Seçin:</div>
         <div class="source-grid">
-            <div class="src-btn" onclick="setSource('copy', this)">Sadece Copy Liderler</div>
-            <div class="src-btn" onclick="setSource('whale', this)">Sadece Balinalar</div>
-            <div class="src-btn" onclick="setSource('genel_terste', this)">Genel Terste Kalanlar</div>
-            <div class="src-btn" onclick="setSource('ters_6_20', this)">Terste Kalanlar (%6-20)</div>
-            <div class="src-btn" onclick="setSource('top20_terste', this)">TOP 20 Terste Kalanlar</div>
-            <div class="src-btn" onclick="setSource('top20_oransal', this)">TOP 20 Oransal</div>
+            <div class="src-btn" onclick="setSource('copy', this)">Sadece Copy</div>
+            <div class="src-btn" onclick="setSource('whale', this)">Sadece Balina</div>
+            <div class="src-btn" onclick="setSource('genel_terste', this)">Genel Terste</div>
+            <div class="src-btn" onclick="setSource('ters_6_20', this)">Ters (%6-20)</div>
+            <div class="src-btn" onclick="setSource('top20_terste', this)">TOP 20 Ters</div>
+            <div class="src-btn" onclick="setSource('top20_oransal', this)">TOP 20 Oran</div>
             <div class="src-btn active" onclick="setSource('trak', this)" style="grid-column: span 3;">Tüm Kaynakların Ort.</div>
         </div>
 
         <!-- Coin Seçimi ve Anlık Mark Fiyat -->
         <div class="bottom-bar">
             <div>
-                <span style="font-size: 13px; color: #848e9c; margin-right: 8px;">Coin:</span>
+                <span style="font-size: 12px; color: #848e9c; margin-right: 6px;">Coin:</span>
                 <select id="coinSelect" class="coin-select" onchange="onCoinChange()"></select>
             </div>
             <div>
-                <span style="font-size: 13px; color: #848e9c;">Mark Fiyat: </span>
+                <span style="font-size: 12px; color: #848e9c;">Mark Fiyat: </span>
                 <span id="markPrice" class="mark-display">$-</span>
             </div>
         </div>
 
         <!-- Otomatik Güncelleme Barı -->
         <div class="refresh-status-bar">
-            <div>⏳ Cache yenilenme: <span id="refreshCountdown">5s</span></div>
-            <button class="reset-btn" onclick="manualRefresh()">İşlemleri Sıfırla</button>
+            <div>⏳ Cache: <span id="refreshCountdown">5s</span></div>
+            <button class="reset-btn" onclick="manualRefresh()">Sıfırla</button>
         </div>
 
         <div class="mode-footer">
@@ -126,7 +126,7 @@
             <div>Geçmiş</div>
         </div>
 
-        <!-- ALT KISIM: İkinci görseldeki Long, Short ve Ortalama Kartları -->
+        <!-- ALT KISIM: Long, Short ve Ortalama Kartları -->
         <div id="resultCardsContainer">
             <div class="result-card long">
                 <div>
@@ -147,7 +147,7 @@
             <div class="result-card avg">
                 <div>
                     <div class="res-title"><span style="color: #f0b90b;">●</span> Ortalama Giriş:</div>
-                    <div class="res-sub">Tüm pozisyonların ağırlıklı genel ortalaması</div>
+                    <div class="res-sub">Ağırlıklı genel ortalama</div>
                 </div>
                 <div class="res-val" id="avgVal" style="color: #f0b90b;">$-</div>
             </div>
@@ -201,16 +201,13 @@
                     let d = json.data;
                     let ai = d.ai_analysis;
                     
-                    // Anlık Mark Fiyat
                     document.getElementById('markPrice').innerText = "$" + d.markPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 4});
                     
-                    // AI Açıklama ve Fiyatlar
                     document.getElementById('aiComment').innerText = ai.comment;
                     document.getElementById('valEntry').innerText = "$" + ai.entry.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     document.getElementById('valTP').innerText = "$" + ai.tp.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     document.getElementById('valSL').innerText = "$" + ai.sl.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     
-                    // Seçilen kaynağa göre alt kartları güncelle
                     let srcData = d.sources[currentSource] || d.sources["trak"];
                     
                     document.getElementById('longVal').innerText = "$" + srcData.long_avg.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
@@ -254,7 +251,7 @@
                 if(secondsLeft <= 0) {
                     secondsLeft = 5;
                     if(currentSymbol) {
-                        fetchStats(currentSymbol); // Sayfa yenilenmeden arka planda sessiz güncelleme
+                        fetchStats(currentSymbol);
                     }
                 }
                 let countEl = document.getElementById('refreshCountdown');
