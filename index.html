@@ -170,7 +170,7 @@
                     </div>
                 </div>
 
-                <!-- Aktif Formasyonlar Kutusu (Sadece Adı ve Hedefi) -->
+                <!-- Aktif Formasyonlar Kutusu -->
                 <div class="extra-card">
                     <div class="extra-title">📐 Aktif Formasyonlar</div>
                     <div class="extra-content" id="patternsContainer">
@@ -266,6 +266,7 @@
         let autoInterval = null;
         let currentUserRole = null;
 
+        // Tarayıcı belleğinden aktif işlemleri yüklüyoruz (Böylece sayfaya tekrar girince işlem silinmez/değişmez)
         let activeTrades = JSON.parse(localStorage.getItem('cashControl_activeTrades')) || {};
         let savedPivots = JSON.parse(localStorage.getItem('cashControl_savedPivots')) || {};
 
@@ -314,7 +315,6 @@
         }
 
         function saveActiveTrades() {
-            if (currentUserRole !== 'admin') return;
             localStorage.setItem('cashControl_activeTrades', JSON.stringify(activeTrades));
         }
 
@@ -445,16 +445,18 @@
 
                     let trade = activeTrades[symbol];
 
+                    // İşlem aktifse TP veya SL'ye ulaşıp ulaşmadığını kontrol et (Sadece bu durumda kapanır)
                     if (trade.inTrade) {
                         let hitTP = (trade.type === 'LONG' && markPrice >= trade.tp) || (trade.type === 'SHORT' && markPrice <= trade.tp);
                         let hitSL = (trade.type === 'LONG' && markPrice <= trade.sl) || (trade.type === 'SHORT' && markPrice >= trade.sl);
 
                         if (hitTP || hitSL) {
-                            trade.inTrade = false;
+                            trade.inTrade = false; // İşlem bitti, yeni sinyale geçebilir
                             saveActiveTrades();
                         }
                     }
 
+                    // İşlem kapalıysa yeni sinyali kilitler ve kaydeder
                     if (!trade.inTrade && ai && ai.entry) {
                         trade.inTrade = true;
                         trade.entry = markPrice; 
@@ -464,6 +466,7 @@
                         saveActiveTrades(); 
                     }
 
+                    // Ekrana yansıtma (İşlem bitene kadar bu değerler sabit kalır)
                     if (trade.inTrade) {
                         document.getElementById('valEntry').innerText = "$" + trade.entry;
                         document.getElementById('valTP').innerText = "$" + trade.tp;
