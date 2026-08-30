@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="Cash Control Engine - Binance Mark Only", version="10.1")
+app = FastAPI(title="Cash Control Engine - Realtime Live", version="11.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,13 +18,14 @@ CACHE = {
     "last_update": 0,
     "data": {}
 }
-CACHE_DURATION = 30
+# Anlık ve hızlı akış için cache süresi 5 saniyeye düşürüldü
+CACHE_DURATION = 5 
 
 def get_binance_futures_tickers():
     """Sadece Binance Futures üzerinden anlık Mark Fiyatları ve Fonlama Oranlarını çeker"""
     try:
         url = "https://fapi.binance.com/fapi/v1/premiumIndex"
-        res = requests.get(url, timeout=3)
+        res = requests.get(url, timeout=2)
         if res.status_code == 200:
             tickers = {}
             for item in res.json():
@@ -45,15 +46,13 @@ def fetch_karma_market_data():
     total_open_interest_usd = 0
     all_prices = []
     
-    # 1. Adım: Anlık Mark Fiyatları ve Fonlama Oranları Sadece Binance'den Alınır
     binance_data = get_binance_futures_tickers()
     
-    # 2. Adım: Diğer piyasa/strateji verileri (Hyperliquid evreni vb.) ile harmanlanır
     hl_url = "https://api.hyperliquid.xyz/info"
     payload = {"type": "metaAndAssetCtxs"}
     
     try:
-        res = requests.post(hl_url, json=payload, headers={"Content-Type": "application/json"}, timeout=3)
+        res = requests.post(hl_url, json=payload, headers={"Content-Type": "application/json"}, timeout=2)
         if res.status_code == 200:
             data = res.json()
             universe = data[0].get("universe", [])
@@ -66,12 +65,11 @@ def fetch_karma_market_data():
                 ctx = ctxs[i]
                 open_interest = float(ctx.get("openInterest", 0))
                 
-                # KRİTİK NOKTA: Mark Fiyat ve Fonlama Oranı kesinlikle Binance'den atanır!
+                # Mark Fiyat ve Fonlama Oranı sadece Binance'den alınır
                 if name in binance_data and binance_data[name]["markPrice"] > 0:
                     mark_px = binance_data[name]["markPrice"]
                     funding = binance_data[name]["fundingRate"]
                 else:
-                    # Eğer Binance'de yoksa yedek olarak HL kullanılır
                     mark_px = float(ctx.get("markPx", 0))
                     funding = float(ctx.get("funding", 0)) * 100
                 
@@ -133,6 +131,7 @@ def fetch_karma_market_data():
                 sup1 = sr_data["support_1"]
                 mid_distance_ratio = abs(mark_px - ((res1 + sup1) / 2)) / mark_px
                 
+                # Gelişmiş Formasyon Havuzu ve Hedefleri
                 formation_pool = [
                     ("Elliott Dalga 3. İtki Dalgası", mark_px * 1.06, mark_px * 0.95),
                     ("Fincan & Kulp Formasyonu", mark_px * 1.05, mark_px * 0.96),
@@ -179,7 +178,7 @@ def fetch_karma_market_data():
                     "formation": formation,
                     "formationTF": "4 Saatlik (4H)",
                     "targetPrice": target_price,
-                    "formationStatus": "Aktif / Binance Mark"
+                    "formationStatus": "Aktif / Realtime Binance"
                 }
 
                 processed_coins[name] = {
