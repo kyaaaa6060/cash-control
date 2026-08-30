@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="Cash Control Engine - Full Dynamic", version="13.6")
+app = FastAPI(title="Cash Control Engine - Full Dynamic", version="13.7")
 
 app.add_middleware(
     CORSMiddleware,
@@ -113,7 +113,6 @@ def fetch_karma_market_data():
     except Exception as e:
         print("Hyperliquid API Hatası:", e)
         
-    # Eğer Hyperliquid'den veri çekilemezse doğrudan Binance verileriyle listeyi doldur (Hata / Boş ekran önlemi)
     if not universe and binance_data:
         for name, info in binance_data.items():
             universe.append({"name": name})
@@ -244,4 +243,3 @@ def get_coin_stats(symbol: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-. 
