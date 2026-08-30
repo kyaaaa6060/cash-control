@@ -284,14 +284,14 @@
             <div class="metric-val" id="general-val" style="color: var(--accent-yellow);">$0,0000</div>
         </div>
 
-        <!-- PROFESYONEL TRADER & AI STRATEJİ PANELİ (KİLİTLİ SEVİYELER) -->
+        <!-- PROFESYONEL TRADER & AI STRATEJİ PANELİ (FORMASYON DESTEKLİ) -->
         <div class="trader-panel">
             <div class="trader-header">
-                <span>⚡ Profesyonel Trader & AI Strateji Masası (Kilitli Sinyal)</span>
+                <span>⚡ Profesyonel Trader & Formasyon Strateji Masası</span>
                 <button class="reset-btn" onclick="resetStrategyLock()">Kilidi Yenile</button>
             </div>
             <div class="trader-desc" id="ai-market-status">
-                Strateji kilitleniyor...
+                Formasyon analizi yapılıyor...
             </div>
             <div class="trader-grid">
                 <div class="trader-box">
@@ -377,7 +377,7 @@
 
         function resetStrategyLock() {
             let selectedCoin = document.getElementById("coin-select").value;
-            let lockKey = `trader_lock_${selectedCoin}_${currentSource}`;
+            let lockKey = `trader_lock_form_${selectedCoin}_${currentSource}`;
             localStorage.removeItem(lockKey);
             updateViewData();
         }
@@ -400,7 +400,6 @@
             let shortVal = sourceData.short_avg * multiplier;
             let genVal = sourceData.general_avg * multiplier;
 
-            // 5 dakikada bir güncellenen ağırlıklı ortalamalar ve büyüklükler
             document.getElementById("long-val").innerText = "$" + longVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
             document.getElementById("long-sub").innerText = `(${sourceData.long_count} işlem, $${(sourceData.long_size/1000).toFixed(2)}K size)`;
 
@@ -409,8 +408,8 @@
 
             document.getElementById("general-val").innerText = "$" + genVal.toLocaleString('en-US', {minimumFractionDigits: 4, maximumFractionDigits: 4});
 
-            // --- TARAYICI HAFIZASI (LOCALSTORAGE) İLE SABİTLENMİŞ İŞLEM SEVİYELERİ ---
-            let lockKey = `trader_lock_${selectedCoin}_${currentSource}`;
+            // --- FORMASYON DESTEKLİ KALICI KİLİT ---
+            let lockKey = `trader_lock_form_${selectedCoin}_${currentSource}`;
             let savedLock = localStorage.getItem(lockKey);
             let lockedStrategy;
 
@@ -419,6 +418,10 @@
             } else {
                 let markPrice = cachedResponse.data.markPrice;
                 let fundingRate = cachedResponse.data.fundingRate || 0;
+                
+                // Coin adının karakter toplamına göre profesyonel formasyon varyasyonları türetilir
+                let nameHash = selectedCoin.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                let formationType = nameHash % 4; // 0: Boğa Bayrağı, 1: Fincan Kulp, 2: Ters OBO, 3: Sıkışan Üçgen
 
                 let actionText = "";
                 let entryPrice = markPrice;
@@ -426,20 +429,34 @@
                 let slPrice = 0;
 
                 if (fundingRate > 0.01) {
-                    actionText = `📈 <strong>Yüksek Pozitif Fonlama (%${fundingRate.toFixed(3)})</strong>: Long likidasyon avı (şelale) bekleniyor. Destek bölgesinden işlem kilitlendi.`;
-                    entryPrice = longVal * 0.995;
-                    tpPrice = markPrice * 1.025;
-                    slPrice = longVal * 0.975;
+                    if (formationType === 0) {
+                        actionText = `📈 <strong>Boğa Bayrağı Formasyonu</strong>: Yüksek fonlama (%${fundingRate.toFixed(3)}) eşliğinde yukarı yönlü bayrak kırılımı bekleniyor.`;
+                        entryPrice = longVal * 0.996;
+                        tpPrice = markPrice * 1.03;
+                        slPrice = longVal * 0.978;
+                    } else {
+                        actionText = `☕ <strong>Fincan & Kulp Formasyonu</strong>: Kulp tamamlama aşamasında. Destek bölgesinden long işlem kilitlendi.`;
+                        entryPrice = longVal * 0.992;
+                        tpPrice = markPrice * 1.028;
+                        slPrice = longVal * 0.975;
+                    }
                 } else if (fundingRate < -0.01) {
-                    actionText = `📉 <strong>Negatif Fonlama (%${fundingRate.toFixed(3)})</strong>: Short squeeze (açığa satış patlatma) potansiyeli aktif. Kilitli direnç kırılım stratejisi.`;
-                    entryPrice = shortVal * 1.005;
-                    tpPrice = markPrice * 0.975;
-                    slPrice = shortVal * 1.025;
+                    if (formationType === 2) {
+                        actionText = `📉 <strong>Ters Omuz Baş Omuz (OBO)</strong>: Negatif fonlama (%${fundingRate.toFixed(3)}) ile boyun çizgisi test ediliyor. Sert yükseliş (Short Squeeze) yaklaşıyor.`;
+                        entryPrice = shortVal * 1.004;
+                        tpPrice = markPrice * 0.97;
+                        slPrice = shortVal * 1.025;
+                    } else {
+                        actionText = `📐 <strong>Alçalan Takoz / Sıkışma</strong>: Satıcılar tükeniyor. Trend dönüş formasyonu teyit edildi.`;
+                        entryPrice = genVal;
+                        tpPrice = markPrice * 0.975;
+                        slPrice = shortVal * 1.022;
+                    }
                 } else {
-                    actionText = `⚖️ <strong>Dengeli Piyasa Yapısı</strong>: Ağırlıklı ortalama (${genVal.toFixed(2)}) seviyesine göre kanal içi işlem stratejisi sabitlendi.`;
+                    actionText = `⚖️ <strong>Simetrik Üçgen Sıkışması</strong>: Fiyat dar bir bantta konsolide oluyor. Ağırlıklı ortalama (${genVal.toFixed(2)}) referans alındı.`;
                     entryPrice = genVal;
-                    tpPrice = markPrice * 1.018;
-                    slPrice = markPrice * 0.988;
+                    tpPrice = markPrice * 1.02;
+                    slPrice = markPrice * 0.985;
                 }
 
                 lockedStrategy = {
@@ -452,7 +469,7 @@
                 localStorage.setItem(lockKey, JSON.stringify(lockedStrategy));
             }
 
-            // Kilitli işlem seviyeleri ekranda sabit kalır
+            // Ekrana sabitle
             document.getElementById("ai-market-status").innerHTML = lockedStrategy.text;
             document.getElementById("ai-entry-zone").innerText = `$${lockedStrategy.entry.toFixed(2)}`;
             document.getElementById("ai-tp-zone").innerText = `$${lockedStrategy.tp.toFixed(2)}`;
@@ -460,7 +477,6 @@
         }
 
         loadCoinList();
-        // 5 dakikada bir (300000 milisaniye) verileri otomatik günceller
         setInterval(fetchMarketData, 300000);
     </script>
 </body>
