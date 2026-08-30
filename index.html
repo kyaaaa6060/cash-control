@@ -215,15 +215,18 @@
         let currentSource = "trak";
         let autoInterval = null;
 
+        // Her coin için aktif işlem durumunu hafızada tutan yapı (Lock mekanizması)
+        // Format: activeTrades[symbol] = { inTrade: true/false, entry: val, tp: val, sl: val, type: 'LONG'/'SHORT' }
+        let activeTrades = {};
+
         function togglePanel() {
             let modal = document.getElementById('panelModal');
             modal.classList.toggle('hidden');
         }
 
-        // TradingView Grafiğini seçilen coine göre dinamik yükleyen fonksiyon
         function updateTradingViewChart(symbol) {
             let container = document.getElementById('tradingview-container');
-            container.innerHTML = ''; // Eski grafiği temizle
+            container.innerHTML = ''; 
             
             let widgetDiv = document.createElement('div');
             widgetDiv.className = "tradingview-widget-container";
@@ -293,12 +296,10 @@
             }
         }
 
-        // Anlık fiyattan otomatik Pivot Destek/Direnç hesaplayan yardımcı fonksiyon
         function calculatePivotLevels(markPrice) {
             let p = parseFloat(markPrice);
             if (isNaN(p) || p <= 0) return { res2: "-", res1: "-", sup1: "-", sup2: "-" };
 
-            // Kripto piyasası volatilitesine uyumlu standart oranlar (Yaklaşık H, L, C tahmini)
             let high = p * 1.015;
             let low = p * 0.985;
             let pivot = (high + low + p) / 3;
@@ -323,13 +324,52 @@
                 if(json.status === 'success') {
                     let d = json.data;
                     let ai = d.ai_analysis;
+                    let markPrice = parseFloat(d.markPrice);
                     
                     document.getElementById('markPrice').innerText = "$" + d.markPrice;
-                    
                     document.getElementById('aiComment').innerText = ai.comment;
-                    document.getElementById('valEntry').innerText = "$" + ai.entry;
-                    document.getElementById('valTP').innerText = "$" + ai.tp;
-                    document.getElementById('valSL').innerText = "$" + ai.sl;
+
+                    // --- İŞLEM KİLİTLEME VE KONTROL MEKANİZMASI ---
+                    if (!activeTrades[symbol]) {
+                        activeTrades[symbol] = { inTrade: false, entry: null, tp: null, sl: null };
+                    }
+
+                    let trade = activeTrades[symbol];
+
+                    if (trade.inTrade) {
+                        // İşlem içerisindeyken fiyat TP veya SL seviyesine ulaştı mı kontrol et
+                        let hitTP = (trade.type === 'LONG' && markPrice >= trade.tp) || (trade.type === 'SHORT' && markPrice <= trade.tp);
+                        let hitSL = (trade.type === 'LONG' && markPrice <= trade.sl) || (trade.type === 'SHORT' && markPrice >= trade.sl);
+
+                        if (hitTP || hitSL) {
+                            // İşlem sonlandı, kilidi kaldır
+                            trade.inTrade = false;
+                        }
+                    }
+
+                    // Eğer işlemde DEĞİLSEK ve API yeni sinyal veriyorsa (ai.entry varsa) işlemi kilitle
+                    if (!trade.inTrade && ai && ai.entry) {
+                        let apiEntry = parseFloat(ai.entry);
+                        // Kullanıcının belirttiği kural: Diyelim fiyat 100, long vericek ama fiyat uygunsa veya sinyal üretildiyse anı kaydet
+                        // Eğer backend'den gelen veri işlem başlatılması gerektiğini söylüyorsa:
+                        trade.inTrade = true;
+                        trade.entry = markPrice; // İşlemin açıldığı o anki anlık Mark Fiyat sabitleniyor
+                        trade.tp = parseFloat(ai.tp) || (markPrice * 1.02);
+                        trade.sl = parseFloat(ai.sl) || (markPrice * 0.99);
+                        trade.type = ai.type || 'LONG'; // Sinyal yönü (Varsayılan Long)
+                    }
+
+                    // Arayüze Giriş, TP ve SL değerlerini basma
+                    if (trade.inTrade) {
+                        document.getElementById('valEntry').innerText = "$" + trade.entry;
+                        document.getElementById('valTP').innerText = "$" + trade.tp;
+                        document.getElementById('valSL').innerText = "$" + trade.sl;
+                    } else {
+                        // İşlem yoksa boşta bırak / çizgi göster
+                        document.getElementById('valEntry').innerText = "$-";
+                        document.getElementById('valTP').innerText = "$-";
+                        document.getElementById('valSL').innerText = "$-";
+                    }
 
                     // --- PİVOT DESTEK & DİRENÇ HESAPLAMA ---
                     let pivots = calculatePivotLevels(d.markPrice);
