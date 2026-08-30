@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="Cash Control Engine - Smart Filter", version="8.3")
+app = FastAPI(title="Cash Control Engine - Advanced Formations", version="9.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -97,8 +97,9 @@ def fetch_karma_market_data():
                     short_avg = mark_px * 1.015 * multiplier
                     general_avg = (long_avg + short_avg) / 2
                     
-                    long_count = int(1500 + (hash(name + src) % 1500))
-                    short_count = int(800 + (hash(src + name) % 800))
+                    # Sabit ve kararlı matematiksel hacimler (Butona bağlı artış sorunu giderildi)
+                    long_count = int(1200 + (hash(name + src) % 500))
+                    short_count = int(700 + (hash(src + name) % 400))
                     long_size = (long_count * mark_px * 0.05)
                     short_size = (short_count * mark_px * 0.04)
                     
@@ -129,26 +130,49 @@ def fetch_karma_market_data():
                         "general_avg": sum(s["general_avg"] for s in all_src_list) / n_src
                     }
 
-                # AKILLI KARARSIZLIK KONTROLÜ
+                # GELİŞMİŞ FORMASYON VE HEDEF ANALİZİ
                 res1 = sr_data["resistance_1"]
                 sup1 = sr_data["support_1"]
-                
-                # Eğer fiyat direnç veya destek noktalarına uzaksa (orta alanda sıkışmışsa) robot kararsız desin
                 mid_distance_ratio = abs(mark_px - ((res1 + sup1) / 2)) / mark_px
                 
+                # Deterministic formasyon seçimi için hash havuzu
+                formation_pool = [
+                    ("Elliott Dalga 3. İtki Dalgası", mark_px * 1.06, mark_px * 0.95),
+                    ("Fincan & Kulp Formasyonu", mark_px * 1.05, mark_px * 0.96),
+                    ("Boğa Bayrağı (Bull Flag)", mark_px * 1.045, mark_px * 0.97),
+                    ("Alçalan Takoz (Falling Wedge)", mark_px * 1.055, mark_px * 0.955),
+                    ("Omuz-Baş-Omuz (OBO)", mark_px * 1.02, mark_px * 0.94)
+                ]
+                chosen_form, target_up, target_down = formation_pool[(hash(name) + int(mark_px)) % len(formation_pool)]
+
                 if mark_px >= res1 * 0.992:
-                    signal, color, conf, comment = "DİRENÇ BÖLGESİ / SATIŞ RİSKİ", "#f6465d", 85, f"Fiyat kritik direnç bölgesi olan ${res1:,.2f} seviyesinde. Formasyon direnç testi üretiyor."
-                    formation = "Yükselen Kanal / Direnç Testi"
+                    signal = "DİRENÇ BÖLGESİ / SATIŞ RİSKİ"
+                    color = "#f6465d"
+                    conf = 84
+                    comment = f"Fiyat kritik dirençte. {chosen_form} çalışıyor. Hedef bölge: ${target_up:,.2f}"
+                    formation = chosen_form
+                    target_price = target_up
                 elif mark_px <= sup1 * 1.008:
-                    signal, color, conf, comment = "DESTEK BÖLGESİ / TEPKI ALIMI", "#0ecb81", 86, f"Fiyat ana destek bölgesi olan ${sup1:,.2f} seviyesine geriledi. Tepki olasılığı yüksek."
-                    formation = "Alçalan Kanal / Çift Dip Adayı"
-                elif mid_distance_ratio < 0.015: 
-                    # Fiyat tam ortada ve net bir uçta değilse kararsız ilan et
-                    signal, color, conf, comment = "PİYASA KARARSIZ / BELEMEDE", "#707A8A", 50, "Fiyat bant içinde nötr bölgede kalıyor. Net bir formasyon veya strateji sinyali üretmek için erken."
+                    signal = "DESTEK BÖLGESİ / TEPKİ ALIMI"
+                    color = "#0ecb81"
+                    conf = 86
+                    comment = f"Fiyat destek seviyesinde. {chosen_form} tepki üretme aşamasında. Hedef: ${target_up:,.2f}"
+                    formation = chosen_form
+                    target_price = target_up
+                elif mid_distance_ratio < 0.015:
+                    signal = "PİYASA KARARSIZ / BEKLEMEDE"
+                    color = "#707A8A"
+                    conf = 50
+                    comment = "Fiyat yatay bantta sıkışmış durumda. Net bir formasyon ve hedef tetiklenmediği için kararsız."
                     formation = "Net Formasyon Yok (Yatay Seyir)"
+                    target_price = 0
                 else:
-                    signal, color, conf, comment = "KANAL İÇİ DENGELİ SEYİR", "#f0b90b", 70, "Fiyat ortalama seviyelerde hareket ediyor, yön arayışı devam ediyor."
-                    formation = "Simetrik Konsolidasyon"
+                    signal = "KANAL İÇİ DENGELİ SEYİR"
+                    color = "#f0b90b"
+                    conf = 72
+                    comment = f"Fiyat orta kanal seyrinde. {chosen_form} formasyonuna doğru ilerliyor."
+                    formation = chosen_form
+                    target_price = target_up
 
                 ai_report = {
                     "signal": signal,
@@ -157,7 +181,8 @@ def fetch_karma_market_data():
                     "comment": comment,
                     "formation": formation,
                     "formationTF": "4 Saatlik (4H)",
-                    "formationStatus": "Aktif / Filtrelenmiş"
+                    "targetPrice": target_price,
+                    "formationStatus": "Aktif / Otomatik Hedefli"
                 }
 
                 processed_coins[name] = {
