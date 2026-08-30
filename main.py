@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="Cash Control Engine - Multi-Exchange (Hyperliquid, Binance, MEXC, OKX)", version="6.2")
+app = FastAPI(title="Cash Control Engine - Multi-Exchange & Smart Money", version="6.3")
 
 app.add_middleware(
     CORSMiddleware,
@@ -40,32 +40,26 @@ def get_binance_futures_tickers():
     return {}
 
 def get_binance_smart_money_ratios(symbol):
-    """
-    Binance API anahtarı istemeden Top Trader ve Global Long/Short oranlarını çeker.
-    """
     try:
         ratios = {}
-        # 1. Global Hesap Long/Short Oranı
         global_url = f"https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol={symbol}USDT&period=5m&limit=1"
-        res = requests.get(global_url, timeout=3)
+        res = requests.get(global_url, timeout=2)
         if res.status_code == 200 and res.json():
             data = res.json()[0]
             ratios["global_long_ratio"] = float(data.get("longAccount", 0.5))
             ratios["global_short_ratio"] = float(data.get("shortAccount", 0.5))
-            ratios["long_short_ratio"] = float(data.get("longShortRatio", 1.0))
 
-        # 2. Top Trader (Balina / Copy Liderler) Pozisyon Oranı
         top_url = f"https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol={symbol}USDT&period=5m&limit=1"
-        res_top = requests.get(top_url, timeout=3)
+        res_top = requests.get(top_url, timeout=2)
         if res_top.status_code == 200 and res_top.json():
             top_data = res_top.json()[0]
             ratios["top_long_ratio"] = float(top_data.get("longAccount", 0.5))
             ratios["top_short_ratio"] = float(top_data.get("shortAccount", 0.5))
         
         return ratios
-    except Exception as e:
-        print(f"Binance Smart Money oranı çekilemedi ({symbol}):", e)
-    return {}
+    except Exception:
+        # Hız kaybı yaşamamak için sessizce varsayılan döner
+        return {}
 
 def get_okx_futures_tickers():
     try:
@@ -164,20 +158,19 @@ def fetch_karma_market_data():
                 oi_usd = open_interest * mark_px
                 total_open_interest_usd += oi_usd
                 
-                # Binance üzerinden gerçek Top Trader ve Global oranları çek
+                # Akıllı para oranlarını çek
                 binance_ratios = get_binance_smart_money_ratios(name)
                 top_long = binance_ratios.get("top_long_ratio", 0.55)
                 global_long = binance_ratios.get("global_long_ratio", 0.50)
                 
                 coin_sources_data = {}
                 for src in sources:
-                    # Kaynak türüne göre gerçek Binance oranlarını harmanla
                     if src == "whale":
                         factor = top_long
                     elif src == "copy":
                         factor = top_long * 1.05
                     elif src == "pct6_20":
-                        factor = 1.0 - global_long  # Terste kalanlar için ters oran mantığı
+                        factor = 1.0 - global_long
                     else:
                         factor = global_long
 
