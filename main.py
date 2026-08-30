@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="Cash Control Engine - Full UI Sync", version="13.1")
+app = FastAPI(title="Cash Control Engine - Full UI Sync", version="13.2")
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,7 +20,7 @@ CACHE = {
 }
 CACHE_DURATION = 5 
 
-# Tüm cihazların (telefon, tablet vb.) ortak göreceği aktif işlemler hafızası
+# Tüm cihazların ortak göreceği aktif işlemler hafızası
 ACTIVE_TRADES = {}
 
 def get_binance_futures_tickers():
@@ -42,6 +42,17 @@ def get_binance_futures_tickers():
     except Exception as e:
         print("Binance Mark Price hatası:", e)
     return {}
+
+def fmt(val):
+    """Fiyatın büyüklüğüne göre dinamik basamak formatı"""
+    if val < 0.0001:
+        return f"{val:,.6f}"
+    elif val < 1:
+        return f"{val:,.4f}"
+    elif val < 10:
+        return f"{val:,.3f}"
+    else:
+        return f"{val:,.2f}"
 
 def fetch_karma_market_data():
     processed_coins = {}
@@ -115,7 +126,6 @@ def fetch_karma_market_data():
                 
                 trade = ACTIVE_TRADES[name]
                 
-                # Fiyat TP veya SL seviyesine ulaştıysa işlemi kapat ve yenile
                 hitTP = (trade["type"] == 'LONG' and mark_px >= trade["tp"]) or (trade["type"] == 'SHORT' and mark_px <= trade["tp"])
                 hitSL = (trade["type"] == 'LONG' and mark_px <= trade["sl"]) or (trade["type"] == 'SHORT' and mark_px >= trade["sl"])
                 
@@ -128,7 +138,7 @@ def fetch_karma_market_data():
 
                 ai_report = {
                     "signal": "LONG İVME BASKISI",
-                    "comment": f"Normal eğrinin üzerinde +4.7x Hız ile tetiklenen yoğunluk tespit edildi. Giriş ${trade['entry']:,.2f} seviyesinden planlandı; hedef ${trade['tp']:,.2f}, stop ${trade['sl']:,.2f} seviyesindedir.",
+                    "comment": f"Normal eğrinin üzerinde +4.7x Hız ile tetiklenen yoğunluk tespit edildi. Giriş ${fmt(trade['entry'])} seviyesinden planlandı; hedef ${fmt(trade['tp'])}, stop ${fmt(trade['sl'])} seviyesindedir.",
                     "confluence": 88.4,
                     "entry": trade["entry"],
                     "tp": trade["tp"],
