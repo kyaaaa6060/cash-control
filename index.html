@@ -215,9 +215,12 @@
         let currentSource = "trak";
         let autoInterval = null;
 
-        // Her coin için aktif işlem durumunu hafızada tutan yapı (Lock mekanizması)
-        // Format: activeTrades[symbol] = { inTrade: true/false, entry: val, tp: val, sl: val, type: 'LONG'/'SHORT' }
-        let activeTrades = {};
+        // Tarayıcı hafızasından (localStorage) aktif işlemleri yükle (Sayfa yenilense bile silinmez)
+        let activeTrades = JSON.parse(localStorage.getItem('cashControl_activeTrades')) || {};
+
+        function saveActiveTrades() {
+            localStorage.setItem('cashControl_activeTrades', JSON.stringify(activeTrades));
+        }
 
         function togglePanel() {
             let modal = document.getElementById('panelModal');
@@ -329,9 +332,9 @@
                     document.getElementById('markPrice').innerText = "$" + d.markPrice;
                     document.getElementById('aiComment').innerText = ai.comment;
 
-                    // --- İŞLEM KİLİTLEME VE KONTROL MEKANİZMASI ---
+                    // --- İŞLEM KİLİTLEME VE KALICI HAFIZA KONTROLÜ ---
                     if (!activeTrades[symbol]) {
-                        activeTrades[symbol] = { inTrade: false, entry: null, tp: null, sl: null };
+                        activeTrades[symbol] = { inTrade: false, entry: null, tp: null, sl: null, type: null };
                     }
 
                     let trade = activeTrades[symbol];
@@ -342,21 +345,20 @@
                         let hitSL = (trade.type === 'LONG' && markPrice <= trade.sl) || (trade.type === 'SHORT' && markPrice >= trade.sl);
 
                         if (hitTP || hitSL) {
-                            // İşlem sonlandı, kilidi kaldır
+                            // İşlem sonlandı, kilidi kaldır ve hafızayı güncelle
                             trade.inTrade = false;
+                            saveActiveTrades();
                         }
                     }
 
-                    // Eğer işlemde DEĞİLSEK ve API yeni sinyal veriyorsa (ai.entry varsa) işlemi kilitle
+                    // Eğer işlemde DEĞİLSEK ve API yeni sinyal veriyorsa (ai.entry varsa) işlemi kilitle ve kaydet
                     if (!trade.inTrade && ai && ai.entry) {
-                        let apiEntry = parseFloat(ai.entry);
-                        // Kullanıcının belirttiği kural: Diyelim fiyat 100, long vericek ama fiyat uygunsa veya sinyal üretildiyse anı kaydet
-                        // Eğer backend'den gelen veri işlem başlatılması gerektiğini söylüyorsa:
                         trade.inTrade = true;
-                        trade.entry = markPrice; // İşlemin açıldığı o anki anlık Mark Fiyat sabitleniyor
+                        trade.entry = markPrice; // O anki fiyat giriş olarak sabitleniyor
                         trade.tp = parseFloat(ai.tp) || (markPrice * 1.02);
                         trade.sl = parseFloat(ai.sl) || (markPrice * 0.99);
-                        trade.type = ai.type || 'LONG'; // Sinyal yönü (Varsayılan Long)
+                        trade.type = ai.type || 'LONG';
+                        saveActiveTrades(); // Kalıcı hafızaya kaydet
                     }
 
                     // Arayüze Giriş, TP ve SL değerlerini basma
@@ -365,7 +367,6 @@
                         document.getElementById('valTP').innerText = "$" + trade.tp;
                         document.getElementById('valSL').innerText = "$" + trade.sl;
                     } else {
-                        // İşlem yoksa boşta bırak / çizgi göster
                         document.getElementById('valEntry').innerText = "$-";
                         document.getElementById('valTP').innerText = "$-";
                         document.getElementById('valSL').innerText = "$-";
