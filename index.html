@@ -3,10 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cash Control - Kompakt ve 2 Basamaklı</title>
+    <title>Cash Control - Grafik ve Panel</title>
     <style>
-        body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 10px; display: flex; justify-content: center; }
-        .main-card { background: #181a20; border: 1px solid #2b2b2b; border-radius: 10px; width: 100%; max-width: 750px; padding: 12px 15px; box-shadow: 0 6px 18px rgba(0,0,0,0.5); }
+        body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; height: 100vh; overflow: hidden; position: relative; }
+        
+        /* Arka Plandaki TradingView Grafik Alanı */
+        #tradingview-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+
+        /* Üst Kontrol / Panel Açma Tuşu Barı */
+        .top-control-bar { position: absolute; top: 15px; right: 20px; z-index: 10; display: flex; gap: 10px; align-items: center; }
+        .toggle-panel-btn { background: #f0b90b; color: #0b0e11; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: 0.2s; }
+        .toggle-panel-btn:hover { background: #fcd535; }
+
+        /* Ön Plandaki Açılır/Kapanır Ana Panel (Modal) */
+        .modal-overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.6); z-index: 20; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(3px); transition: 0.3s ease; }
+        .modal-overlay.hidden { display: none; }
+
+        .main-card { background: #181a20; border: 1px solid #2b2b2b; border-radius: 10px; width: 100%; max-width: 750px; max-height: 90vh; overflow-y: auto; padding: 12px 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.7); }
+        
         .header-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #23272e; padding-bottom: 8px; margin-bottom: 10px; }
         .title { display: flex; align-items: center; gap: 6px; font-weight: bold; color: #fff; font-size: 14px; }
         .close-btn { color: #f0b90b; cursor: pointer; font-size: 16px; }
@@ -50,105 +64,135 @@
 </head>
 <body>
 
-    <div class="main-card">
-        <div class="header-top">
-            <div class="title">📊 Tüm Kaynakların Ortalaması</div>
-            <div class="close-btn">✕</div>
+    <!-- Arka Planda Çalışan TradingView Grafiği -->
+    <div id="tradingview-container">
+        <div class="tradingview-widget-container" style="height:100%;width:100%">
+            <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+            {
+                "width": "100%",
+                "height": "100%",
+                "symbol": "BINANCE:BTCUSDT",
+                "interval": "15",
+                "timezone": "Europe/Istanbul",
+                "theme": "dark",
+                "style": "1",
+                "locale": "tr",
+                "allow_symbol_change": true,
+                "calendar": false,
+                "support_host": "https://www.tradingview.com"
+            }
+            </script>
         </div>
+    </div>
 
-        <!-- Hacim İvmesi & Akış Motoru -->
-        <div class="ivme-box">
-            <div class="ivme-top">
-                <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                    <span class="badge-long">⚡ LONG İVME</span>
-                    <span class="badge-speed">⚡ +4.7x</span>
-                    <span class="badge-breakout">📈 Breakout</span>
-                    <span class="badge-active">🚀 Aktif</span>
+    <!-- Sağ Üst Köşe Panel Açma/Kapama Tuşu -->
+    <div class="top-control-bar">
+        <button class="toggle-panel-btn" onclick="togglePanel()">📊 Veri Göster / Gizle</button>
+    </div>
+
+    <!-- Ön Plandaki Açılır/Kapanır Detay Paneli (Modal) -->
+    <div id="panelModal" class="modal-overlay">
+        <div class="main-card">
+            <div class="header-top">
+                <div class="title">📊 Tüm Kaynakların Ortalaması</div>
+                <div class="close-btn" onclick="togglePanel()">✕</div>
+            </div>
+
+            <!-- Hacim İvmesi & Akış Motoru -->
+            <div class="ivme-box">
+                <div class="ivme-top">
+                    <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                        <span class="badge-long">⚡ LONG İVME</span>
+                        <span class="badge-speed">⚡ +4.7x</span>
+                        <span class="badge-breakout">📈 Breakout</span>
+                        <span class="badge-active">🚀 Aktif</span>
+                    </div>
+                    <div id="currentTime" style="font-size: 10px;">--</div>
                 </div>
-                <div id="currentTime" style="font-size: 10px;">--</div>
+                <div class="ivme-desc" id="aiComment">Analiz yükleniyor...</div>
+                <div class="ivme-footer">
+                    <div>🎯 Confluence: <span style="color: #0ecb81; font-weight: bold;">%88.4</span></div>
+                    <div>⚡ İvme: <span style="color: #fff; font-weight: bold;">+4.7x</span></div>
+                </div>
             </div>
-            <div class="ivme-desc" id="aiComment">Analiz yükleniyor...</div>
-            <div class="ivme-footer">
-                <div>🎯 Confluence: <span style="color: #0ecb81; font-weight: bold;">%88.4</span></div>
-                <div>⚡ İvme: <span style="color: #fff; font-weight: bold;">+4.7x</span></div>
-            </div>
-        </div>
 
-        <!-- Giriş, Kâr Al, Stop Ol -->
-        <div class="prices-grid">
-            <div class="price-item">
-                <div class="lbl">GİRİŞ (ENTRY)</div>
-                <div class="val" id="valEntry" style="color: #f0b90b;">$-</div>
+            <!-- Giriş, Kâr Al, Stop Ol -->
+            <div class="prices-grid">
+                <div class="price-item">
+                    <div class="lbl">GİRİŞ (ENTRY)</div>
+                    <div class="val" id="valEntry" style="color: #f0b90b;">$-</div>
+                </div>
+                <div class="price-item">
+                    <div class="lbl">KÂR AL (TP)</div>
+                    <div class="val" id="valTP" style="color: #0ecb81;">$-</div>
+                </div>
+                <div class="price-item">
+                    <div class="lbl">STOP OL (SL)</div>
+                    <div class="val" id="valSL" style="color: #f6465d;">$-</div>
+                </div>
             </div>
-            <div class="price-item">
-                <div class="lbl">KÂR AL (TP)</div>
-                <div class="val" id="valTP" style="color: #0ecb81;">$-</div>
+
+            <div class="source-label">Veri Kaynağı Seçin:</div>
+            <div class="source-grid">
+                <div class="src-btn" onclick="setSource('copy', this)">Sadece Copy</div>
+                <div class="src-btn" onclick="setSource('whale', this)">Sadece Balina</div>
+                <div class="src-btn" onclick="setSource('genel_terste', this)">Genel Terste</div>
+                <div class="src-btn" onclick="setSource('ters_6_20', this)">Ters (%6-20)</div>
+                <div class="src-btn" onclick="setSource('top20_terste', this)">TOP 20 Ters</div>
+                <div class="src-btn" onclick="setSource('top20_oransal', this)">TOP 20 Oran</div>
+                <div class="src-btn active" onclick="setSource('trak', this)" style="grid-column: span 3;">Tüm Kaynakların Ort.</div>
             </div>
-            <div class="price-item">
-                <div class="lbl">STOP OL (SL)</div>
-                <div class="val" id="valSL" style="color: #f6465d;">$-</div>
-            </div>
-        </div>
 
-        <div class="source-label">Veri Kaynağı Seçin:</div>
-        <div class="source-grid">
-            <div class="src-btn" onclick="setSource('copy', this)">Sadece Copy</div>
-            <div class="src-btn" onclick="setSource('whale', this)">Sadece Balina</div>
-            <div class="src-btn" onclick="setSource('genel_terste', this)">Genel Terste</div>
-            <div class="src-btn" onclick="setSource('ters_6_20', this)">Ters (%6-20)</div>
-            <div class="src-btn" onclick="setSource('top20_terste', this)">TOP 20 Ters</div>
-            <div class="src-btn" onclick="setSource('top20_oransal', this)">TOP 20 Oran</div>
-            <div class="src-btn active" onclick="setSource('trak', this)" style="grid-column: span 3;">Tüm Kaynakların Ort.</div>
-        </div>
-
-        <!-- Coin Seçimi ve Anlık Mark Fiyat -->
-        <div class="bottom-bar">
-            <div>
-                <span style="font-size: 12px; color: #848e9c; margin-right: 6px;">Coin:</span>
-                <select id="coinSelect" class="coin-select" onchange="onCoinChange()"></select>
-            </div>
-            <div>
-                <span style="font-size: 12px; color: #848e9c;">Mark Fiyat: </span>
-                <span id="markPrice" class="mark-display">$-</span>
-            </div>
-        </div>
-
-        <!-- Otomatik Güncelleme Barı -->
-        <div class="refresh-status-bar">
-            <div>⏳ Cache: <span id="refreshCountdown">5s</span></div>
-            <button class="reset-btn" onclick="manualRefresh()">Sıfırla</button>
-        </div>
-
-        <div class="mode-footer">
-            <div>🟡 <strong>Güncel</strong></div>
-            <div style="color: #444;">○</div>
-            <div>Geçmiş</div>
-        </div>
-
-        <!-- ALT KISIM: Long, Short ve Ortalama Kartları -->
-        <div id="resultCardsContainer">
-            <div class="result-card long">
+            <!-- Coin Seçimi ve Anlık Mark Fiyat -->
+            <div class="bottom-bar">
                 <div>
-                    <div class="res-title"><span style="color: #0ecb81;">●</span> LONG Ort. Giriş:</div>
-                    <div class="res-sub" id="longSub">(- işlem, -$ size)</div>
+                    <span style="font-size: 12px; color: #848e9c; margin-right: 6px;">Coin:</span>
+                    <select id="coinSelect" class="coin-select" onchange="onCoinChange()"></select>
                 </div>
-                <div class="res-val" id="longVal" style="color: #0ecb81;">$-</div>
+                <div>
+                    <span style="font-size: 12px; color: #848e9c;">Mark Fiyat: </span>
+                    <span id="markPrice" class="mark-display">$-</span>
+                </div>
             </div>
 
-            <div class="result-card short">
-                <div>
-                    <div class="res-title"><span style="color: #f6465d;">●</span> SHORT Ort. Giriş:</div>
-                    <div class="res-sub" id="shortSub">(- işlem, -$ size)</div>
-                </div>
-                <div class="res-val" id="shortVal" style="color: #f6465d;">$-</div>
+            <!-- Otomatik Güncelleme Barı -->
+            <div class="refresh-status-bar">
+                <div>⏳ Cache: <span id="refreshCountdown">5s</span></div>
+                <button class="reset-btn" onclick="manualRefresh()">Sıfırla</button>
             </div>
 
-            <div class="result-card avg">
-                <div>
-                    <div class="res-title"><span style="color: #f0b90b;">●</span> Ortalama Giriş:</div>
-                    <div class="res-sub">Ağırlıklı genel ortalama</div>
+            <div class="mode-footer">
+                <div>🟡 <strong>Güncel</strong></div>
+                <div style="color: #444;">○</div>
+                <div>Geçmiş</div>
+            </div>
+
+            <!-- ALT KISIM: Long, Short ve Ortalama Kartları -->
+            <div id="resultCardsContainer">
+                <div class="result-card long">
+                    <div>
+                        <div class="res-title"><span style="color: #0ecb81;">●</span> LONG Ort. Giriş:</div>
+                        <div class="res-sub" id="longSub">(- işlem, -$ size)</div>
+                    </div>
+                    <div class="res-val" id="longVal" style="color: #0ecb81;">$-</div>
                 </div>
-                <div class="res-val" id="avgVal" style="color: #f0b90b;">$-</div>
+
+                <div class="result-card short">
+                    <div>
+                        <div class="res-title"><span style="color: #f6465d;">●</span> SHORT Ort. Giriş:</div>
+                        <div class="res-sub" id="shortSub">(- işlem, -$ size)</div>
+                    </div>
+                    <div class="res-val" id="shortVal" style="color: #f6465d;">$-</div>
+                </div>
+
+                <div class="result-card avg">
+                    <div>
+                        <div class="res-title"><span style="color: #f0b90b;">●</span> Ortalama Giriş:</div>
+                        <div class="res-sub">Ağırlıklı genel ortalama</div>
+                    </div>
+                    <div class="res-val" id="avgVal" style="color: #f0b90b;">$-</div>
+                </div>
             </div>
         </div>
     </div>
@@ -157,6 +201,11 @@
         let currentSymbol = "BTC";
         let currentSource = "trak";
         let autoInterval = null;
+
+        function togglePanel() {
+            let modal = document.getElementById('panelModal');
+            modal.classList.toggle('hidden');
+        }
 
         async function loadCoins() {
             try {
@@ -203,14 +252,12 @@
                     document.getElementById('markPrice').innerText = "$" + d.markPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     
                     document.getElementById('aiComment').innerText = ai.comment;
-                    // Fiyatlar virgülden sonra tam 2 basamak olacak şekilde ayarlandı
                     document.getElementById('valEntry').innerText = "$" + ai.entry.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     document.getElementById('valTP').innerText = "$" + ai.tp.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     document.getElementById('valSL').innerText = "$" + ai.sl.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     
                     let srcData = d.sources[currentSource] || d.sources["trak"];
                     
-                    // Alt kartlardaki ortalama girişler de virgülden sonra 2 basamağa sabitlendi
                     document.getElementById('longVal').innerText = "$" + srcData.long_avg.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                     document.getElementById('longSub').innerText = `(${srcData.long_count} işlem, $${srcData.long_size.toFixed(1)}K size)`;
                     
