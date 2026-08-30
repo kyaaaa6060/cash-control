@@ -229,20 +229,20 @@
         <div class="section-label">Veri Kaynağı Seçin:</div>
         
         <div class="source-grid">
-            <button class="source-btn" id="src-copy" onclick="setSource('copy', 'Sadece Copy Liderler')">Sadece Copy Liderler</button>
-            <button class="source-btn" id="src-whale" onclick="setSource('whale', 'Sadece Balinalar')">Sadece Balinalar</button>
-            <button class="source-btn active" id="src-all" onclick="setSource('all', 'Genel Terste Kalanlar')">Genel Terste Kalanlar</button>
-            <button class="source-btn" id="src-pct6_20" onclick="setSource('pct6_20', 'Terste Kalanlar (%6-20 Zarar)')">Terste Kalanlar (%6-20)</button>
-            <button class="source-btn" id="src-top20" onclick="setSource('all', 'TOP 20 Terste Kalanlar')">TOP 20 Terste Kalanlar</button>
-            <button class="source-btn" id="src-oransal" onclick="setSource('all', 'TOP 20 Oransal')">TOP 20 Oransal</button>
-            <button class="source-btn" id="src-combined" onclick="setSource('combined_avg', 'Tüm Kaynakların Ortalaması')">Tüm Kaynakların Ort.</button>
+            <button class="source-btn" onclick="setSource('copy', 'Sadece Copy Liderler')">Sadece Copy Liderler</button>
+            <button class="source-btn" onclick="setSource('whale', 'Sadece Balinalar')">Sadece Balinalar</button>
+            <button class="source-btn active" onclick="setSource('all', 'Genel Terste Kalanlar')">Genel Terste Kalanlar</button>
+            <button class="source-btn" onclick="setSource('pct6_20', 'Terste Kalanlar (%6-20 Zarar)')">Terste Kalanlar (%6-20)</button>
+            <button class="source-btn" onclick="setSource('all', 'TOP 20 Terste Kalanlar')">TOP 20 Terste Kalanlar</button>
+            <button class="source-btn" onclick="setSource('all', 'TOP 20 Oransal')">TOP 20 Oransal</button>
+            <button class="source-btn" onclick="setSource('combined_avg', 'Tüm Kaynakların Ortalaması')">Tüm Kaynakların Ort.</button>
         </div>
 
         <div class="selector-row">
             <div>
                 <span style="font-size: 13px; color: var(--text-muted);">Coin:</span>
                 <select id="coin-select" onchange="onCoinChange()">
-                    <option value="BTC">Yükleniyor...</option>
+                    <option value="">Yükleniyor...</option>
                 </select>
             </div>
             <div style="font-size: 13px;">
@@ -317,7 +317,8 @@
             try {
                 let res = await fetch("/api/coins");
                 let data = await res.json();
-                if(data.status === "success") {
+                
+                if(data.status === "success" && data.coins.length > 0) {
                     let select = document.getElementById("coin-select");
                     select.innerHTML = "";
                     data.coins.forEach(coin => {
@@ -328,27 +329,31 @@
                         select.appendChild(opt);
                     });
                     fetchMarketData();
+                } else {
+                    document.getElementById("coin-select").innerHTML = '<option value="">Coin Bulunamadı</option>';
                 }
             } catch(e) {
-                console.error("Coinler yüklenemedi", e);
+                console.error("Coin listesi alınamadı:", e);
+                document.getElementById("coin-select").innerHTML = '<option value="">Bağlantı Hatası</option>';
             }
         }
 
         async function fetchMarketData() {
-            let coin = document.getElementById("coin-select").value;
+            let coinSelect = document.getElementById("coin-select").value;
+            if(!coinSelect) return;
+            
             try {
-                let res = await fetch(`/api/market-stats/${coin}`);
+                let res = await fetch(`/api/market-stats/${coinSelect}`);
                 let result = await res.json();
                 
                 if(result.status === "success") {
                     cachedResponse = result;
                     document.getElementById("timer").innerText = result.cache_remaining_seconds;
                     document.getElementById("mark-price").innerText = "$" + result.data.markPrice.toLocaleString('en-US', {minimumFractionDigits: 2});
-                    
                     updateViewData();
                 }
             } catch(e) {
-                console.error("Veri çekilemedi", e);
+                console.error("Piyasa verisi çekilemedi", e);
             }
         }
 
@@ -367,7 +372,7 @@
         function setTab(tabName) {
             currentTab = tabName;
             document.getElementById("tab-guncel").className = tabName === 'guncel' ? "tab-item active" : "tab-item";
-            document.getElementById("tab-gecmis").className = tabName === 'gecmis' ? "tab-item active" : "tab-item";
+            document.getElementById("tab-gecmis", "").className = tabName === 'gecmis' ? "tab-item active" : "tab-item";
             updateViewData();
         }
 
@@ -382,16 +387,10 @@
             if (!cachedResponse) return;
             
             let selectedCoin = document.getElementById("coin-select").value;
-            if (cachedResponse.data.symbol !== selectedCoin + "USDT") {
-                fetchMarketData();
-                return;
-            }
-
-            let sourceData = cachedResponse.data.sources[currentSource];
-            if (!sourceData) sourceData = cachedResponse.data.sources["all"];
+            let sourceData = cachedResponse.data.sources[currentSource] || cachedResponse.data.sources["all"];
+            if (!sourceData) return;
 
             let multiplier = currentTab === "gecmis" ? 0.98 : 1.0;
-
             let longVal = sourceData.long_avg * multiplier;
             let shortVal = sourceData.short_avg * multiplier;
             let genVal = sourceData.general_avg * multiplier;
@@ -410,65 +409,14 @@
             let fundingRate = cachedResponse.data.fundingRate || 0;
 
             let lockedStrategy;
-
             if (savedLock) {
                 lockedStrategy = JSON.parse(savedLock);
-
-                if (lockedStrategy.status === "CLOSED") {
-                    document.getElementById("ai-market-status").innerHTML = `🛑 <strong>İşlem Sonuçlandı:</strong> ${lockedStrategy.closeReason}. Yeni sinyal bekleniyor.`;
-                    document.getElementById("ai-entry-zone").innerText = "Tamamlandı";
-                    document.getElementById("ai-tp-zone").innerText = "-";
-                    document.getElementById("ai-sl-zone").innerText = "-";
-                    return;
-                }
-
-                if (lockedStrategy.status === "PENDING") {
-                    let reachedEntry = false;
-                    if (lockedStrategy.side === "LONG" && markPrice <= lockedStrategy.entryHigh) reachedEntry = true;
-                    if (lockedStrategy.side === "SHORT" && markPrice >= lockedStrategy.entryLow) reachedEntry = true;
-
-                    if (reachedEntry) {
-                        lockedStrategy.status = "ACTIVE"; 
-                        localStorage.setItem(lockKey, JSON.stringify(lockedStrategy));
-                    }
-                }
-
-                if (lockedStrategy.status === "ACTIVE") {
-                    if (lockedStrategy.side === "LONG") {
-                        if (markPrice >= lockedStrategy.tp) {
-                            lockedStrategy.status = "CLOSED";
-                            lockedStrategy.closeReason = "🟢 Likidite Hedefi (TP) Geldi!";
-                        } else if (markPrice <= lockedStrategy.sl) {
-                            lockedStrategy.status = "CLOSED";
-                            lockedStrategy.closeReason = "🔴 Likidite Stopu Patladı (SL).";
-                        }
-                    } else if (lockedStrategy.side === "SHORT") {
-                        if (markPrice <= lockedStrategy.tp) {
-                            lockedStrategy.status = "CLOSED";
-                            lockedStrategy.closeReason = "🟢 Likidite Hedefi (TP) Geldi!";
-                        } else if (markPrice >= lockedStrategy.sl) {
-                            lockedStrategy.status = "CLOSED";
-                            lockedStrategy.closeReason = "🔴 Likidite Stopu Patladı (SL).";
-                        }
-                    }
-                    localStorage.setItem(lockKey, JSON.stringify(lockedStrategy));
-                }
-
             } else {
                 let side = fundingRate > 0 ? "LONG" : "SHORT";
-                let entryHigh, entryLow, tpPrice, slPrice;
-
-                if (side === "LONG") {
-                    entryHigh = longVal * 1.002;
-                    entryLow = longVal * 0.992;
-                    tpPrice = entryHigh * 1.03;
-                    slPrice = entryLow * 0.98;
-                } else {
-                    entryHigh = shortVal * 1.008;
-                    entryLow = shortVal * 0.998;
-                    tpPrice = entryLow * 0.97;
-                    slPrice = entryHigh * 1.02;
-                }
+                let entryHigh = side === "LONG" ? longVal * 1.002 : shortVal * 1.008;
+                let entryLow = side === "LONG" ? longVal * 0.992 : shortVal * 0.998;
+                let tpPrice = side === "LONG" ? entryHigh * 1.03 : entryLow * 0.97;
+                let slPrice = side === "LONG" ? entryLow * 0.98 : entryHigh * 1.02;
 
                 lockedStrategy = {
                     side: side,
@@ -480,28 +428,22 @@
                     status: "PENDING",
                     closeReason: ""
                 };
-
                 localStorage.setItem(lockKey, JSON.stringify(lockedStrategy));
             }
 
             if (lockedStrategy.status === "CLOSED") {
-                document.getElementById("ai-market-status").innerHTML = `🛑 <strong>İşlem Sonuçlandı:</strong> ${lockedStrategy.closeReason}. Yeni sinyal bekleniyor.`;
+                document.getElementById("ai-market-status").innerHTML = `🛑 <strong>İşlem Sonuçlandı:</strong> ${lockedStrategy.closeReason}.`;
                 document.getElementById("ai-entry-zone").innerText = "Tamamlandı";
                 document.getElementById("ai-tp-zone").innerText = "-";
                 document.getElementById("ai-sl-zone").innerText = "-";
             } else {
-                let statusText = lockedStrategy.status === "ACTIVE" 
-                    ? `<span style="color:var(--long-color); font-weight:bold;">🟢 LİKİDİTE TEST EDİLDİ (Aktif Pozisyon)</span>` 
-                    : `<span style="color:var(--accent-yellow); font-weight:bold;">⏳ LİMİT BANT (Stop Avı Bekleniyor)</span>`;
-
-                document.getElementById("ai-market-status").innerHTML = `Yön: <strong>${lockedStrategy.side} (Kademeli Bant)</strong> | Durum: ${statusText}`;
+                document.getElementById("ai-market-status").innerHTML = `Yön: <strong>${lockedStrategy.side}</strong> | Durum: <span style="color:var(--accent-yellow)">Beklemede</span>`;
                 document.getElementById("ai-entry-zone").innerText = lockedStrategy.entryText;
                 document.getElementById("ai-tp-zone").innerText = `$${lockedStrategy.tp.toFixed(2)}`;
                 document.getElementById("ai-sl-zone").innerText = `$${lockedStrategy.sl.toFixed(2)}`;
             }
         }
 
-        // DOM Tamamen Yüklendiğinde Güvenli Başlatma
         window.addEventListener('DOMContentLoaded', () => {
             loadCoinList();
             setInterval(fetchMarketData, 30000);
