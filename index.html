@@ -77,7 +77,8 @@
         .refresh-status-bar { display: flex; justify-content: space-between; align-items: center; background: #261f12; border: 1px solid #4a3818; padding: 6px 10px; border-radius: 5px; margin-bottom: 8px; font-size: 11px; color: #f0b90b; }
         .reset-btn { background: #2b2b2b; color: #eaeaea; border: none; padding: 3px 6px; border-radius: 3px; cursor: pointer; font-size: 10px; }
         
-        .mode-footer { display: flex; justify-content: center; gap: 12px; margin-bottom: 10px; font-size: 11px; color: #848e9c; align-items: center; }
+        .mode-footer { display: flex; justify-content: center; gap: 12px; margin-bottom: 10px; font-size: 11px; color: #848e9c; align-items: center; cursor: pointer; user-select: none; }
+        .mode-footer div:hover { color: #fff; }
         
         .result-card { background: #1e2329; border: 1px solid #2f363d; border-radius: 6px; padding: 10px 14px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
         .result-card.long { border-left: 3px solid #0ecb81; }
@@ -86,6 +87,17 @@
         .res-title { font-size: 12px; font-weight: bold; color: #fff; display: flex; align-items: center; gap: 5px; }
         .res-sub { font-size: 10px; color: #848e9c; margin-top: 2px; }
         .res-val { font-size: 14px; font-weight: bold; }
+
+        /* Geçmiş Modu Listesi için Stil */
+        .history-container { display: none; }
+        .history-container.active { display: block; }
+        .history-stat-box { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #121418; padding: 10px; border-radius: 6px; margin-bottom: 10px; text-align: center; border: 1px solid #23272e; }
+        .hist-item .h-lbl { font-size: 10px; color: #848e9c; margin-bottom: 2px; }
+        .hist-item .h-val { font-size: 13px; font-weight: bold; color: #fff; }
+        .history-list { max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+        .history-card { background: #1e2329; border: 1px solid #2f363d; border-radius: 6px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+        .history-card.win { border-left: 3px solid #0ecb81; }
+        .history-card.loss { border-left: 3px solid #f6465d; }
     </style>
 </head>
 <body>
@@ -121,95 +133,121 @@
     <div id="panelModal" class="modal-overlay">
         <div class="main-card">
             <div class="header-top">
-                <div class="title">
+                <div class="title" id="panelTitle">
                     📊 Tüm Kaynakların Ortalaması 
                     <span id="roleBadgeContainer"></span>
                 </div>
                 <div class="close-btn" onclick="togglePanel()">✕</div>
             </div>
 
-            <div class="ivme-box">
-                <div class="ivme-top">
-                    <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                        <span class="badge-long">⚡ LONG İVME</span>
-                        <span class="badge-speed">⚡ +4.7x</span>
-                        <span class="badge-breakout">📈 Breakout</span>
-                        <span class="badge-active">🚀 Aktif</span>
+            <!-- GÜNCEL SEKME İÇERİĞİ -->
+            <div id="currentModeView">
+                <div class="ivme-box">
+                    <div class="ivme-top">
+                        <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                            <span class="badge-long">⚡ LONG İVME</span>
+                            <span class="badge-speed">⚡ +4.7x</span>
+                            <span class="badge-breakout">📈 Breakout</span>
+                            <span class="badge-active">🚀 Aktif</span>
+                        </div>
+                        <div id="currentTime" style="font-size: 10px;">--</div>
                     </div>
-                    <div id="currentTime" style="font-size: 10px;">--</div>
-                </div>
-                <div class="ivme-desc" id="aiComment">Analiz yükleniyor...</div>
-                <div class="ivme-footer">
-                    <div>🎯 Confluence: <span style="color: #0ecb81; font-weight: bold;">%88.4</span></div>
-                    <div>⚡ İvme: <span style="color: #fff; font-weight: bold;">+4.7x</span></div>
-                </div>
-            </div>
-
-            <div class="analysis-extra-grid">
-                <div class="extra-card">
-                    <div class="extra-title">🛡️ Pivot Destek & Direnç</div>
-                    <div class="extra-content" id="supportResistanceContainer">
-                        <div class="level-row"><span class="level-lbl">Direnç 2:</span> <span id="res2" style="color: #f6465d;">$-</span></div>
-                        <div class="level-row"><span class="level-lbl">Direnç 1:</span> <span id="res1" style="color: #f6465d;">$-</span></div>
-                        <div class="level-row"><span class="level-lbl">Destek 1:</span> <span id="sup1" style="color: #0ecb81;">$-</span></div>
-                        <div class="level-row"><span class="level-lbl">Destek 2:</span> <span id="sup2" style="color: #0ecb81;">$-</span></div>
+                    <div class="ivme-desc" id="aiComment">Analiz yükleniyor...</div>
+                    <div class="ivme-footer">
+                        <div>🎯 Confluence: <span style="color: #0ecb81; font-weight: bold;">%88.4</span></div>
+                        <div>⚡ İvme: <span style="color: #fff; font-weight: bold;">+4.7x</span></div>
                     </div>
                 </div>
 
-                <div class="extra-card">
-                    <div class="extra-title">📐 Aktif Formasyonlar</div>
-                    <div class="extra-content" id="patternsContainer">
-                        <div class="no-pattern">Formasyon aranıyor...</div>
+                <div class="analysis-extra-grid">
+                    <div class="extra-card">
+                        <div class="extra-title">🛡️ Pivot Destek & Direnç</div>
+                        <div class="extra-content" id="supportResistanceContainer">
+                            <div class="level-row"><span class="level-lbl">Direnç 2:</span> <span id="res2" style="color: #f6465d;">$-</span></div>
+                            <div class="level-row"><span class="level-lbl">Direnç 1:</span> <span id="res1" style="color: #f6465d;">$-</span></div>
+                            <div class="level-row"><span class="level-lbl">Destek 1:</span> <span id="sup1" style="color: #0ecb81;">$-</span></div>
+                            <div class="level-row"><span class="level-lbl">Destek 2:</span> <span id="sup2" style="color: #0ecb81;">$-</span></div>
+                        </div>
+                    </div>
+
+                    <div class="extra-card">
+                        <div class="extra-title">📐 Aktif Formasyonlar</div>
+                        <div class="extra-content" id="patternsContainer">
+                            <div class="no-pattern">Formasyon aranıyor...</div>
+                        </div>
                     </div>
                 </div>
+
+                <div class="prices-grid">
+                    <div class="price-item">
+                        <div class="lbl">GİRİŞ (ENTRY)</div>
+                        <div class="val" id="valEntry" style="color: #f0b90b;">$-</div>
+                    </div>
+                    <div class="price-item">
+                        <div class="lbl">KÂR AL (TP)</div>
+                        <div class="val" id="valTP" style="color: #0ecb81;">$-</div>
+                    </div>
+                    <div class="price-item">
+                        <div class="lbl">STOP OL (SL)</div>
+                        <div class="val" id="valSL" style="color: #f6465d;">$-</div>
+                    </div>
+                </div>
+
+                <div class="source-label">Veri Kaynağı Seçin:</div>
+                <div class="source-grid">
+                    <div class="src-btn" onclick="setSource('copy', this)">Sadece Copy</div>
+                    <div class="src-btn" onclick="setSource('whale', this)">Sadece Balina</div>
+                    <div class="src-btn" onclick="setSource('genel_terste', this)">Genel Terste</div>
+                    <div class="src-btn" onclick="setSource('ters_6_20', this)">Ters (%6-20)</div>
+                    <div class="src-btn" onclick="setSource('top20_terste', this)">TOP 20 Ters</div>
+                    <div class="src-btn" onclick="setSource('top20_oransal', this)">TOP 20 Oran</div>
+                    <div class="src-btn active" onclick="setSource('trak', this)" style="grid-column: span 3;">Tüm Kaynakların Ort.</div>
+                </div>
+
+                <div class="bottom-bar">
+                    <div>
+                        <span style="font-size: 12px; color: #848e9c; margin-right: 6px;">Coin:</span>
+                        <select id="coinSelect" class="coin-select" onchange="onCoinChange()"></select>
+                    </div>
+                    <div>
+                        <span style="font-size: 12px; color: #848e9c;">Mark Fiyat: </span>
+                        <span id="markPrice" class="mark-display">$-</span>
+                    </div>
+                </div>
+
+                <div class="refresh-status-bar">
+                    <div>⏳ Cache: <span id="refreshCountdown">5s</span></div>
+                    <button class="reset-btn" id="resetBtn" onclick="manualRefresh()">Sıfırla</button>
+                </div>
             </div>
 
-            <div class="prices-grid">
-                <div class="price-item">
-                    <div class="lbl">GİRİŞ (ENTRY)</div>
-                    <div class="val" id="valEntry" style="color: #f0b90b;">$-</div>
+            <!-- GEÇMİŞ SEKME İÇERİĞİ (BAŞARI VE ARŞİV) -->
+            <div id="historyModeView" class="history-container">
+                <div class="history-stat-box">
+                    <div class="hist-item">
+                        <div class="h-lbl">TOPLAM İŞLEM</div>
+                        <div class="h-val" id="statTotal">0</div>
+                    </div>
+                    <div class="hist-item">
+                        <div class="h-lbl">KAZANAN (WIN)</div>
+                        <div class="h-val" id="statWins" style="color: #0ecb81;">0</div>
+                    </div>
+                    <div class="hist-item">
+                        <div class="h-lbl">BAŞARI ORANI</div>
+                        <div class="h-val" id="statWinRate" style="color: #f0b90b;">%0.0</div>
+                    </div>
                 </div>
-                <div class="price-item">
-                    <div class="lbl">KÂR AL (TP)</div>
-                    <div class="val" id="valTP" style="color: #0ecb81;">$-</div>
-                </div>
-                <div class="price-item">
-                    <div class="lbl">STOP OL (SL)</div>
-                    <div class="val" id="valSL" style="color: #f6465d;">$-</div>
-                </div>
-            </div>
-
-            <div class="source-label">Veri Kaynağı Seçin:</div>
-            <div class="source-grid">
-                <div class="src-btn" onclick="setSource('copy', this)">Sadece Copy</div>
-                <div class="src-btn" onclick="setSource('whale', this)">Sadece Balina</div>
-                <div class="src-btn" onclick="setSource('genel_terste', this)">Genel Terste</div>
-                <div class="src-btn" onclick="setSource('ters_6_20', this)">Ters (%6-20)</div>
-                <div class="src-btn" onclick="setSource('top20_terste', this)">TOP 20 Ters</div>
-                <div class="src-btn" onclick="setSource('top20_oransal', this)">TOP 20 Oran</div>
-                <div class="src-btn active" onclick="setSource('trak', this)" style="grid-column: span 3;">Tüm Kaynakların Ort.</div>
-            </div>
-
-            <div class="bottom-bar">
-                <div>
-                    <span style="font-size: 12px; color: #848e9c; margin-right: 6px;">Coin:</span>
-                    <select id="coinSelect" class="coin-select" onchange="onCoinChange()"></select>
-                </div>
-                <div>
-                    <span style="font-size: 12px; color: #848e9c;">Mark Fiyat: </span>
-                    <span id="markPrice" class="mark-display">$-</span>
+                <div class="source-label" style="margin-bottom: 8px;">Kapanan Canlı Sinyal Arşivi:</div>
+                <div class="history-list" id="historyListContainer">
+                    <div class="no-pattern">Henüz tamamlanan sinyal bulunmuyor...</div>
                 </div>
             </div>
 
-            <div class="refresh-status-bar">
-                <div>⏳ Cache: <span id="refreshCountdown">5s</span></div>
-                <button class="reset-btn" id="resetBtn" onclick="manualRefresh()">Sıfırla</button>
-            </div>
-
+            <!-- ALT MOD DEĞİŞTİRİCİ (Tıklanabilir) -->
             <div class="mode-footer">
-                <div>🟡 <strong>Güncel</strong></div>
+                <div id="btnModeCurrent" onclick="switchViewMode('current')" style="color: #f0b90b;">🟡 <strong>Güncel</strong></div>
                 <div style="color: #444;">○</div>
-                <div>Geçmiş</div>
+                <div id="btnModeHistory" onclick="switchViewMode('history')">Geçmiş</div>
             </div>
 
             <div id="resultCardsContainer">
@@ -285,6 +323,7 @@
             }
 
             loadCoins();
+            loadTradeHistory();
         }
 
         function logoutSession() {
@@ -299,6 +338,75 @@
         function togglePanel() {
             let modal = document.getElementById('panelModal');
             modal.classList.toggle('hidden');
+        }
+
+        // Güncel / Geçmiş Mod Geçiş Fonksiyonu
+        function switchViewMode(mode) {
+            let currentView = document.getElementById('currentModeView');
+            let historyView = document.getElementById('historyModeView');
+            let btnCurr = document.getElementById('btnModeCurrent');
+            let btnHist = document.getElementById('btnModeHistory');
+
+            if (mode === 'current') {
+                currentView.style.display = 'block';
+                historyView.classList.remove('active');
+                btnCurr.style.color = '#f0b90b';
+                btnHist.style.color = '#848e9c';
+                btnCurr.innerHTML = `🟡 <strong>Güncel</strong>`;
+                btnHist.innerHTML = `Geçmiş`;
+            } else {
+                currentView.style.display = 'none';
+                historyView.classList.add('active');
+                btnHist.style.color = '#f0b90b';
+                btnCurr.style.color = '#848e9c';
+                btnHist.innerHTML = `🟡 <strong>Geçmiş</strong>`;
+                btnCurr.innerHTML = `Güncel`;
+                loadTradeHistory(); // Geçmişe tıklandığında verileri tazele
+            }
+        }
+
+        async function loadTradeHistory() {
+            try {
+                let res = await fetch('/api/trade-history');
+                let json = await res.json();
+                if (json.status === 'success') {
+                    let trades = json.closed_trades;
+                    let total = trades.length;
+                    let wins = trades.filter(t => t.result === 'WIN').length;
+                    let winRate = total > 0 ? ((wins / total) * 100).toFixed(1) : 0.0;
+
+                    document.getElementById('statTotal').innerText = total;
+                    document.getElementById('statWins').innerText = wins;
+                    document.getElementById('statWinRate').innerText = "%" + winRate;
+
+                    let listContainer = document.getElementById('historyListContainer');
+                    if (total === 0) {
+                        listContainer.innerHTML = `<div class="no-pattern">Henüz tamamlanan sinyal bulunmuyor...</div>`;
+                        return;
+                    }
+
+                    let html = '';
+                    trades.forEach(t => {
+                        let cardClass = t.result === 'WIN' ? 'history-card win' : 'history-card loss';
+                        let resColor = t.result === 'WIN' ? '#0ecb81' : '#f6465d';
+                        html += `
+                            <div class="${cardClass}">
+                                <div>
+                                    <div style="font-weight: bold; color: #fff;">${t.symbol} <span style="font-size: 10px; color: #848e9c;">(${t.type})</span></div>
+                                    <div style="font-size: 10px; color: #848e9c;">Giriş: $${formatPrice(t.entry)} | Çıkış: $${formatPrice(t.exit_price)}</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-weight: bold; color: ${resColor};">${t.result}</div>
+                                    <div style="font-size: 9px; color: #848e9c;">${t.closed_at}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    listContainer.innerHTML = html;
+                }
+            } catch (e) {
+                console.error("Geçmiş yüklenemedi:", e);
+            }
         }
 
         function formatPrice(val) {
