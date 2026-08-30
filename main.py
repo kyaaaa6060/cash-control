@@ -2,7 +2,7 @@ import os
 import threading
 import time
 from datetime import datetime
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 
 app = Flask(__name__)
 
@@ -48,14 +48,13 @@ def background_trading_worker():
                         if hit_tp or hit_sl:
                             result_msg = "🎯 KÂR AL (TP) OLDU!" if hit_tp else "🛑 STOP (SL) OLDU!"
                             print(f"[ARKA PLAN İŞLEM KAPANDI] {key} -> {result_msg} | Fiyat: {mark_price}")
-                            # İşlem bittiği için hafızadan sil (Yeni ivme kırılımı beklenir)
                             del active_signals[key]
                     
                     # 2. Aşama: Açık işlem yoksa hız/ivme ve formasyon tara
                     else:
                         simulated_velocity = 2.5 
                         
-                        if simulated_velocity >= 2.2: # Hız eşiği aşıldıysa yeni sinyali mühürle
+                        if simulated_velocity >= 2.2: 
                             signal_type = "LONG İVME BASKISI" if coin in ["BTC", "ETH"] else "SHORT İVME BASKISI"
                             entry = mark_price
                             tp = entry * 1.025 if "LONG" in signal_type else entry * 0.975
@@ -74,19 +73,19 @@ def background_trading_worker():
         except Exception as e:
             print(f"Arka plan döngü hatası: {e}")
 
-        # Her 15 saniyede bir piyasayı arkada tara
         time.sleep(15)
 
-# Uygulama başlarken arka plan döngüsünü bağımsız bir kol olarak başlatıyoruz
+# Arka plan servisini başlat
 worker_thread = threading.Thread(target=background_trading_worker, daemon=True)
 worker_thread.start()
 
 
-# --- WEB SERVİS / API ROUTE'LARIN ---
+# --- WEB ARAYÜZÜ VE API ROUTE'LARIN ---
 
 @app.route("/")
 def home():
-    return "Cash Control Bot Çalışıyor ve Arka Planda Taramaya Devam Ediyor!"
+    # Doğrudan ana dizindeki index.html dosyanı ekrana basar
+    return send_from_directory('.', 'index.html')
 
 @app.route("/api/coins")
 def get_coins():
@@ -111,6 +110,5 @@ def market_stats(coin):
     })
 
 if __name__ == "__main__":
-    # Render'ın verdiği dinamik portu otomatik yakalar
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
