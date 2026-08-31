@@ -447,7 +447,7 @@
                 "locale": "tr",
                 "toolbar_bg": "#f1f3f6",
                 "enable_publishing": false,
-                "hide_side_toolbar": true,      /* SOL ÇİZİM ARAÇLARINI TAMAMEN GİZLER */
+                "hide_side_toolbar": false,     /* SOL ÇİZİM ARAÇLARI PANELİNİ AÇAR */
                 "hide_top_toolbar": false,
                 "save_image": false,
                 "calendar": false,
@@ -540,7 +540,7 @@
                     document.getElementById('res2').innerText = "$" + formatPrice(pivots.res2);
                     document.getElementById('res1').innerText = "$" + formatPrice(pivots.res1);
                     document.getElementById('sup1').innerText = "$" + formatPrice(pivots.sup1);
-                    document.getElementById('sup2').innerText = "$" + formatPrice(pivots.sup2);
+                    document.getElementById('sup2').innerText = "$" + formatPrice(puvots = pivots.sup2);
 
                     let patternsContainer = document.getElementById('patternsContainer');
                     patternsContainer.innerHTML = `<div class="no-pattern">Aktif Formasyon Bulunamadı</div>`;
