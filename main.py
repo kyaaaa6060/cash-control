@@ -2,19 +2,11 @@ import time
 import json
 import os
 import requests
+import threading
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-
-app = FastAPI(title="Cash Control Engine - Live Trade Tracking", version="13.3")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+from contextlib import asynccontextmanager
 
 CACHE = {
     "last_update": 0,
@@ -77,6 +69,7 @@ def fmt(val):
         return f"{val:,.2f}"
 
 def fetch_karma_market_data():
+    global ACTIVE_TRADES, CLOSED_TRADES
     processed_coins = {}
     total_open_interest_usd = 0
     all_prices = []
@@ -135,9 +128,8 @@ def fetch_karma_market_data():
                         "general_avg": general_avg
                     }
 
-                # --- CANLI İŞLEM VE BAŞARI TAKİP MEKANİZMASI ---
+                # --- ARKA PLANDA 7/24 CANLI İŞLEM VE BAŞARI TAKİBİ ---
                 if name not in ACTIVE_TRADES:
-                    # Yeni işlem açılıyor ve kaydediliyor
                     ACTIVE_TRADES[name] = {
                         "symbol": f"{name}USDT",
                         "type": "LONG",
@@ -149,12 +141,10 @@ def fetch_karma_market_data():
                 
                 trade = ACTIVE_TRADES[name]
                 
-                # Fiyat TP veya SL hedefine ulaştı mı kontrol et
                 hitTP = (trade["type"] == 'LONG' and mark_px >= trade["tp"]) or (trade["type"] == 'SHORT' and mark_px <= trade["tp"])
                 hitSL = (trade["type"] == 'LONG' and mark_px <= trade["sl"]) or (trade["type"] == 'SHORT' and mark_px >= trade["sl"])
                 
                 if hitTP or hitSL:
-                    # İşlem kapandı, geçmiş arşive (CLOSED_TRADES) ekle
                     result_status = "WIN" if hitTP else "LOSS"
                     closed_record = {
                         "symbol": trade["symbol"],
@@ -164,11 +154,10 @@ def fetch_karma_market_data():
                         "result": result_status,
                         "closed_at": time.strftime("%Y-%m-%d %H:%M:%S")
                     }
-                    CLOSED_TRADES.insert(0, closed_record) # En yeni en üstte
-                    if len(CLOSED_TRADES) > 50:  # Son 50 işlemi tut
+                    CLOSED_TRADES.insert(0, closed_record)
+                    if len(CLOSED_TRADES) > 50:
                         CLOSED_TRADES.pop()
                     
-                    # Eski işlemi sil ve anında YENİ bir işlem başlat
                     ACTIVE_TRADES[name] = {
                         "symbol": f"{name}USDT",
                         "type": "LONG",
@@ -179,7 +168,6 @@ def fetch_karma_market_data():
                     }
                     trade = ACTIVE_TRADES[name]
                     
-                    # Dosyaya kalıcı olarak kaydet
                     save_trade_history({"active": ACTIVE_TRADES, "closed": CLOSED_TRADES})
 
                 ai_report = {
@@ -211,6 +199,38 @@ def fetch_karma_market_data():
         
     return {}
 
+# 7/24 Arka Planda Çalışacak Sürekli Döngü (Background Worker)
+def background_market_worker():
+    global CACHE
+    print("🚀 Arka plan pazar takipçisi (Background Worker) başlatıldı.")
+    while True:
+        try:
+            data = fetch_karma_market_data()
+            if data:
+                CACHE["data"] = data
+                CACHE["last_update"] = time.time()
+                save_trade_history({"active": ACTIVE_TRADES, "closed": CLOSED_TRADES})
+        except Exception as e:
+            print("Arka plan worker hatası:", e)
+        time.sleep(5)  # Her 5 saniyede bir piyasayı tarar ve TP/SL kontrolü yapar
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Sunucu ayağa kalkarken arka plan iş parçacığını başlat
+    worker_thread = threading.Thread(target=background_market_worker, daemon=True)
+    worker_thread.start()
+    yield
+
+app = FastAPI(title="Cash Control Engine - Live Trade Tracking", version="13.4", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 @app.get("/", response_class=HTMLResponse)
 def read_index():
     try:
@@ -221,25 +241,17 @@ def read_index():
 
 @app.get("/api/coins")
 def get_all_coins():
-    global CACHE, ACTIVE_TRADES, CLOSED_TRADES
-    current_time = time.time()
-    if current_time - CACHE["last_update"] > CACHE_DURATION or not CACHE["data"]:
-        CACHE["data"] = fetch_karma_market_data()
-        CACHE["last_update"] = current_time
-        # Güncellenen verileri dosyaya da yansıt
-        save_trade_history({"active": ACTIVE_TRADES, "closed": CLOSED_TRADES})
-    
     coins = [k for k in CACHE["data"].keys() if not k.startswith("_")]
+    if not coins:
+        # Eğer cache henüz dolmadıysa hemen tetikle
+        CACHE["data"] = fetch_karma_market_data()
+        CACHE["last_update"] = time.time()
+        coins = [k for k in CACHE["data"].keys() if not k.startswith("_")]
     return {"status": "success", "coins": sorted(coins)}
 
 @app.get("/api/market-stats/{symbol}")
 def get_coin_stats(symbol: str):
-    global CACHE
     current_time = time.time()
-    if current_time - CACHE["last_update"] > CACHE_DURATION or not CACHE["data"]:
-        CACHE["data"] = fetch_karma_market_data()
-        CACHE["last_update"] = current_time
-        
     symbol = symbol.upper()
     coin_data = CACHE["data"].get(symbol)
     global_data = CACHE["data"].get("_GLOBAL_SUMMARY_", {})
@@ -254,7 +266,6 @@ def get_coin_stats(symbol: str):
         "global": global_data
     }
 
-# Geçmiş başarı/sonuç istatistiklerini çekmek için ek endpoint (Görünümü bozmadan arka planda çalışır)
 @app.get("/api/trade-history")
 def get_trade_history():
     return {
