@@ -30,12 +30,12 @@
             z-index: 1;
         }
 
-        /* Sağ üst kontrol butonları paneli */
+        /* Sağ üst kontrol butonları paneli - En üst katmanda ve tıklanabilir */
         .top-control-bar {
-            position: absolute;
+            position: fixed;
             top: 10px;
             right: 10px;
-            z-index: 10;
+            z-index: 99999;
             display: flex;
             gap: 6px;
             align-items: center;
@@ -55,7 +55,8 @@
             font-size: 12px;
             outline: none;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            pointer-events: auto;
         }
 
         .toggle-panel-btn {
@@ -67,7 +68,8 @@
             font-weight: bold;
             font-size: 12px;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            pointer-events: auto;
         }
 
         .logout-btn {
@@ -79,13 +81,16 @@
             font-weight: bold;
             font-size: 12px;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            pointer-events: auto;
+            text-decoration: none;
+            display: inline-block;
         }
     </style>
 </head>
 <body>
 
-    <!-- Sağ Üst Kontrol Araçları -->
+    <!-- Sağ Üst Kontrol Araçları (Grafik yenilense bile etkilenmez, sabit kalır) -->
     <div class="top-control-bar">
         <select id="timeframeSelect" class="timeframe-select">
             <option value="1">1 Dakika</option>
@@ -96,7 +101,7 @@
             <option value="D">1 Gün</option>
         </select>
         <button id="toggleBtn" class="toggle-panel-btn">Veri Gizle</button>
-        <button onclick="location.href='/logout'" class="logout-btn">Çıkış Yap</button>
+        <a href="/logout" class="logout-btn">Çıkış Yap</a>
     </div>
 
     <!-- TradingView Grafik Konteyneri -->
@@ -119,7 +124,7 @@
                 "locale": "tr",
                 "toolbar_bg": "#1e2329",
                 "enable_publishing": false,
-                "hide_side_toolbar": isToolbarHidden, // Duruma göre sol araç çubuğunu gizler/gösterir
+                "hide_side_toolbar": isToolbarHidden,
                 "allow_symbol_change": true,
                 "container_id": "tradingview-container"
             });
@@ -137,13 +142,12 @@
                 }
             });
 
-            // "Veri Göster / Gizle" butonu işlevi (Grafiğin sol araç çubuğunu açıp kapatır ve yeniden yükler)
+            // "Veri Göster / Gizle" butonu işlevi
             const toggleBtn = document.getElementById('toggleBtn');
             toggleBtn.addEventListener('click', () => {
                 isToolbarHidden = !isToolbarHidden;
                 toggleBtn.textContent = isToolbarHidden ? "Veri Göster" : "Veri Gizle";
                 
-                // Mevcut seçili zaman dilimini ve sembolü koruyarak grafiği yeniden oluştur
                 const currentInterval = document.getElementById('timeframeSelect').value;
                 initTradingView("BINANCE:BNBUSDT", currentInterval);
             });
