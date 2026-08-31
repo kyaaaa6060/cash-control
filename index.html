@@ -7,10 +7,7 @@
     <style>
         body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; height: 100vh; overflow: hidden; position: relative; display: flex; justify-content: center; align-items: center; }
         
-        /* Grafik Alanı Boyutu Küçültüldü ve Köşelerden İçe Alındı */
         #tradingview-container { width: calc(100vw - 40px); height: calc(100vh - 40px); position: absolute; top: 20px; left: 20px; z-index: 1; border-radius: 12px; overflow: hidden; border: 1px solid #23272e; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        
-        /* Çizgi Katmanı Grafik Alanına Tam Senkronize Edildi */
         #chartOverlayCanvas { width: calc(100vw - 40px); height: calc(100vh - 40px); position: absolute; top: 20px; left: 20px; z-index: 2; pointer-events: none; border-radius: 12px; }
 
         .top-control-bar { position: absolute; top: 35px; right: 40px; z-index: 10; display: flex; gap: 8px; align-items: center; }
@@ -254,7 +251,7 @@
             <div id="resultCardsContainer">
                 <div class="result-card long">
                     <div>
-                        <div class="res-title"><span style="color: #0ecb81;">●</span> LONG Ort. Giriş:</div>
+                        <div class="res-title"><span style="color: #0ecb81;">●</span> LONGcu Zararda:</div>
                         <div class="res-sub" id="longSub">(- işlem, -$ size)</div>
                     </div>
                     <div class="res-val" id="longVal" style="color: #0ecb81;">$-</div>
@@ -262,7 +259,7 @@
 
                 <div class="result-card short">
                     <div>
-                        <div class="res-title"><span style="color: #f6465d;">●</span> SHORT Ort. Giriş:</div>
+                        <div class="res-title"><span style="color: #f6465d;">●</span> SHORTcu Zararda:</div>
                         <div class="res-sub" id="shortSub">(- işlem, -$ size)</div>
                     </div>
                     <div class="res-val" id="shortVal" style="color: #f6465d;">$-</div>
@@ -270,7 +267,7 @@
 
                 <div class="result-card avg">
                     <div>
-                        <div class="res-title"><span style="color: #f0b90b;">●</span> Ortalama Giriş:</div>
+                        <div class="res-title"><span style="color: #f0b90b;">●</span> Ortalama Seviye:</div>
                         <div class="res-sub">Ağırlıklı genel ortalama</div>
                     </div>
                     <div class="res-val" id="avgVal" style="color: #f0b90b;">$-</div>
@@ -460,7 +457,6 @@
             container.appendChild(widgetDiv);
         }
 
-        /* Küçültülmüş Alana Tam Uyumlu Çizgi Katmanı */
         function initCanvas() {
             const canvas = document.getElementById('chartOverlayCanvas');
             const ctx = canvas.getContext('2d');
@@ -488,7 +484,6 @@
                         return height * 0.06 + ratio * (height * 0.88);
                     }
 
-                    // 1. Short Ortalama Çizgisi
                     if (currentShortAvg > 0) {
                         let yShort = priceToY(currentShortAvg);
                         ctx.strokeStyle = '#f6465d';
@@ -506,7 +501,6 @@
                         ctx.fillText(`Shortcu Zararda: $${formatPrice(currentShortAvg)}`, width - 160, yShort + 4);
                     }
 
-                    // 2. Genel Ortalama Seviye
                     if (currentGeneralAvg > 0) {
                         let yGen = priceToY(currentGeneralAvg);
                         ctx.strokeStyle = '#ffffff';
@@ -524,7 +518,6 @@
                         ctx.fillText(`● Ortalama Seviye: $${formatPrice(currentGeneralAvg)}`, width - 160, yGen + 4);
                     }
 
-                    // 3. Long Ortalama Çizgisi
                     if (currentLongAvg > 0) {
                         let yLong = priceToY(currentLongAvg);
                         ctx.strokeStyle = '#0ecb81';
@@ -573,8 +566,9 @@
                     
                     if(currentSymbol) {
                         updateTradingViewChart(currentSymbol, currentTimeframe);
-                        fetchStats(currentSymbol, currentTimeframe);
-                        startRealtimeSync();
+                        fetchStats(currentSymbol, currentTimeframe); // İlk açılış verisi
+                        startRealtimeSync(); // 5 sn'lik genel döngü
+                        startFiveMinuteAveragesSync(); // 5 dakikalık hedef veriler döngüsü
                     }
                 }
             } catch(e) {
@@ -608,6 +602,33 @@
             
             saveSavedPivots();
             return savedPivots[symbol];
+        }
+
+        // Sadece Longcu, Shortcu ve Ortalama Seviye verilerini güncelleyen fonksiyon
+        async function fetchAveragesOnly() {
+            if (!currentSymbol) return;
+            try {
+                let res = await fetch(`/api/market-stats/${currentSymbol}?timeframe=${currentTimeframe}`);
+                let json = await res.json();
+                if(json.status === 'success') {
+                    let d = json.data;
+                    let srcData = d.sources[currentSource] || d.sources["trak"];
+                    
+                    currentLongAvg = srcData.long_avg;
+                    currentShortAvg = srcData.short_avg;
+                    currentGeneralAvg = srcData.general_avg;
+
+                    document.getElementById('longVal').innerText = "$" + formatPrice(srcData.long_avg);
+                    document.getElementById('longSub').innerText = `(${srcData.long_count} işlem, $${srcData.long_size.toFixed(1)}K size)`;
+                    
+                    document.getElementById('shortVal').innerText = "$" + formatPrice(srcData.short_avg);
+                    document.getElementById('shortSub').innerText = `(${srcData.short_count} işlem, $${srcData.short_size.toFixed(1)}K size)`;
+                    
+                    document.getElementById('avgVal').innerText = "$" + formatPrice(srcData.general_avg);
+                }
+            } catch(e) {
+                console.error("Ortalama verileri güncelleme hatası:", e);
+            }
         }
 
         async function fetchStats(symbol, timeframe) {
@@ -697,6 +718,13 @@
                 let countEl = document.getElementById('refreshCountdown');
                 if(countEl) countEl.innerText = secondsLeft + "s";
             }, 1000);
+        }
+
+        // İstediğiniz gibi Shortcu zararı, Ortalama seviye ve Longcu zararda verilerini tam 5 dakikada bir güncelleyen döngü
+        function startFiveMinuteAveragesSync() {
+            setInterval(() => {
+                fetchAveragesOnly();
+            }, 5 * 60 * 1000);
         }
 
         window.onload = () => {
