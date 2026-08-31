@@ -286,7 +286,7 @@
         let currentUserRole = null;
         let savedPivots = JSON.parse(localStorage.getItem('cashControl_savedPivots')) || {};
 
-        // 5 Dakikalık Cache / Sayaç Yönetimi (Saniye cinsinden: 5 * 60 = 300 sn)
+        // 5 Dakikalık Sayaç Yönetimi (300 Saniye)
         let totalSyncSeconds = 300;
         let secondsLeft = 300;
 
@@ -571,7 +571,7 @@
             let select = document.getElementById('coinSelect');
             currentSymbol = select.value;
             updateTradingViewChart(currentSymbol, currentTimeframe);
-            secondsLeft = totalSyncSeconds; // Coin değiştiğinde sayaç sıfırlanır ve güncel veriler çekilir
+            secondsLeft = totalSyncSeconds;
             fetchStats(currentSymbol, currentTimeframe);
         }
 
@@ -586,7 +586,7 @@
             }
 
             updateTradingViewChart(currentSymbol, currentTimeframe);
-            secondsLeft = totalSyncSeconds; // Periyot değiştiğinde sayaç sıfırlanır
+            secondsLeft = totalSyncSeconds;
             fetchStats(currentSymbol, currentTimeframe);
         }
 
@@ -609,7 +609,6 @@
             autoInterval = setInterval(() => {
                 secondsLeft--;
                 
-                // Süre bittiğinde verileri yenile ve sayacı 5 dakikaya (300 saniyeye) geri çek
                 if(secondsLeft <= 0) {
                     secondsLeft = totalSyncSeconds;
                     if(currentSymbol) {
@@ -617,7 +616,6 @@
                     }
                 }
                 
-                // Ekranda dakika:saniye (Örn: 04:59) formatını göster
                 let min = Math.floor(secondsLeft / 60);
                 let sec = secondsLeft % 60;
                 let formattedTime = (min < 10 ? "0" + min : min) + ":" + (sec < 10 ? "0" + sec : sec);
