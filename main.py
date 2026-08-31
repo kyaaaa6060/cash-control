@@ -14,6 +14,7 @@ CACHE = {
 }
 CACHE_DURATION = 5 
 
+# Aktif işlemler ve geçmiş arşivin tutulacağı dosya
 HISTORY_FILE = "trade_history.json"
 
 def load_trade_history():
@@ -32,11 +33,13 @@ def save_trade_history(data):
     except Exception as e:
         print("Geçmiş kayıt hatası:", e)
 
+# Hafızayı ve dosyayı senkronize et
 TRADE_STORE = load_trade_history()
 ACTIVE_TRADES = TRADE_STORE.get("active", {})
 CLOSED_TRADES = TRADE_STORE.get("closed", [])
 
 def get_binance_futures_tickers():
+    """Binance Futures üzerinden anlık Mark Fiyatları ve Fonlama Oranlarını çeker"""
     try:
         url = "https://fapi.binance.com/fapi/v1/premiumIndex"
         res = requests.get(url, timeout=2)
@@ -125,6 +128,7 @@ def fetch_karma_market_data():
                         "general_avg": general_avg
                     }
 
+                # --- ARKA PLANDA 7/24 CANLI İŞLEM VE BAŞARI TAKİBİ ---
                 if name not in ACTIVE_TRADES:
                     ACTIVE_TRADES[name] = {
                         "symbol": f"{name}USDT",
@@ -195,6 +199,7 @@ def fetch_karma_market_data():
         
     return {}
 
+# 7/24 Arka Planda Çalışacak Sürekli Döngü (Background Worker)
 def background_market_worker():
     global CACHE
     print("🚀 Arka plan pazar takipçisi (Background Worker) başlatıldı.")
@@ -207,10 +212,11 @@ def background_market_worker():
                 save_trade_history({"active": ACTIVE_TRADES, "closed": CLOSED_TRADES})
         except Exception as e:
             print("Arka plan worker hatası:", e)
-        time.sleep(5)
+        time.sleep(5)  # Her 5 saniyede bir piyasayı tarar ve TP/SL kontrolü yapar
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Sunucu ayağa kalkarken arka plan iş parçacığını başlat
     worker_thread = threading.Thread(target=background_market_worker, daemon=True)
     worker_thread.start()
     yield
@@ -237,6 +243,7 @@ def read_index():
 def get_all_coins():
     coins = [k for k in CACHE["data"].keys() if not k.startswith("_")]
     if not coins:
+        # Eğer cache henüz dolmadıysa hemen tetikle
         CACHE["data"] = fetch_karma_market_data()
         CACHE["last_update"] = time.time()
         coins = [k for k in CACHE["data"].keys() if not k.startswith("_")]
