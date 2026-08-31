@@ -218,8 +218,8 @@
                 </div>
 
                 <div class="refresh-status-bar">
-                    <div>⏳ Cache: <span id="refreshCountdown">5s</span></div>
-                    <button class="reset-btn" id="resetBtn" onclick="manualRefresh()">Sıfırla</button>
+                    <div>⏳ Sonraki Güncelleme: <span id="refreshCountdown">05:00</span></div>
+                    <button class="reset-btn" id="resetBtn" onclick="manualRefresh()">Hemen Yenile</button>
                 </div>
             </div>
 
@@ -285,6 +285,10 @@
         let autoInterval = null;
         let currentUserRole = null;
         let savedPivots = JSON.parse(localStorage.getItem('cashControl_savedPivots')) || {};
+
+        // 5 Dakikalık Cache / Sayaç Yönetimi (Saniye cinsinden: 5 * 60 = 300 sn)
+        let totalSyncSeconds = 300;
+        let secondsLeft = 300;
 
         const ADMIN_PASS = "1453";
         const USER_PASS = "1234";
@@ -447,8 +451,8 @@
                 "locale": "tr",
                 "toolbar_bg": "#f1f3f6",
                 "enable_publishing": false,
-                "hide_side_toolbar": false,     /* SOL ÇİZİM ARAÇLARI PANELİ AÇIK */
-                "hide_top_toolbar": false,      /* ÜST ARAÇ ÇUBUĞU AÇIK (ZAMAN EKSENİ İÇİN GEREKLİ) */
+                "hide_side_toolbar": false,
+                "hide_top_toolbar": false,
                 "save_image": false,
                 "calendar": false,
                 "support_host": "https://www.tradingview.com"
@@ -567,6 +571,7 @@
             let select = document.getElementById('coinSelect');
             currentSymbol = select.value;
             updateTradingViewChart(currentSymbol, currentTimeframe);
+            secondsLeft = totalSyncSeconds; // Coin değiştiğinde sayaç sıfırlanır ve güncel veriler çekilir
             fetchStats(currentSymbol, currentTimeframe);
         }
 
@@ -581,6 +586,7 @@
             }
 
             updateTradingViewChart(currentSymbol, currentTimeframe);
+            secondsLeft = totalSyncSeconds; // Periyot değiştiğinde sayaç sıfırlanır
             fetchStats(currentSymbol, currentTimeframe);
         }
 
@@ -593,22 +599,31 @@
 
         function manualRefresh() {
             if (currentUserRole !== 'admin') return;
+            secondsLeft = totalSyncSeconds;
             fetchStats(currentSymbol, currentTimeframe);
         }
 
         function startRealtimeSync() {
             if(autoInterval) clearInterval(autoInterval);
-            let secondsLeft = 5;
-            setInterval(() => {
+            
+            autoInterval = setInterval(() => {
                 secondsLeft--;
+                
+                // Süre bittiğinde verileri yenile ve sayacı 5 dakikaya (300 saniyeye) geri çek
                 if(secondsLeft <= 0) {
-                    secondsLeft = 5;
+                    secondsLeft = totalSyncSeconds;
                     if(currentSymbol) {
                         fetchStats(currentSymbol, currentTimeframe);
                     }
                 }
+                
+                // Ekranda dakika:saniye (Örn: 04:59) formatını göster
+                let min = Math.floor(secondsLeft / 60);
+                let sec = secondsLeft % 60;
+                let formattedTime = (min < 10 ? "0" + min : min) + ":" + (sec < 10 ? "0" + sec : sec);
+                
                 let countEl = document.getElementById('refreshCountdown');
-                if(countEl) countEl.innerText = secondsLeft + "s";
+                if(countEl) countEl.innerText = formattedTime;
             }, 1000);
         }
 
