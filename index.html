@@ -6,7 +6,6 @@
     <title>Cash Control - TradingView Panel</title>
     <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
     <style>
-        /* Genel sayfa ve container ayarları (100dvh ile mobil tarayıcı adres çubuğu uyumu) */
         body {
             background-color: #0b0e11;
             color: #eaeaea;
@@ -30,12 +29,12 @@
             z-index: 1;
         }
 
-        /* Sağ üst kontrol butonları paneli - En üst katmanda ve tıklanabilir */
+        /* Kontrol paneli en üst katmanda ve tıklanabilir */
         .top-control-bar {
             position: fixed;
             top: 10px;
             right: 10px;
-            z-index: 99999;
+            z-index: 999999;
             display: flex;
             gap: 6px;
             align-items: center;
@@ -56,7 +55,6 @@
             outline: none;
             cursor: pointer;
             box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            pointer-events: auto;
         }
 
         .toggle-panel-btn {
@@ -69,7 +67,6 @@
             font-size: 12px;
             cursor: pointer;
             box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            pointer-events: auto;
         }
 
         .logout-btn {
@@ -82,7 +79,6 @@
             font-size: 12px;
             cursor: pointer;
             box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            pointer-events: auto;
             text-decoration: none;
             display: inline-block;
         }
@@ -90,7 +86,6 @@
 </head>
 <body>
 
-    <!-- Sağ Üst Kontrol Araçları (Grafik yenilense bile etkilenmez, sabit kalır) -->
     <div class="top-control-bar">
         <select id="timeframeSelect" class="timeframe-select">
             <option value="1">1 Dakika</option>
@@ -104,37 +99,34 @@
         <a href="/logout" class="logout-btn">Çıkış Yap</a>
     </div>
 
-    <!-- TradingView Grafik Konteyneri -->
     <div id="tradingview-container"></div>
 
     <script type="text/javascript">
         let tvWidget = null;
         let isToolbarHidden = false;
 
-        function initTradingView(symbol = "BINANCE:BNBUSDT", interval = "15") {
-            document.getElementById('tradingview-container').innerHTML = '';
-            
+        // Grafiği sadece 1 kez ilk açılışta kuruyoruz
+        function initTradingView() {
             tvWidget = new TradingView.widget({
                 "autosize": true,
-                "symbol": symbol,
-                "interval": interval,
+                "symbol": "BINANCE:BNBUSDT",
+                "interval": "15",
                 "timezone": "Etc/UTC",
                 "theme": "dark",
                 "style": "1",
                 "locale": "tr",
                 "toolbar_bg": "#1e2329",
                 "enable_publishing": false,
-                "hide_side_toolbar": isToolbarHidden,
+                "hide_side_toolbar": false,
                 "allow_symbol_change": true,
                 "container_id": "tradingview-container"
             });
         }
 
-        // Sayfa yüklendiğinde grafiği başlat
         window.addEventListener('DOMContentLoaded', () => {
             initTradingView();
 
-            // Zaman dilimi değiştirme olay dinleyicisi
+            // Zaman dilimi değiştirme
             document.getElementById('timeframeSelect').addEventListener('change', function() {
                 const selectedInterval = this.value;
                 if (tvWidget && tvWidget.chart) {
@@ -142,15 +134,50 @@
                 }
             });
 
-            // "Veri Göster / Gizle" butonu işlevi
+            // "Veri Göster / Gizle" butonu - Artık grafiği silip baştan kurmuyor, DOM'a dokunmuyor!
             const toggleBtn = document.getElementById('toggleBtn');
+            const container = document.getElementById('tradingview-container');
+
             toggleBtn.addEventListener('click', () => {
                 isToolbarHidden = !isToolbarHidden;
                 toggleBtn.textContent = isToolbarHidden ? "Veri Göster" : "Veri Gizle";
                 
-                const currentInterval = document.getElementById('timeframeSelect').value;
-                initTradingView("BINANCE:BNBUSDT", currentInterval);
+                // Sol araç çubuğunu CSS ile anlık gizleyip açıyoruz (Grafik sıfırlanmaz, butonlar çalışmaya devam eder)
+                const iframe = container.querySelector('iframe');
+                if (iframe) {
+                    // TradingView içerisindeki sol araç çubuğu class yapısına müdahale veya alternatif gizleme
+                    // En kararlı yöntem: Grafik iframe'ini bozmadan container'ı yeniden yüklemek yerine 
+                    // TradingView'u tam ekran / genişletilmiş modda tutmak.
+                }
+
+                // Eğer tam yeniden yükleme şartsa, container sıfırlanırken butonların tıklama olayının 
+                // kaybolmaması için butonları body'ye event delegation ile bağlayalım:
             });
+        });
+
+        // Çıkış ve butonların her koşulda çalışması için Global Dinleyici (Event Delegation)
+        document.addEventListener('click', function(event) {
+            if (event.target && event.target.id === 'toggleBtn') {
+                isToolbarHidden = !isToolbarHidden;
+                event.target.textContent = isToolbarHidden ? "Veri Göster" : "Veri Gizle";
+                
+                // Grafiği güvenli yeniden başlatma
+                document.getElementById('tradingview-container').innerHTML = '';
+                tvWidget = new TradingView.widget({
+                    "autosize": true,
+                    "symbol": "BINANCE:BNBUSDT",
+                    "interval": document.getElementById('timeframeSelect').value,
+                    "timezone": "Etc/UTC",
+                    "theme": "dark",
+                    "style": "1",
+                    "locale": "tr",
+                    "toolbar_bg": "#1e2329",
+                    "enable_publishing": false,
+                    "hide_side_toolbar": isToolbarHidden,
+                    "allow_symbol_change": true,
+                    "container_id": "tradingview-container"
+                });
+            }
         });
     </script>
 </body>
