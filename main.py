@@ -1,11 +1,10 @@
 import threading
 import time
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify
 import requests
 
 app = Flask(__name__)
 
-# Global değişkenler (Seviyeleri sabitlemek için)
 cached_pivots = {
     "pivot": 0,
     "direnc_1": 0,
@@ -16,7 +15,6 @@ cached_pivots = {
 
 
 def calculate_pivot_points(high, low, close):
-  """Klasik Pivot Noktaları Hesaplama (Sabit Mantık)"""
   pivot = (high + low + close) / 3
   r1 = (2 * pivot) - low
   s1 = (2 * pivot) - high
@@ -33,17 +31,14 @@ def calculate_pivot_points(high, low, close):
 
 
 def update_market_data():
-  """Arka planda çalışıp son mum verilerini çeken döngü"""
   global cached_pivots
   while True:
     try:
-      # Binance üzerinden ADAUSDT 1 saatlik son kapanmış mum verisini alıyoruz
       url = "https://api.binance.com/api/v3/klines?symbol=ADAUSDT&interval=1h&limit=2"
       response = requests.get(url, timeout=5)
       data = response.json()
 
       if len(data) >= 2:
-        # data[-2] bir önceki (tamamlanmış) mumu verir, böylece değerler o mum boyunca sabit kalır
         last_closed_candle = data[-2]
         high = float(last_closed_candle[2])
         low = float(last_closed_candle[3])
@@ -53,20 +48,33 @@ def update_market_data():
     except Exception as e:
       print(f"Veri güncelleme hatası: {e}")
 
-    # Her 1 dakikada bir kontrol eder (mum açılana kadar seviyeler sabittir)
+    # Döngü bittikten sonra 1 dakika bekler
     time.sleep(60)
 
 
 @app.route("/")
 def home():
-  # Ana sayfada veya API isteğinde sabit pivotları döndürür
   return jsonify(cached_pivots)
 
 
 if __name__ == "__main__":
-  # Arka plan veri güncelleme iş parçacığını (thread) başlat
+  # Uygulama ayağa kalkar kalkmaz BEKLEMEDEN ilk veriyi bir kez çekelim ki 0 görünmesin:
+  try:
+    initial_res = requests.get(
+        "https://api.binance.com/api/v3/klines?symbol=ADAUSDT&interval=1h&limit=2",
+        timeout=5,
+    )
+    init_data = initial_res.json()
+    if len(init_data) >= 2:
+      c = init_data[-2]
+      cached_pivots = calculate_pivot_points(
+          float(c[2]), float(c[3]), float(c[4])
+      )
+  except Exception as e:
+    print(f"İlk veri çekme hatası: {e}")
+
+  # Ardından arka plan döngüsünü başlat
   t = threading.Thread(target=update_market_data, daemon=True)
   t.start()
 
-  # Flask uygulamasını başlat
   app.run(host="0.0.0.0", port=5000)
