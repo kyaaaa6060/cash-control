@@ -88,6 +88,7 @@
         .res-sub { font-size: 10px; color: #848e9c; margin-top: 2px; }
         .res-val { font-size: 14px; font-weight: bold; }
 
+        /* Geçmiş Modu Listesi için Stil */
         .history-container { display: none; }
         .history-container.active { display: block; }
         .history-stat-box { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #121418; padding: 10px; border-radius: 6px; margin-bottom: 10px; text-align: center; border: 1px solid #23272e; }
@@ -139,6 +140,7 @@
                 <div class="close-btn" onclick="togglePanel()">✕</div>
             </div>
 
+            <!-- GÜNCEL SEKME İÇERİĞİ -->
             <div id="currentModeView">
                 <div class="ivme-box">
                     <div class="ivme-top">
@@ -159,23 +161,19 @@
 
                 <div class="analysis-extra-grid">
                     <div class="extra-card">
-                        <div class="extra-title">🛡️ Pivot Destek & Direnç</div>
+                        <div class="extra-title">🛡️ Pivot & Likidasyon (Liq)</div>
                         <div class="extra-content" id="supportResistanceContainer">
-                            <div class="level-row"><span class="level-lbl">Direnç 2:</span> <span id="res2" style="color: #f6465d;">$-</span></div>
+                            <div class="level-row"><span class="level-lbl" style="color: #f6465d;">SHORT Liq:</span> <span id="shortLiq" style="color: #f6465d; font-weight: bold;">$-</span></div>
+                            <div class="level-row"><span class="level-lbl" style="color: #0ecb81;">LONG Liq:</span> <span id="longLiq" style="color: #0ecb81; font-weight: bold;">$-</span></div>
                             <div class="level-row"><span class="level-lbl">Direnç 1:</span> <span id="res1" style="color: #f6465d;">$-</span></div>
                             <div class="level-row"><span class="level-lbl">Destek 1:</span> <span id="sup1" style="color: #0ecb81;">$-</span></div>
-                            <div class="level-row"><span class="level-lbl">Destek 2:</span> <span id="sup2" style="color: #0ecb81;">$-</span></div>
                         </div>
                     </div>
 
-                    <!-- LİKİDASYON SEVİYELERİ ALANI -->
                     <div class="extra-card">
-                        <div class="extra-title">🌊 Liq Seviyeleri (Tahmini)</div>
-                        <div class="extra-content" id="liquidationsContainer">
-                            <div class="level-row"><span class="level-lbl">Liq Üst (Short):</span> <span id="liqHigh" style="color: #f6465d;">$-</span></div>
-                            <div class="level-row"><span class="level-lbl">Yoğun Bölge:</span> <span id="liqMid" style="color: #f0b90b;">%50 / %50</span></div>
-                            <div class="level-row"><span class="level-lbl">Liq Alt (Long):</span> <span id="liqLow" style="color: #0ecb81;">$-</span></div>
-                            <div class="level-row"><span class="level-lbl">Risk Durumu:</span> <span id="liqRisk" style="color: #c9d1d9;">Dengeli</span></div>
+                        <div class="extra-title">📐 Aktif Formasyonlar</div>
+                        <div class="extra-content" id="patternsContainer">
+                            <div class="no-pattern">Formasyon aranıyor...</div>
                         </div>
                     </div>
                 </div>
@@ -223,6 +221,7 @@
                 </div>
             </div>
 
+            <!-- GEÇMİŞ SEKME İÇERİĞİ (BAŞARI VE ARŞİV) -->
             <div id="historyModeView" class="history-container">
                 <div class="history-stat-box">
                     <div class="hist-item">
@@ -244,6 +243,7 @@
                 </div>
             </div>
 
+            <!-- ALT MOD DEĞİŞTİRİCİ (Tıklanabilir) -->
             <div class="mode-footer">
                 <div id="btnModeCurrent" onclick="switchViewMode('current')" style="color: #f0b90b;">🟡 <strong>Güncel</strong></div>
                 <div style="color: #444;">○</div>
@@ -533,21 +533,19 @@
                     document.getElementById('valSL').innerText = "$" + formatPrice(ai.sl);
 
                     let pivots = getOrSetPivotLevels(symbol, d.markPrice);
-                    document.getElementById('res2').innerText = "$" + formatPrice(pivots.res2);
                     document.getElementById('res1').innerText = "$" + formatPrice(pivots.res1);
                     document.getElementById('sup1').innerText = "$" + formatPrice(pivots.sup1);
-                    document.getElementById('sup2').innerText = "$" + formatPrice(pivots.sup2);
 
-                    // LİKİDASYON SEVİYELERİNİ GÜNCELLE
-                    if(d.liquidations) {
-                        document.getElementById('liqHigh').innerText = "$" + formatPrice(d.liquidations.liqHigh);
-                        document.getElementById('liqLow').innerText = "$" + formatPrice(d.liquidations.liqLow);
-                        document.getElementById('liqMid').innerText = d.liquidations.ratio;
-                        document.getElementById('liqRisk').innerText = d.liquidations.risk;
-                    }
+                    // Liq Seviyeleri (20x ve 50x kaldıraç ortalamasına göre otomatik hesaplanır)
+                    let pVal = parseFloat(d.markPrice);
+                    let longLiqPrice = pVal * (1 - (1 / 25)); // ~%25 kaldıraç tasfiyesi
+                    let shortLiqPrice = pVal * (1 + (1 / 25));
+                    
+                    document.getElementById('longLiq').innerText = "$" + formatPrice(longLiqPrice);
+                    document.getElementById('shortLiq').innerText = "$" + formatPrice(shortLiqPrice);
 
                     let patternsContainer = document.getElementById('patternsContainer');
-                    if(patternsContainer) patternsContainer.innerHTML = `<div class="no-pattern">Aktif Formasyon Bulunamadı</div>`;
+                    patternsContainer.innerHTML = `<div class="no-pattern">Aktif Formasyon Bulunamadı</div>`;
                     
                     let srcData = d.sources[currentSource] || d.sources["trak"];
                     
