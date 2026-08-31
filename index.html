@@ -463,7 +463,7 @@
 
         async function fetchChartData(symbol, timeframe) {
             try {
-                let res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}USDT&interval=${timeframe}&limit=150`);
+                let res = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${symbol}USDT&interval=${timeframe}&limit=150`);
                 let data = await res.json();
                 if (Array.isArray(data)) {
                     let formattedData = data.map(item => ({
@@ -525,35 +525,42 @@
             try {
                 let res = await fetch('/api/coins');
                 let data = await res.json();
-                if(data.status === 'success') {
-                    let select = document.getElementById('coinSelect');
-                    let oldVal = select.value;
-                    select.innerHTML = '';
-                    
-                    data.coins.forEach(coin => {
-                        let opt = document.createElement('option');
-                        opt.value = coin;
-                        opt.text = coin + "USDT";
-                        select.appendChild(opt);
-                    });
-                    
-                    if (data.coins.includes(oldVal)) {
-                        select.value = oldVal;
-                        currentSymbol = oldVal;
-                    } else if(data.coins.length > 0) {
-                        currentSymbol = data.coins[0];
-                        select.value = currentSymbol;
-                    }
-                    
-                    if(currentSymbol) {
-                        fetchChartData(currentSymbol, currentTimeframe);
-                        fetchStats(currentSymbol, currentTimeframe);
-                        startRealtimeSync();
-                        startFiveMinuteAveragesSync();
-                    }
+                if(data.status === 'success' && data.coins && data.coins.length > 0) {
+                    populateCoinSelect(data.coins);
+                } else {
+                    throw new Error("Boş liste");
                 }
             } catch(e) {
-                console.error("Coinler yüklenemedi", e);
+                console.warn("API'den coinler alınamadı, yedek liste kullanılıyor...", e);
+                populateCoinSelect(["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "AVAX", "DOGE"]);
+            }
+        }
+
+        function populateCoinSelect(coinsArray) {
+            let select = document.getElementById('coinSelect');
+            let oldVal = select.value;
+            select.innerHTML = '';
+            
+            coinsArray.forEach(coin => {
+                let opt = document.createElement('option');
+                opt.value = coin;
+                opt.text = coin + "USDT";
+                select.appendChild(opt);
+            });
+            
+            if (coinsArray.includes(oldVal)) {
+                select.value = oldVal;
+                currentSymbol = oldVal;
+            } else if(coinsArray.length > 0) {
+                currentSymbol = coinsArray[0];
+                select.value = currentSymbol;
+            }
+            
+            if(currentSymbol) {
+                fetchChartData(currentSymbol, currentTimeframe);
+                fetchStats(currentSymbol, currentTimeframe);
+                startRealtimeSync();
+                startFiveMinuteAveragesSync();
             }
         }
 
@@ -592,17 +599,17 @@
                 let json = await res.json();
                 if(json.status === 'success') {
                     let d = json.data;
-                    let srcData = d.sources[currentSource] || d.sources["trak"];
+                    let srcData = d.sources[currentSource] || d.sources["trak"] || { long_avg: 0, short_avg: 0, general_avg: 0, long_count: 0, short_count: 0, long_size: 0, short_size: 0 };
                     
                     currentLongAvg = srcData.long_avg;
                     currentShortAvg = srcData.short_avg;
                     currentGeneralAvg = srcData.general_avg;
 
                     document.getElementById('longVal').innerText = "$" + formatPrice(srcData.long_avg);
-                    document.getElementById('longSub').innerText = `(${srcData.long_count} işlem, $${srcData.long_size.toFixed(1)}K size)`;
+                    document.getElementById('longSub').innerText = `(${srcData.long_count} işlem, $${(srcData.long_size || 0).toFixed(1)}K size)`;
                     
                     document.getElementById('shortVal').innerText = "$" + formatPrice(srcData.short_avg);
-                    document.getElementById('shortSub').innerText = `(${srcData.short_count} işlem, $${srcData.short_size.toFixed(1)}K size)`;
+                    document.getElementById('shortSub').innerText = `(${srcData.short_count} işlem, $${(srcData.short_size || 0).toFixed(1)}K size)`;
                     
                     document.getElementById('avgVal').innerText = "$" + formatPrice(srcData.general_avg);
 
@@ -619,17 +626,17 @@
                 let json = await res.json();
                 if(json.status === 'success') {
                     let d = json.data;
-                    let ai = d.ai_analysis;
+                    let ai = d.ai_analysis || { comment: "Analiz verisi bulunamadı.", entry: 0, tp: 0, sl: 0 };
                     
-                    currentMarkPrice = d.markPrice;
-                    document.getElementById('markPrice').innerText = "$" + formatPrice(d.markPrice);
+                    currentMarkPrice = d.markPrice || 0;
+                    document.getElementById('markPrice').innerText = "$" + formatPrice(currentMarkPrice);
                     document.getElementById('aiComment').innerText = `[${timeframe} Periyot] ` + ai.comment;
 
                     document.getElementById('valEntry').innerText = "$" + formatPrice(ai.entry);
                     document.getElementById('valTP').innerText = "$" + formatPrice(ai.tp);
                     document.getElementById('valSL').innerText = "$" + formatPrice(ai.sl);
 
-                    let pivots = getOrSetPivotLevels(symbol, d.markPrice);
+                    let pivots = getOrSetPivotLevels(symbol, currentMarkPrice);
                     document.getElementById('res2').innerText = "$" + formatPrice(pivots.res2);
                     document.getElementById('res1').innerText = "$" + formatPrice(pivots.res1);
                     document.getElementById('sup1').innerText = "$" + formatPrice(pivots.sup1);
@@ -638,17 +645,17 @@
                     let patternsContainer = document.getElementById('patternsContainer');
                     patternsContainer.innerHTML = `<div class="no-pattern">Aktif Formasyon Bulunamadı</div>`;
                     
-                    let srcData = d.sources[currentSource] || d.sources["trak"];
-                    if (currentLongAvg === 0) {
+                    if (d.sources && d.sources[currentSource]) {
+                        let srcData = d.sources[currentSource] || d.sources["trak"];
                         currentLongAvg = srcData.long_avg;
                         currentShortAvg = srcData.short_avg;
                         currentGeneralAvg = srcData.general_avg;
 
                         document.getElementById('longVal').innerText = "$" + formatPrice(srcData.long_avg);
-                        document.getElementById('longSub').innerText = `(${srcData.long_count} işlem, $${srcData.long_size.toFixed(1)}K size)`;
+                        document.getElementById('longSub').innerText = `(${srcData.long_count} işlem, $${(srcData.long_size || 0).toFixed(1)}K size)`;
                         
                         document.getElementById('shortVal').innerText = "$" + formatPrice(srcData.short_avg);
-                        document.getElementById('shortSub').innerText = `(${srcData.short_count} işlem, $${srcData.short_size.toFixed(1)}K size)`;
+                        document.getElementById('shortSub').innerText = `(${srcData.short_count} işlem, $${(srcData.short_size || 0).toFixed(1)}K size)`;
                         
                         document.getElementById('avgVal').innerText = "$" + formatPrice(srcData.general_avg);
                     }
@@ -659,7 +666,7 @@
                     document.getElementById('currentTime').innerText = now.toLocaleDateString('tr-TR') + " " + now.toLocaleTimeString('tr-TR') + " (TRT)";
                 }
             } catch(e) {
-                console.error("Veri çekme hatası:", e);
+                console.error("Backend istatistik hatası:", e);
             }
         }
 
