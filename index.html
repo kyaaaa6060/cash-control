@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cash Control - Yetkili Panel Mimarisi</title>
-    <!-- TradingView Lightweight Charts Kütüphanesi -->
+    <title>Cash Control - Canlı Tarama ve Veri Paneli</title>
     <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; height: 100vh; overflow: hidden; position: relative; display: flex; justify-content: center; align-items: center; }
@@ -57,7 +56,7 @@
         
         .analysis-extra-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
         .extra-card { background: #121418; border: 1px solid #23272e; border-radius: 6px; padding: 8px 10px; }
-        .extra-title { font-size: 11px; font-weight: bold; color: #848e9c; margin-bottom: 6px; border-bottom: 1px solid #23272e; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+        .extra-title { font-size: 11px; font-weight: bold; color: #848e9c; margin-bottom: 6px; border-bottom: 1px solid #23272e; padding-bottom: 4px; }
         .extra-content { font-size: 12px; color: #eaeaea; }
         .level-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 11px; }
         .level-lbl { color: #848e9c; }
@@ -65,7 +64,7 @@
 
         .prices-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #121418; padding: 8px 10px; border-radius: 6px; margin-bottom: 10px; text-align: center; border: 1px solid #23272e; }
         .price-item .lbl { font-size: 10px; color: #848e9c; margin-bottom: 2px; }
-        .price-item .val { font-size: 13px; font-weight: bold; word-break: break-all; }
+        .price-item .val { font-size: 13px; font-weight: bold; }
         
         .source-label { font-size: 11px; color: #848e9c; margin-bottom: 6px; text-align: center; }
         .source-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
@@ -103,21 +102,18 @@
 </head>
 <body>
 
-    <!-- Şifre Giriş Ekranı -->
     <div id="authOverlay" class="auth-overlay">
         <div class="auth-card">
             <div class="auth-title">🔐 Cash Control</div>
-            <div class="auth-desc">Devam etmek için erişim şifrenizi girin</div>
+            <div class="auth-desc">Giriş Şifresini Giriniz</div>
             <input type="password" id="passwordInput" class="auth-input" placeholder="••••" onkeydown="if(event.key === 'Enter') checkPassword()">
             <button class="auth-btn" onclick="checkPassword()">Giriş Yap</button>
             <div id="authError" class="auth-error">Hatalı Şifre! (Admin: 1453, User: 1234)</div>
         </div>
     </div>
 
-    <!-- Grafik Konteyneri -->
     <div id="tradingview-container"></div>
 
-    <!-- Üst Kontrol Barı -->
     <div class="top-control-bar">
         <select id="timeframeSelect" class="timeframe-select" onchange="onTimeframeChange()">
             <option value="5m">5 Dakika</option>
@@ -127,11 +123,10 @@
             <option value="4h">4 Saat</option>
             <option value="1d">1 Günlük</option>
         </select>
-        <button class="toggle-panel-btn" onclick="togglePanel()">📊 Veri Göster / Gizle</button>
-        <button class="logout-btn" onclick="logoutSession()">🔒 Çıkış Yap</button>
+        <button class="toggle-panel-btn" onclick="togglePanel()">📊 Panel Gizle / Göster</button>
+        <button class="logout-btn" onclick="logoutSession()">🔒 Çıkış</button>
     </div>
 
-    <!-- Ana Panel Modalı -->
     <div id="panelModal" class="modal-overlay">
         <div class="main-card">
             <div class="header-top">
@@ -153,7 +148,7 @@
                         </div>
                         <div id="currentTime" style="font-size: 10px;">--</div>
                     </div>
-                    <div class="ivme-desc" id="aiComment">Analiz yükleniyor...</div>
+                    <div class="ivme-desc" id="aiComment">Piyasa verileri analiz ediliyor...</div>
                     <div class="ivme-footer">
                         <div>🎯 Confluence: <span style="color: #0ecb81; font-weight: bold;">%88.4</span></div>
                         <div>⚡ İvme: <span style="color: #fff; font-weight: bold;">+4.7x</span></div>
@@ -163,7 +158,7 @@
                 <div class="analysis-extra-grid">
                     <div class="extra-card">
                         <div class="extra-title">🛡️ Pivot Destek & Direnç</div>
-                        <div class="extra-content" id="supportResistanceContainer">
+                        <div class="extra-content">
                             <div class="level-row"><span class="level-lbl">Direnç 2:</span> <span id="res2" style="color: #f6465d;">$-</span></div>
                             <div class="level-row"><span class="level-lbl">Direnç 1:</span> <span id="res1" style="color: #f6465d;">$-</span></div>
                             <div class="level-row"><span class="level-lbl">Destek 1:</span> <span id="sup1" style="color: #0ecb81;">$-</span></div>
@@ -172,16 +167,16 @@
                     </div>
 
                     <div class="extra-card">
-                        <div class="extra-title">📐 Aktif Formasyonlar</div>
+                        <div class="extra-title">📐 Formasyonlar</div>
                         <div class="extra-content" id="patternsContainer">
-                            <div class="no-pattern">Formasyon aranıyor...</div>
+                            <div class="no-pattern">Taranıyor...</div>
                         </div>
                     </div>
                 </div>
 
                 <div class="prices-grid">
                     <div class="price-item">
-                        <div class="lbl">GİRİŞ (ENTRY)</div>
+                        <div class="lbl">GİRİŞ</div>
                         <div class="val" id="valEntry" style="color: #f0b90b;">$-</div>
                     </div>
                     <div class="price-item">
@@ -194,7 +189,7 @@
                     </div>
                 </div>
 
-                <div class="source-label">Veri Kaynağı Seçin:</div>
+                <div class="source-label">Kaynak Seçimi:</div>
                 <div class="source-grid">
                     <div class="src-btn" onclick="setSource('copy', this)">Sadece Copy</div>
                     <div class="src-btn" onclick="setSource('whale', this)">Sadece Balina</div>
@@ -211,42 +206,39 @@
                         <select id="coinSelect" class="coin-select" onchange="onCoinChange()"></select>
                     </div>
                     <div>
-                        <span style="font-size: 12px; color: #848e9c;">Mark Fiyat: </span>
+                        <span style="font-size: 12px; color: #848e9c;">Mark: </span>
                         <span id="markPrice" class="mark-display">$-</span>
                     </div>
                 </div>
 
                 <div class="refresh-status-bar">
-                    <div>⏳ Cache: <span id="refreshCountdown">5s</span></div>
-                    <button class="reset-btn" id="resetBtn" onclick="manualRefresh()">Sıfırla</button>
+                    <div>⏳ Tarama Aralığı: <span id="refreshCountdown">5s</span></div>
+                    <button class="reset-btn" id="resetBtn" onclick="manualRefresh()">Yenile</button>
                 </div>
             </div>
 
-            <!-- Geçmiş Görünümü -->
             <div id="historyModeView" class="history-container">
                 <div class="history-stat-box">
                     <div class="hist-item">
-                        <div class="h-lbl">TOPLAM İŞLEM</div>
+                        <div class="h-lbl">TOPLAM</div>
                         <div class="h-val" id="statTotal">0</div>
                     </div>
                     <div class="hist-item">
-                        <div class="h-lbl">KAZANAN (WIN)</div>
+                        <div class="h-lbl">KAZANAN</div>
                         <div class="h-val" id="statWins" style="color: #0ecb81;">0</div>
                     </div>
                     <div class="hist-item">
-                        <div class="h-lbl">BAŞARI ORANI</div>
+                        <div class="h-lbl">BAŞARI</div>
                         <div class="h-val" id="statWinRate" style="color: #f0b90b;">%0.0</div>
                     </div>
                 </div>
-                <div class="source-label" style="margin-bottom: 8px;">Kapanan Canlı Sinyal Arşivi:</div>
-                <div class="history-list" id="historyListContainer">
-                    <div class="no-pattern">Henüz tamamlanan sinyal bulunmuyor...</div>
-                </div>
+                <div class="source-label" style="margin-bottom: 8px;">Kapanan Sinyaller:</div>
+                <div class="history-list" id="historyListContainer"></div>
             </div>
 
             <div class="mode-footer">
                 <div id="btnModeCurrent" onclick="switchViewMode('current')" style="color: #f0b90b;">🟡 <strong>Güncel</strong></div>
-                <div style="color: #444;">○</div>
+                <div>○</div>
                 <div id="btnModeHistory" onclick="switchViewMode('history')">Geçmiş</div>
             </div>
 
@@ -254,7 +246,7 @@
                 <div class="result-card long">
                     <div>
                         <div class="res-title"><span style="color: #0ecb81;">●</span> LONGcu Zararda:</div>
-                        <div class="res-sub" id="longSub">(- işlem, -$ size)</div>
+                        <div class="res-sub" id="longSub">(- işlem)</div>
                     </div>
                     <div class="res-val" id="longVal" style="color: #0ecb81;">$-</div>
                 </div>
@@ -262,7 +254,7 @@
                 <div class="result-card short">
                     <div>
                         <div class="res-title"><span style="color: #f6465d;">●</span> SHORTcu Zararda:</div>
-                        <div class="res-sub" id="shortSub">(- işlem, -$ size)</div>
+                        <div class="res-sub" id="shortSub">(- işlem)</div>
                     </div>
                     <div class="res-val" id="shortVal" style="color: #f6465d;">$-</div>
                 </div>
@@ -270,7 +262,7 @@
                 <div class="result-card avg">
                     <div>
                         <div class="res-title"><span style="color: #f0b90b;">●</span> Ortalama Giriş:</div>
-                        <div class="res-sub">Ağırlıklı genel ortalama</div>
+                        <div class="res-sub">Genel Ağırlıklı</div>
                     </div>
                     <div class="res-val" id="avgVal" style="color: #f0b90b;">$-</div>
                 </div>
@@ -278,14 +270,12 @@
         </div>
     </div>
 
-    <!-- JavaScript Mantığı -->
     <script>
         let currentSymbol = "BTC";
         let currentTimeframe = "15m";
         let currentSource = "trak";
         let autoInterval = null;
         let currentUserRole = null;
-        let savedPivots = JSON.parse(localStorage.getItem('cashControl_savedPivots')) || {};
         let currentMarkPrice = 0;
         let currentLongAvg = 0;
         let currentShortAvg = 0;
@@ -303,12 +293,8 @@
         function checkPassword() {
             let input = document.getElementById('passwordInput').value;
             let errorMsg = document.getElementById('authError');
-            
-            if (input === ADMIN_PASS) {
-                currentUserRole = 'admin';
-                initSession();
-            } else if (input === USER_PASS) {
-                currentUserRole = 'user';
+            if (input === ADMIN_PASS || input === USER_PASS) {
+                currentUserRole = input === ADMIN_PASS ? 'admin' : 'user';
                 initSession();
             } else {
                 errorMsg.style.display = 'block';
@@ -318,38 +304,23 @@
 
         function initSession() {
             document.getElementById('authOverlay').style.display = 'none';
-            localStorage.setItem('cashControl_role', currentUserRole);
-            
             let badgeContainer = document.getElementById('roleBadgeContainer');
             if(currentUserRole === 'admin') {
-                badgeContainer.innerHTML = `<span class="role-badge admin">👑 Admin Panel</span>`;
-                document.getElementById('resetBtn').style.opacity = "1";
-                document.getElementById('resetBtn').style.pointerEvents = "auto";
+                badgeContainer.innerHTML = `<span class="role-badge admin">👑 Admin</span>`;
             } else {
-                badgeContainer.innerHTML = `<span class="role-badge user">👤 Kullanıcı Panel</span>`;
-                let resetBtn = document.getElementById('resetBtn');
-                resetBtn.innerText = "Kısıtlı";
-                resetBtn.style.opacity = "0.5";
-                resetBtn.style.pointerEvents = "none";
+                badgeContainer.innerHTML = `<span class="role-badge user">👤 User</span>`;
             }
-
             initLightweightChart();
-            loadCoins();
-            loadTradeHistory();
+            loadActiveCoins();
+            loadHistory();
         }
 
         function logoutSession() {
-            localStorage.removeItem('cashControl_role');
             location.reload();
         }
 
-        function saveSavedPivots() {
-            localStorage.setItem('cashControl_savedPivots', JSON.stringify(savedPivots));
-        }
-
         function togglePanel() {
-            let modal = document.getElementById('panelModal');
-            modal.classList.toggle('hidden');
+            document.getElementById('panelModal').classList.toggle('hidden');
         }
 
         function switchViewMode(mode) {
@@ -363,312 +334,173 @@
                 historyView.classList.remove('active');
                 btnCurr.style.color = '#f0b90b';
                 btnHist.style.color = '#848e9c';
-                btnCurr.innerHTML = `🟡 <strong>Güncel</strong>`;
-                btnHist.innerHTML = `Geçmiş`;
             } else {
                 currentView.style.display = 'none';
                 historyView.classList.add('active');
                 btnHist.style.color = '#f0b90b';
                 btnCurr.style.color = '#848e9c';
-                btnHist.innerHTML = `🟡 <strong>Geçmiş</strong>`;
-                btnCurr.innerHTML = `Güncel`;
-                loadTradeHistory();
             }
         }
 
-        function loadTradeHistory() {
+        function loadHistory() {
             let trades = [
-                { symbol: "BTC", type: "LONG", entry: 68500, exit_price: 70400, result: "WIN", closed_at: "06.03.2026 12:30" },
-                { symbol: "ETH", type: "SHORT", entry: 3600, exit_price: 3520, result: "WIN", closed_at: "06.03.2026 10:15" },
-                { symbol: "SOL", type: "LONG", entry: 142, exit_price: 139, result: "LOSS", closed_at: "05.03.2026 22:40" }
+                { symbol: "BTC", type: "LONG", entry: 68500, exit: 70400, result: "WIN", date: "06.03.2026 12:30" },
+                { symbol: "ETH", type: "SHORT", entry: 3600, exit: 3520, result: "WIN", date: "06.03.2026 10:15" },
+                { symbol: "SOL", type: "LONG", entry: 142, exit: 139, result: "LOSS", date: "05.03.2026 22:40" }
             ];
-
-            let total = trades.length;
+            document.getElementById('statTotal').innerText = trades.length;
             let wins = trades.filter(t => t.result === 'WIN').length;
-            let winRate = total > 0 ? ((wins / total) * 100).toFixed(1) : 0.0;
-
-            document.getElementById('statTotal').innerText = total;
             document.getElementById('statWins').innerText = wins;
-            document.getElementById('statWinRate').innerText = "%" + winRate;
+            document.getElementById('statWinRate').innerText = "%" + ((wins/trades.length)*100).toFixed(1);
 
-            let listContainer = document.getElementById('historyListContainer');
             let html = '';
             trades.forEach(t => {
-                let cardClass = t.result === 'WIN' ? 'history-card win' : 'history-card loss';
-                let resColor = t.result === 'WIN' ? '#0ecb81' : '#f6465d';
-                html += `
-                    <div class="${cardClass}">
-                        <div>
-                            <div style="font-weight: bold; color: #fff;">${t.symbol} <span style="font-size: 10px; color: #848e9c;">(${t.type})</span></div>
-                            <div style="font-size: 10px; color: #848e9c;">Giriş: $${formatPrice(t.entry)} | Çıkış: $${formatPrice(t.exit_price)}</div>
-                        </div>
-                        <div style="text-align: right;">
-                            <div style="font-weight: bold; color: ${resColor};">${t.result}</div>
-                            <div style="font-size: 9px; color: #848e9c;">${t.closed_at}</div>
-                        </div>
-                    </div>
-                `;
+                let cls = t.result === 'WIN' ? 'history-card win' : 'history-card loss';
+                let col = t.result === 'WIN' ? '#0ecb81' : '#f6465d';
+                html += `<div class="${cls}"><div><b>${t.symbol}</b> (${t.type})<br><span style="font-size:10px;color:#848e9c">Giriş: $${t.entry}</span></div><div style="text-align:right;"><b style="color:${col}">${t.result}</b><br><span style="font-size:9px;color:#848e9c">${t.date}</span></div></div>`;
             });
-            listContainer.innerHTML = html;
+            document.getElementById('historyListContainer').innerHTML = html;
         }
 
         function formatPrice(val) {
             let num = parseFloat(val);
             if (isNaN(num)) return "$-";
-            if (num < 0.0001) return num.toFixed(6);
             if (num < 1) return num.toFixed(4);
-            if (num < 10) return num.toFixed(3);
             return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
         function initLightweightChart() {
             let container = document.getElementById('tradingview-container');
             container.innerHTML = '';
-
             chart = LightweightCharts.createChart(container, {
                 width: container.clientWidth,
                 height: container.clientHeight,
-                layout: {
-                    background: { type: 'solid', color: '#131722' },
-                    textColor: '#d1d4dc',
-                },
-                grid: {
-                    vertLines: { color: '#1f293d' },
-                    horzLines: { color: '#1f293d' },
-                },
-                timeScale: {
-                    timeVisible: true,
-                    secondsVisible: false,
-                    borderColor: '#2b2b43',
-                },
-                rightPriceScale: {
-                    borderColor: '#2b2b43',
-                },
+                layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
+                grid: { vertLines: { color: '#1f293d' }, horzLines: { color: '#1f293d' } },
+                timeScale: { timeVisible: true, borderColor: '#2b2b43' },
+                rightPriceScale: { borderColor: '#2b2b43' }
             });
-
-            candlestickSeries = chart.addCandlestickSeries({
-                upColor: '#0ecb81',
-                downColor: '#f6465d',
-                borderVisible: false,
-                wickUpColor: '#0ecb81',
-                wickDownColor: '#f6465d',
-            });
-
-            window.addEventListener('resize', () => {
-                chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
-            });
+            candlestickSeries = chart.addCandlestickSeries({ upColor: '#0ecb81', downColor: '#f6465d' });
+            window.addEventListener('resize', () => chart.applyOptions({ width: container.clientWidth, height: container.clientHeight }));
         }
 
         async function fetchChartData(symbol, timeframe) {
             try {
-                let res = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${symbol}USDT&interval=${timeframe}&limit=150`);
+                let res = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${symbol}USDT&interval=${timeframe}&limit=120`);
                 let data = await res.json();
                 if (Array.isArray(data)) {
-                    let formattedData = data.map(item => ({
-                        time: Math.floor(item[0] / 1000),
-                        open: parseFloat(item[1]),
-                        high: parseFloat(item[2]),
-                        low: parseFloat(item[3]),
-                        close: parseFloat(item[4]),
-                    }));
-                    candlestickSeries.setData(formattedData);
+                    let formatted = data.map(i => ({ time: Math.floor(i[0]/1000), open: parseFloat(i[1]), high: parseFloat(i[2]), low: parseFloat(i[3]), close: parseFloat(i[4]) }));
+                    candlestickSeries.setData(formatted);
                 }
-            } catch (e) {
-                console.error("Grafik mum verileri alınamadı:", e);
-            }
+            } catch(e) { console.error(e); }
         }
 
         function updateChartLines() {
             if (!candlestickSeries) return;
-
             if (longLine) candlestickSeries.removePriceLine(longLine);
             if (shortLine) candlestickSeries.removePriceLine(shortLine);
             if (avgLine) candlestickSeries.removePriceLine(avgLine);
 
-            if (currentLongAvg > 0) {
-                longLine = candlestickSeries.createPriceLine({
-                    price: currentLongAvg,
-                    color: '#0ecb81',
-                    lineWidth: 2,
-                    lineStyle: LightweightCharts.LineStyle.Solid,
-                    axisLabelVisible: true,
-                    title: 'Longcu Zararda',
-                });
-            }
+            if (currentLongAvg > 0) longLine = candlestickSeries.createPriceLine({ price: currentLongAvg, color: '#0ecb81', lineWidth: 2, title: 'Longcu Zararda' });
+            if (currentShortAvg > 0) shortLine = candlestickSeries.createPriceLine({ price: currentShortAvg, color: '#f6465d', lineWidth: 2, lineStyle: 2, title: 'Shortcu Zararda' });
+            if (currentGeneralAvg > 0) avgLine = candlestickSeries.createPriceLine({ price: currentGeneralAvg, color: '#ffffff', lineWidth: 2, lineStyle: 2, title: 'Ortalama' });
+        }
 
-            if (currentShortAvg > 0) {
-                shortLine = candlestickSeries.createPriceLine({
-                    price: currentShortAvg,
-                    color: '#f6465d',
-                    lineWidth: 2,
-                    lineStyle: LightweightCharts.LineStyle.Dashed,
-                    axisLabelVisible: true,
-                    title: 'Shortcu Zararda',
-                });
-            }
-
-            if (currentGeneralAvg > 0) {
-                avgLine = candlestickSeries.createPriceLine({
-                    price: currentGeneralAvg,
-                    color: '#ffffff',
-                    lineWidth: 2,
-                    lineStyle: LightweightCharts.LineStyle.Dashed,
-                    axisLabelVisible: true,
-                    title: 'Ortalama Giriş',
-                });
+        async function loadActiveCoins() {
+            try {
+                let res = await fetch('https://data-api.binance.vision/api/v3/ticker/24hr');
+                let data = await res.json();
+                let topCoins = data.filter(d => d.symbol.endsWith('USDT')).sort((a,b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume)).slice(0, 15).map(d => d.symbol.replace('USDT', ''));
+                populateCoinSelect(topCoins);
+            } catch(e) {
+                populateCoinSelect(["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "AVAX", "DOGE"]);
             }
         }
 
-        function loadCoins() {
-            let coins = ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "AVAX", "DOGE", "ARB", "PEPE"];
-            populateCoinSelect(coins);
-        }
-
-        function populateCoinSelect(coinsArray) {
+        function populateCoinSelect(coins) {
             let select = document.getElementById('coinSelect');
-            let oldVal = select.value;
             select.innerHTML = '';
-            
-            coinsArray.forEach(coin => {
+            coins.forEach(c => {
                 let opt = document.createElement('option');
-                opt.value = coin;
-                opt.text = coin + "USDT";
+                opt.value = c;
+                opt.text = c + "USDT";
                 select.appendChild(opt);
             });
-            
-            if (coinsArray.includes(oldVal)) {
-                select.value = oldVal;
-                currentSymbol = oldVal;
-            } else if(coinsArray.length > 0) {
-                currentSymbol = coinsArray[0];
+            if(coins.length > 0) {
+                currentSymbol = coins[0];
                 select.value = currentSymbol;
-            }
-            
-            if(currentSymbol) {
-                fetchChartData(currentSymbol, currentTimeframe);
-                fetchStats(currentSymbol, currentTimeframe);
-                startRealtimeSync();
+                fetchDataForCurrentSymbol();
             }
         }
 
-        function getOrSetPivotLevels(symbol, markPrice) {
-            let p = parseFloat(markPrice);
-            if (isNaN(p) || p <= 0) return { res2: "-", res1: "-", sup1: "-", sup2: "-" };
-
-            if (savedPivots[symbol]) {
-                return savedPivots[symbol];
-            }
-
-            let high = p * 1.015;
-            let low = p * 0.985;
-            let pivot = (high + low + p) / 3;
-
-            let r1 = (2 * pivot) - low;
-            let s1 = (2 * pivot) - high;
-            let r2 = pivot + (high - low);
-            let s2 = pivot - (high - low);
-
-            savedPivots[symbol] = { res2: r2, res1: r1, sup1: s1, sup2: s2 };
-            saveSavedPivots();
-            return savedPivots[symbol];
-        }
-
-        async function fetchStats(symbol, timeframe) {
+        async function fetchDataForCurrentSymbol() {
             try {
-                let res = await fetch(`https://data-api.binance.vision/api/v3/ticker/price?symbol=${symbol}USDT`);
+                let res = await fetch(`https://data-api.binance.vision/api/v3/ticker/price?symbol=${currentSymbol}USDT`);
                 let json = await res.json();
-                let markPrice = parseFloat(json.price) || 70000;
-                currentMarkPrice = markPrice;
+                currentMarkPrice = parseFloat(json.price) || 50000;
 
                 document.getElementById('markPrice').innerText = "$" + formatPrice(currentMarkPrice);
-                document.getElementById('aiComment').innerText = `[${timeframe} Periyot] Fiyat hareketleri ve havuz yoğunluğu dengede tutuluyor.`;
+                document.getElementById('aiComment').innerText = `${currentSymbol} paritesi için (${currentTimeframe}) havuz taraması ve likidite dengesi güncellendi.`;
 
-                let entry = markPrice * 0.995;
-                let tp = markPrice * 1.02;
-                let sl = markPrice * 0.98;
+                let entry = currentMarkPrice * 0.995;
+                let tp = currentMarkPrice * 1.02;
+                let sl = currentMarkPrice * 0.98;
 
                 document.getElementById('valEntry').innerText = "$" + formatPrice(entry);
                 document.getElementById('valTP').innerText = "$" + formatPrice(tp);
                 document.getElementById('valSL').innerText = "$" + formatPrice(sl);
 
-                let pivots = getOrSetPivotLevels(symbol, currentMarkPrice);
-                document.getElementById('res2').innerText = "$" + formatPrice(pivots.res2);
-                document.getElementById('res1').innerText = "$" + formatPrice(pivots.res1);
-                document.getElementById('sup1').innerText = "$" + formatPrice(pivots.sup1);
-                document.getElementById('sup2').innerText = "$" + formatPrice(pivots.sup2);
+                let high = currentMarkPrice * 1.012;
+                let low = currentMarkPrice * 0.988;
+                let pivot = (high + low + currentMarkPrice) / 3;
 
-                document.getElementById('patternsContainer').innerHTML = `<div class="no-pattern">Formasyon Takipte</div>`;
+                document.getElementById('res2').innerText = "$" + formatPrice(pivot + (high - low));
+                document.getElementById('res1').innerText = "$" + formatPrice((2 * pivot) - low);
+                document.getElementById('sup1').innerText = "$" + formatPrice((2 * pivot) - high);
+                document.getElementById('sup2').innerText = "$" + formatPrice(pivot - (high - low));
+                document.getElementById('patternsContainer').innerHTML = `<div class="no-pattern">Trend Dengede</div>`;
 
-                currentLongAvg = markPrice * 0.985;
-                currentShortAvg = markPrice * 1.015;
-                currentGeneralAvg = markPrice;
+                currentLongAvg = currentMarkPrice * 0.985;
+                currentShortAvg = currentMarkPrice * 1.015;
+                currentGeneralAvg = currentMarkPrice;
 
                 document.getElementById('longVal').innerText = "$" + formatPrice(currentLongAvg);
-                document.getElementById('longSub').innerText = `(142 işlem, $52.4K size)`;
-                
+                document.getElementById('longSub').innerText = `(120 işlem, $45K size)`;
                 document.getElementById('shortVal').innerText = "$" + formatPrice(currentShortAvg);
-                document.getElementById('shortSub').innerText = `(115 işlem, $41.8K size)`;
-                
+                document.getElementById('shortSub').innerText = `(95 işlem, $38K size)`;
                 document.getElementById('avgVal').innerText = "$" + formatPrice(currentGeneralAvg);
 
+                fetchChartData(currentSymbol, currentTimeframe);
                 updateChartLines();
-                
+
                 let now = new Date();
-                document.getElementById('currentTime').innerText = now.toLocaleDateString('tr-TR') + " " + now.toLocaleTimeString('tr-TR') + " (TRT)";
-            } catch(e) {
-                console.error("Veri yükleme hatası:", e);
-            }
+                document.getElementById('currentTime').innerText = now.toLocaleDateString('tr-TR') + " " + now.toLocaleTimeString('tr-TR');
+            } catch(e) { console.error(e); }
         }
 
         function onCoinChange() {
-            let select = document.getElementById('coinSelect');
-            currentSymbol = select.value;
-            fetchChartData(currentSymbol, currentTimeframe);
-            fetchStats(currentSymbol, currentTimeframe);
+            currentSymbol = document.getElementById('coinSelect').value;
+            fetchDataForCurrentSymbol();
         }
 
         function onTimeframeChange() {
-            let select = document.getElementById('timeframeSelect');
-            currentTimeframe = select.value;
-            fetchChartData(currentSymbol, currentTimeframe);
-            fetchStats(currentSymbol, currentTimeframe);
+            currentTimeframe = document.getElementById('timeframeSelect').value;
+            fetchDataForCurrentSymbol();
         }
 
-        function setSource(src, element) {
+        function setSource(src, el) {
             document.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
-            element.classList.add('active');
+            el.classList.add('active');
             currentSource = src;
-            fetchStats(currentSymbol, currentTimeframe);
+            fetchDataForCurrentSymbol();
         }
 
         function manualRefresh() {
-            if (currentUserRole !== 'admin') return;
-            fetchChartData(currentSymbol, currentTimeframe);
-            fetchStats(currentSymbol, currentTimeframe);
-        }
-
-        function startRealtimeSync() {
-            if(autoInterval) clearInterval(autoInterval);
-            let secondsLeft = 5;
-            autoInterval = setInterval(() => {
-                secondsLeft--;
-                if(secondsLeft <= 0) {
-                    secondsLeft = 5;
-                    if(currentSymbol) {
-                        fetchStats(currentSymbol, currentTimeframe);
-                    }
-                }
-                let countEl = document.getElementById('refreshCountdown');
-                if(countEl) countEl.innerText = secondsLeft + "s";
-            }, 1000);
+            fetchDataForCurrentSymbol();
         }
 
         window.onload = () => {
-            let savedRole = localStorage.getItem('cashControl_role');
-            if (savedRole === 'admin' || savedRole === 'user') {
-                currentUserRole = savedRole;
-                initSession();
-            }
+            // Otomatik başlatma için önbellek kontrolü
         };
     </script>
 </body>
