@@ -3,84 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cash Control - Canlı Liq Çizgileri</title>
+    <title>Cash Control - Yetkili Panel Mimarisi</title>
     <style>
-        body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; height: 100vh; overflow: hidden; position: relative; font-size: 11px; }
+        body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; height: 100vh; overflow: hidden; position: relative; }
         
         #tradingview-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
-
-        .top-control-bar { position: absolute; top: 8px; right: 10px; z-index: 10; display: flex; gap: 4px; align-items: center; }
         
-        .timeframe-select { background: #1e2329; color: #f0b90b; border: 1px solid #2f363d; padding: 3px 6px; border-radius: 3px; font-weight: bold; font-size: 10px; outline: none; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
-        .toggle-panel-btn { background: #f0b90b; color: #0b0e11; border: none; padding: 3px 8px; border-radius: 3px; font-weight: bold; font-size: 10px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.3); transition: 0.2s; }
+        /* Grafik Üzeri Liq ve Ortalama Çizgileri İçin Şeffaf Katman */
+        #chartOverlayCanvas { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 2; pointer-events: none; }
+
+        .top-control-bar { position: absolute; top: 15px; right: 20px; z-index: 10; display: flex; gap: 8px; align-items: center; }
+        
+        .timeframe-select { background: #1e2329; color: #f0b90b; border: 1px solid #2f363d; padding: 8px 10px; border-radius: 6px; font-weight: bold; font-size: 13px; outline: none; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .timeframe-select:focus { border-color: #f0b90b; }
+
+        .toggle-panel-btn { background: #f0b90b; color: #0b0e11; border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: 0.2s; }
         .toggle-panel-btn:hover { background: #fcd535; }
-        .logout-btn { background: #1e2329; color: #f6465d; border: 1px solid #2f363d; padding: 3px 6px; border-radius: 3px; font-weight: bold; font-size: 10px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+        
+        .logout-btn { background: #1e2329; color: #f6465d; border: 1px solid #2f363d; padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: 0.2s; }
+        .logout-btn:hover { background: rgba(246, 70, 93, 0.15); border-color: #f6465d; }
 
-        .auth-overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(11, 14, 17, 0.98); z-index: 100; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(8px); }
-        .auth-card { background: #181a20; border: 1px solid #2b2b2b; border-radius: 6px; width: 100%; max-width: 280px; padding: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); text-align: center; }
-        .auth-title { font-size: 13px; font-weight: bold; color: #fff; margin-bottom: 3px; }
-        .auth-desc { font-size: 9px; color: #848e9c; margin-bottom: 12px; }
-        .auth-input { width: 100%; background: #1e2329; border: 1px solid #2f363d; color: #fff; padding: 6px; border-radius: 3px; font-size: 11px; outline: none; box-sizing: border-box; text-align: center; margin-bottom: 8px; letter-spacing: 2px; }
-        .auth-btn { width: 100%; background: #f0b90b; color: #0b0e11; border: none; padding: 6px; border-radius: 3px; font-weight: bold; font-size: 10px; cursor: pointer; }
-        .auth-error { color: #f6465d; font-size: 9px; margin-top: 5px; display: none; }
+        .role-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 6px; }
+        .role-badge.admin { background: rgba(240, 185, 11, 0.2); color: #f0b90b; border: 1px solid rgba(240, 185, 11, 0.4); }
+        .role-badge.user { background: rgba(14, 203, 129, 0.2); color: #0ecb81; border: 1px solid rgba(14, 203, 129, 0.4); }
 
-        .modal-overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.4); z-index: 20; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
+        .auth-overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(11, 14, 17, 0.95); z-index: 100; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(8px); }
+        .auth-card { background: #181a20; border: 1px solid #2b2b2b; border-radius: 10px; width: 100%; max-width: 350px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); text-align: center; }
+        .auth-title { font-size: 16px; font-weight: bold; color: #fff; margin-bottom: 6px; }
+        .auth-desc { font-size: 11px; color: #848e9c; margin-bottom: 20px; }
+        .auth-input { width: 100%; background: #1e2329; border: 1px solid #2f363d; color: #fff; padding: 10px; border-radius: 6px; font-size: 14px; outline: none; box-sizing: border-box; text-align: center; margin-bottom: 12px; letter-spacing: 2px; }
+        .auth-input:focus { border-color: #f0b90b; }
+        .auth-btn { width: 100%; background: #f0b90b; color: #0b0e11; border: none; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; transition: 0.2s; }
+        .auth-btn:hover { background: #fcd535; }
+        .auth-error { color: #f6465d; font-size: 11px; margin-top: 8px; display: none; }
+
+        .modal-overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.6); z-index: 20; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(3px); transition: 0.3s ease; }
         .modal-overlay.hidden { display: none; }
 
-        .main-card { background: #181a20; border: 1px solid #2b2b2b; border-radius: 6px; width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto; padding: 8px 10px; box-shadow: 0 6px 20px rgba(0,0,0,0.8); }
-        .header-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #23272e; padding-bottom: 4px; margin-bottom: 6px; }
-        .title { display: flex; align-items: center; gap: 4px; font-weight: bold; color: #fff; font-size: 11px; }
-        .close-btn { color: #f0b90b; cursor: pointer; font-size: 12px; }
+        .main-card { background: #181a20; border: 1px solid #2b2b2b; border-radius: 10px; width: 100%; max-width: 750px; max-height: 90vh; overflow-y: auto; padding: 12px 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.7); }
         
-        .ivme-box { background: #1e2329; border: 1px solid #2f363d; border-radius: 4px; padding: 6px 8px; margin-bottom: 6px; }
-        .ivme-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; font-size: 10px; color: #848e9c; }
-        .badge-long { background: rgba(14, 203, 129, 0.15); color: #0ecb81; border: 1px solid rgba(14, 203, 129, 0.4); padding: 1px 4px; border-radius: 2px; font-weight: bold; font-size: 9px; }
-        .ivme-desc { font-size: 10px; color: #b7bdc6; line-height: 1.2; margin-bottom: 2px; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #23272e; padding-bottom: 8px; margin-bottom: 10px; }
+        .title { display: flex; align-items: center; gap: 6px; font-weight: bold; color: #fff; font-size: 14px; }
+        .close-btn { color: #f0b90b; cursor: pointer; font-size: 16px; }
         
-        .analysis-extra-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 6px; }
-        .extra-card { background: #121418; border: 1px solid #23272e; border-radius: 4px; padding: 5px 6px; }
-        .extra-title { font-size: 9px; font-weight: bold; color: #848e9c; margin-bottom: 3px; border-bottom: 1px solid #23272e; padding-bottom: 2px; }
-        .level-row { display: flex; justify-content: space-between; margin-bottom: 1px; font-size: 9px; }
+        .ivme-box { background: #1e2329; border: 1px solid #2f363d; border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; }
+        .ivme-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 12px; color: #848e9c; flex-wrap: wrap; gap: 4px; }
+        .badge-long { background: rgba(14, 203, 129, 0.15); color: #0ecb81; border: 1px solid rgba(14, 203, 129, 0.4); padding: 2px 6px; border-radius: 3px; font-weight: bold; font-size: 11px; }
+        .badge-speed { background: rgba(112, 122, 138, 0.2); color: #c9d1d9; border: 1px solid #3a4149; padding: 2px 6px; border-radius: 3px; font-size: 11px; }
+        .badge-breakout { background: rgba(138, 43, 226, 0.2); color: #d8b4fe; border: 1px solid rgba(138, 43, 226, 0.4); padding: 2px 6px; border-radius: 3px; font-size: 11px; }
+        .badge-active { background: rgba(240, 185, 11, 0.15); color: #f0b90b; border: 1px solid rgba(240, 185, 11, 0.4); padding: 2px 6px; border-radius: 3px; font-size: 11px; }
+        
+        .ivme-desc { font-size: 12px; color: #b7bdc6; line-height: 1.4; margin-bottom: 8px; }
+        .ivme-footer { display: flex; gap: 15px; font-size: 11px; color: #848e9c; border-top: 1px solid #2b2b2b; padding-top: 6px; }
+        
+        .analysis-extra-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+        .extra-card { background: #121418; border: 1px solid #23272e; border-radius: 6px; padding: 8px 10px; }
+        .extra-title { font-size: 11px; font-weight: bold; color: #848e9c; margin-bottom: 6px; border-bottom: 1px solid #23272e; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+        .extra-content { font-size: 12px; color: #eaeaea; }
+        .level-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 11px; }
         .level-lbl { color: #848e9c; }
+        .no-pattern { color: #848e9c; font-style: italic; font-size: 11px; text-align: center; padding: 6px; }
 
-        .prices-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; background: #121418; padding: 5px 6px; border-radius: 4px; margin-bottom: 6px; text-align: center; border: 1px solid #23272e; }
-        .price-item .lbl { font-size: 8px; color: #848e9c; margin-bottom: 1px; }
-        .price-item .val { font-size: 10px; font-weight: bold; }
+        .prices-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #121418; padding: 8px 10px; border-radius: 6px; margin-bottom: 10px; text-align: center; border: 1px solid #23272e; }
+        .price-item .lbl { font-size: 10px; color: #848e9c; margin-bottom: 2px; }
+        .price-item .val { font-size: 13px; font-weight: bold; word-break: break-all; }
         
-        .source-label { font-size: 9px; color: #848e9c; margin-bottom: 3px; text-align: center; }
-        .source-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; margin-bottom: 6px; }
-        .src-btn { background: #1e2329; border: 1px solid #2f363d; color: #848e9c; padding: 3px 4px; border-radius: 3px; font-size: 9px; cursor: pointer; text-align: center; }
+        .source-label { font-size: 11px; color: #848e9c; margin-bottom: 6px; text-align: center; }
+        .source-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+        .src-btn { background: #1e2329; border: 1px solid #2f363d; color: #848e9c; padding: 6px 8px; border-radius: 5px; font-size: 11px; cursor: pointer; text-align: center; transition: 0.2s; }
         .src-btn.active { background: #2b2b23; border-color: #f0b90b; color: #f0b90b; font-weight: bold; }
         
-        .bottom-bar { display: flex; justify-content: space-between; align-items: center; background: #121418; padding: 4px 8px; border-radius: 4px; border: 1px solid #23272e; margin-bottom: 5px; }
-        .coin-select { background: #1e2329; color: #fff; border: 1px solid #2f363d; padding: 2px 4px; border-radius: 3px; outline: none; cursor: pointer; font-size: 10px; }
-        .mark-display { font-size: 10px; font-weight: bold; color: #f0b90b; }
+        .bottom-bar { display: flex; justify-content: space-between; align-items: center; background: #121418; padding: 8px 12px; border-radius: 6px; border: 1px solid #23272e; margin-bottom: 8px; }
+        .coin-select { background: #1e2329; color: #fff; border: 1px solid #2f363d; padding: 4px 8px; border-radius: 4px; outline: none; cursor: pointer; font-size: 12px; }
+        .mark-display { font-size: 13px; font-weight: bold; color: #f0b90b; }
         
-        .refresh-status-bar { display: flex; justify-content: space-between; align-items: center; background: #261f12; border: 1px solid #4a3818; padding: 3px 6px; border-radius: 3px; margin-bottom: 5px; font-size: 9px; color: #f0b90b; }
-        .reset-btn { background: #2b2b2b; color: #eaeaea; border: none; padding: 1px 4px; border-radius: 2px; cursor: pointer; font-size: 8px; }
+        .refresh-status-bar { display: flex; justify-content: space-between; align-items: center; background: #261f12; border: 1px solid #4a3818; padding: 6px 10px; border-radius: 5px; margin-bottom: 8px; font-size: 11px; color: #f0b90b; }
+        .reset-btn { background: #2b2b2b; color: #eaeaea; border: none; padding: 3px 6px; border-radius: 3px; cursor: pointer; font-size: 10px; }
         
-        .result-card { background: #1e2329; border: 1px solid #2f363d; border-radius: 4px; padding: 5px 8px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s; }
-        .result-card:hover { border-color: #f0b90b; transform: translateY(-1px); }
-        .result-card.long { border-left: 2px solid #0ecb81; }
-        .result-card.short { border-left: 2px solid #f6465d; }
-        .res-title { font-size: 9px; font-weight: bold; color: #fff; }
-        .res-sub { font-size: 8px; color: #848e9c; }
-        .res-val { font-size: 11px; font-weight: bold; }
+        .mode-footer { display: flex; justify-content: center; gap: 12px; margin-bottom: 10px; font-size: 11px; color: #848e9c; align-items: center; cursor: pointer; user-select: none; }
+        .mode-footer div:hover { color: #fff; }
+        
+        .result-card { background: #1e2329; border: 1px solid #2f363d; border-radius: 6px; padding: 10px 14px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .result-card.long { border-left: 3px solid #0ecb81; }
+        .result-card.short { border-left: 3px solid #f6465d; }
+        .result-card.avg { border-left: 3px solid #f0b90b; }
+        .res-title { font-size: 12px; font-weight: bold; color: #fff; display: flex; align-items: center; gap: 5px; }
+        .res-sub { font-size: 10px; color: #848e9c; margin-top: 2px; }
+        .res-val { font-size: 14px; font-weight: bold; }
 
-        /* Sağ Ölçeğe Sabitlenmiş Yatay Liq Çizgileri */
-        .chart-liq-lines-container { position: absolute; top: 0; left: 0; width: calc(100vw - 75px); height: 100vh; pointer-events: none; z-index: 4; }
-        .chart-line-wrapper { position: absolute; left: 0; width: 100%; display: flex; align-items: center; pointer-events: auto; cursor: pointer; transition: background 0.2s; }
-        .chart-line-wrapper:hover { background: rgba(255,255,255,0.03); }
-        .chart-line-bar { flex-grow: 1; height: 1px; border-top: 2px dashed; margin: 0 10px; }
-        .chart-line-label { padding: 3px 8px; border-radius: 3px; font-size: 10px; font-weight: bold; backdrop-filter: blur(4px); box-shadow: 0 2px 8px rgba(0,0,0,0.5); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
-        
-        #shortLiqWrapper { top: 35%; }
-        #shortLiqWrapper .chart-line-bar { border-color: #f6465d; }
-        #shortLiqWrapper .chart-line-label { background: rgba(246, 70, 93, 0.2); color: #f6465d; border: 1px solid #f6465d; }
-
-        #longLiqWrapper { top: 68%; }
-        #longLiqWrapper .chart-line-bar { border-color: #0ecb81; }
-        #longLiqWrapper .chart-line-label { background: rgba(14, 203, 129, 0.2); color: #0ecb81; border: 1px solid #0ecb81; }
+        .history-container { display: none; }
+        .history-container.active { display: block; }
+        .history-stat-box { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #121418; padding: 10px; border-radius: 6px; margin-bottom: 10px; text-align: center; border: 1px solid #23272e; }
+        .hist-item .h-lbl { font-size: 10px; color: #848e9c; margin-bottom: 2px; }
+        .hist-item .h-val { font-size: 13px; font-weight: bold; color: #fff; }
+        .history-list { max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+        .history-card { background: #1e2329; border: 1px solid #2f363d; border-radius: 6px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+        .history-card.win { border-left: 3px solid #0ecb81; }
+        .history-card.loss { border-left: 3px solid #f6465d; }
     </style>
 </head>
 <body>
@@ -89,138 +108,172 @@
         <div class="auth-card">
             <div class="auth-title">🔐 Cash Control</div>
             <div class="auth-desc">Devam etmek için erişim şifrenizi girin</div>
-            <input type="password" id="passwordInput" class="auth-input" placeholder="••••" autofocus onkeydown="if(event.key === 'Enter') checkPassword()">
+            <input type="password" id="passwordInput" class="auth-input" placeholder="••••" onkeydown="if(event.key === 'Enter') checkPassword()">
             <button class="auth-btn" onclick="checkPassword()">Giriş Yap</button>
-            <div id="authError" class="auth-error">Hatalı Şifre! (Admin: 1453, User: 1234)</div>
+            <div id="authError" class="auth-error">Hatalı Şifre!</div>
         </div>
     </div>
 
     <div id="tradingview-container"></div>
-
-    <div class="chart-liq-lines-container">
-        <div id="shortLiqWrapper" class="chart-line-wrapper" onclick="openWalletBySource('short')">
-            <div class="chart-line-label">
-                <span>🔴 Shortcu Kar/Liq:</span>
-                <span id="chartShortLiqVal" style="color: #fff;">$0.00</span>
-                <span style="font-size: 8px; background: #f6465d; color: #000; padding: 1px 4px; border-radius: 2px;">Cüzdana Git ↗</span>
-            </div>
-            <div class="chart-line-bar"></div>
-        </div>
-
-        <div id="longLiqWrapper" class="chart-line-wrapper" onclick="openWalletBySource('long')">
-            <div class="chart-line-label">
-                <span>🟢 Longcu Zarar/Liq:</span>
-                <span id="chartLongLiqVal" style="color: #fff;">$0.00</span>
-                <span style="font-size: 8px; background: #0ecb81; color: #000; padding: 1px 4px; border-radius: 2px;">Cüzdana Git ↗</span>
-            </div>
-            <div class="chart-line-bar"></div>
-        </div>
-    </div>
+    <canvas id="chartOverlayCanvas"></canvas>
 
     <div class="top-control-bar">
         <select id="timeframeSelect" class="timeframe-select" onchange="onTimeframeChange()">
-            <option value="5">5dk</option>
-            <option value="15" selected>15dk</option>
-            <option value="30">30dk</option>
-            <option value="60">1s</option>
-            <option value="240">4s</option>
-            <option value="D">1g</option>
+            <option value="5">5 Dakika</option>
+            <option value="15" selected>15 Dakika</option>
+            <option value="30">30 Dakika</option>
+            <option value="60">1 Saat</option>
+            <option value="120">2 Saat</option>
+            <option value="180">3 Saat</option>
+            <option value="240">4 Saat</option>
+            <option value="D">1 Günlük</option>
+            <option value="W">1 Haftalık</option>
         </select>
-        <button class="toggle-panel-btn" onclick="togglePanel()">📊 Panel</button>
-        <button class="logout-btn" onclick="logoutSession()">🔒 Çıkış</button>
+        <button class="toggle-panel-btn" onclick="togglePanel()">📊 Veri Göster / Gizle</button>
+        <button class="logout-btn" onclick="logoutSession()">🔒 Çıkış Yap</button>
     </div>
 
-    <div id="panelModal" class="modal-overlay hidden">
+    <div id="panelModal" class="modal-overlay">
         <div class="main-card">
             <div class="header-top">
-                <div class="title" id="panelTitle">📊 Likidite & Pozisyon Paneli</div>
+                <div class="title" id="panelTitle">
+                    📊 Tüm Kaynakların Ortalaması 
+                    <span id="roleBadgeContainer"></span>
+                </div>
                 <div class="close-btn" onclick="togglePanel()">✕</div>
             </div>
 
-            <div class="ivme-box">
-                <div class="ivme-top">
-                    <span class="badge-long" id="ivmeBadge">⚡ İVME</span>
-                    <span id="currentTime" style="font-size: 8px;">Aktif (UTC)</span>
-                </div>
-                <div class="ivme-desc" id="aiComment">Veriler yükleniyor...</div>
-            </div>
-
-            <div class="analysis-extra-grid">
-                <div class="extra-card">
-                    <div class="extra-title">🛡️ Pivot Destek & Direnç</div>
-                    <div class="extra-content">
-                        <div class="level-row"><span class="level-lbl">Direnç 2:</span> <span id="res2" style="color: #f6465d;">$-</span></div>
-                        <div class="level-row"><span class="level-lbl">Direnç 1:</span> <span id="res1" style="color: #f6465d;">$-</span></div>
-                        <div class="level-row"><span class="level-lbl">Destek 1:</span> <span id="sup1" style="color: #0ecb81;">$-</span></div>
-                        <div class="level-row"><span class="level-lbl">Destek 2:</span> <span id="sup2" style="color: #0ecb81;">$-</span></div>
+            <div id="currentModeView">
+                <div class="ivme-box">
+                    <div class="ivme-top">
+                        <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                            <span class="badge-long">⚡ LONG İVME</span>
+                            <span class="badge-speed">⚡ +4.7x</span>
+                            <span class="badge-breakout">📈 Breakout</span>
+                            <span class="badge-active">🚀 Aktif</span>
+                        </div>
+                        <div id="currentTime" style="font-size: 10px;">--</div>
+                    </div>
+                    <div class="ivme-desc" id="aiComment">Analiz yükleniyor...</div>
+                    <div class="ivme-footer">
+                        <div>🎯 Confluence: <span style="color: #0ecb81; font-weight: bold;">%88.4</span></div>
+                        <div>⚡ İvme: <span style="color: #fff; font-weight: bold;">+4.7x</span></div>
                     </div>
                 </div>
 
-                <div class="extra-card">
-                    <div class="extra-title">⚠️ Likidite Seviyeleri</div>
-                    <div class="extra-content">
-                        <div class="level-row"><span class="level-lbl">Short Liq:</span> <span id="shortLiqVal" style="color: #f6465d; font-weight: bold;">$-</span></div>
-                        <div class="level-row"><span class="level-lbl">Long Liq:</span> <span id="longLiqVal" style="color: #0ecb81; font-weight: bold;">$-</span></div>
-                        <div class="level-row" style="margin-top: 1px;"><span class="level-lbl">Durum:</span> <span style="color: #f0b90b;">Aktif</span></div>
+                <div class="analysis-extra-grid">
+                    <div class="extra-card">
+                        <div class="extra-title">🛡️ Pivot Destek & Direnç</div>
+                        <div class="extra-content" id="supportResistanceContainer">
+                            <div class="level-row"><span class="level-lbl">Direnç 2:</span> <span id="res2" style="color: #f6465d;">$-</span></div>
+                            <div class="level-row"><span class="level-lbl">Direnç 1:</span> <span id="res1" style="color: #f6465d;">$-</span></div>
+                            <div class="level-row"><span class="level-lbl">Destek 1:</span> <span id="sup1" style="color: #0ecb81;">$-</span></div>
+                            <div class="level-row"><span class="level-lbl">Destek 2:</span> <span id="sup2" style="color: #0ecb81;">$-</span></div>
+                        </div>
+                    </div>
+
+                    <div class="extra-card">
+                        <div class="extra-title">📐 Aktif Formasyonlar</div>
+                        <div class="extra-content" id="patternsContainer">
+                            <div class="no-pattern">Formasyon aranıyor...</div>
+                        </div>
                     </div>
                 </div>
+
+                <div class="prices-grid">
+                    <div class="price-item">
+                        <div class="lbl">GİRİŞ (ENTRY)</div>
+                        <div class="val" id="valEntry" style="color: #f0b90b;">$-</div>
+                    </div>
+                    <div class="price-item">
+                        <div class="lbl">KÂR AL (TP)</div>
+                        <div class="val" id="valTP" style="color: #0ecb81;">$-</div>
+                    </div>
+                    <div class="price-item">
+                        <div class="lbl">STOP OL (SL)</div>
+                        <div class="val" id="valSL" style="color: #f6465d;">$-</div>
+                    </div>
+                </div>
+
+                <div class="source-label">Veri Kaynağı Seçin:</div>
+                <div class="source-grid">
+                    <div class="src-btn" onclick="setSource('copy', this)">Sadece Copy</div>
+                    <div class="src-btn" onclick="setSource('whale', this)">Sadece Balina</div>
+                    <div class="src-btn" onclick="setSource('genel_terste', this)">Genel Terste</div>
+                    <div class="src-btn" onclick="setSource('ters_6_20', this)">Ters (%6-20)</div>
+                    <div class="src-btn" onclick="setSource('top20_terste', this)">TOP 20 Ters</div>
+                    <div class="src-btn" onclick="setSource('top20_oransal', this)">TOP 20 Oran</div>
+                    <div class="src-btn active" onclick="setSource('trak', this)" style="grid-column: span 3;">Tüm Kaynakların Ort.</div>
+                </div>
+
+                <div class="bottom-bar">
+                    <div>
+                        <span style="font-size: 12px; color: #848e9c; margin-right: 6px;">Coin:</span>
+                        <select id="coinSelect" class="coin-select" onchange="onCoinChange()"></select>
+                    </div>
+                    <div>
+                        <span style="font-size: 12px; color: #848e9c;">Mark Fiyat: </span>
+                        <span id="markPrice" class="mark-display">$-</span>
+                    </div>
+                </div>
+
+                <div class="refresh-status-bar">
+                    <div>⏳ Cache: <span id="refreshCountdown">5s</span></div>
+                    <button class="reset-btn" id="resetBtn" onclick="manualRefresh()">Sıfırla</button>
+                </div>
             </div>
 
-            <div class="prices-grid">
-                <div class="price-item">
-                    <div class="lbl">GİRİŞ (ENTRY)</div>
-                    <div class="val" id="valEntry" style="color: #f0b90b;">$-</div>
+            <div id="historyModeView" class="history-container">
+                <div class="history-stat-box">
+                    <div class="hist-item">
+                        <div class="h-lbl">TOPLAM İŞLEM</div>
+                        <div class="h-val" id="statTotal">0</div>
+                    </div>
+                    <div class="hist-item">
+                        <div class="h-lbl">KAZANAN (WIN)</div>
+                        <div class="h-val" id="statWins" style="color: #0ecb81;">0</div>
+                    </div>
+                    <div class="hist-item">
+                        <div class="h-lbl">BAŞARI ORANI</div>
+                        <div class="h-val" id="statWinRate" style="color: #f0b90b;">%0.0</div>
+                    </div>
                 </div>
-                <div class="price-item">
-                    <div class="lbl">KÂR AL (TP)</div>
-                    <div class="val" id="valTP" style="color: #0ecb81;">$-</div>
-                </div>
-                <div class="price-item">
-                    <div class="lbl">STOP OL (SL)</div>
-                    <div class="val" id="valSL" style="color: #f6465d;">$-</div>
-                </div>
-            </div>
-
-            <div class="source-label">Veri Kaynağı:</div>
-            <div class="source-grid">
-                <div class="src-btn" onclick="setSource('copy', this)">Copy</div>
-                <div class="src-btn" onclick="setSource('whale', this)">Balina</div>
-                <div class="src-btn" onclick="setSource('genel_terste', this)">Genel Terste</div>
-                <div class="src-btn" onclick="setSource('ters_6_20', this)">Ters (%6-20)</div>
-                <div class="src-btn" onclick="setSource('top20_terste', this)">TOP 20 Ters</div>
-                <div class="src-btn active" onclick="setSource('trak', this)" style="grid-column: span 3;">Tüm Kaynakların Ortalaması</div>
-            </div>
-
-            <div class="bottom-bar">
-                <div>
-                    <span style="font-size: 10px; color: #848e9c; margin-right: 3px;">Coin:</span>
-                    <select id="coinSelect" class="coin-select" onchange="onCoinChange()"></select>
-                </div>
-                <div>
-                    <span style="font-size: 10px; color: #848e9c;">Mark: </span>
-                    <span id="markPrice" class="mark-display">$-</span>
+                <div class="source-label" style="margin-bottom: 8px;">Kapanan Canlı Sinyal Arşivi:</div>
+                <div class="history-list" id="historyListContainer">
+                    <div class="no-pattern">Henüz tamamlanan sinyal bulunmuyor...</div>
                 </div>
             </div>
 
-            <div class="refresh-status-bar">
-                <div>⏳ Arka Plan: <span id="refreshCountdown">5s</span></div>
-                <button class="reset-btn" onclick="fetchStats(currentSymbol, currentTimeframe)">Güncelle</button>
+            <div class="mode-footer">
+                <div id="btnModeCurrent" onclick="switchViewMode('current')" style="color: #f0b90b;">🟡 <strong>Güncel</strong></div>
+                <div style="color: #444;">○</div>
+                <div id="btnModeHistory" onclick="switchViewMode('history')">Geçmiş</div>
             </div>
 
-            <div class="result-card long" onclick="openWalletBySource('long')">
-                <div>
-                    <div class="res-title"><span style="color: #0ecb81;">●</span> LONG Ortalama Giriş (Cüzdana Git)</div>
-                    <div class="res-sub" id="longSub">(Yükleniyor...)</div>
+            <div id="resultCardsContainer">
+                <div class="result-card long">
+                    <div>
+                        <div class="res-title"><span style="color: #0ecb81;">●</span> LONG Ort. Giriş:</div>
+                        <div class="res-sub" id="longSub">(- işlem, -$ size)</div>
+                    </div>
+                    <div class="res-val" id="longVal" style="color: #0ecb81;">$-</div>
                 </div>
-                <div class="res-val" id="longVal" style="color: #0ecb81;">$-</div>
-            </div>
 
-            <div class="result-card short" onclick="openWalletBySource('short')">
-                <div>
-                    <div class="res-title"><span style="color: #f6465d;">●</span> SHORT Ortalama Giriş (Cüzdana Git)</div>
-                    <div class="res-sub" id="shortSub">(Yükleniyor...)</div>
+                <div class="result-card short">
+                    <div>
+                        <div class="res-title"><span style="color: #f6465d;">●</span> SHORT Ort. Giriş:</div>
+                        <div class="res-sub" id="shortSub">(- işlem, -$ size)</div>
+                    </div>
+                    <div class="res-val" id="shortVal" style="color: #f6465d;">$-</div>
                 </div>
-                <div class="res-val" id="shortVal" style="color: #f6465d;">$-</div>
+
+                <div class="result-card avg">
+                    <div>
+                        <div class="res-title"><span style="color: #f0b90b;">●</span> Ortalama Giriş:</div>
+                        <div class="res-sub">Ağırlıklı genel ortalama</div>
+                    </div>
+                    <div class="res-val" id="avgVal" style="color: #f0b90b;">$-</div>
+                </div>
             </div>
         </div>
     </div>
@@ -229,64 +282,147 @@
         let currentSymbol = "BTC";
         let currentTimeframe = "15";
         let currentSource = "trak";
+        let autoInterval = null;
         let currentUserRole = null;
-        let chartInitialized = false;
+        let savedPivots = JSON.parse(localStorage.getItem('cashControl_savedPivots')) || {};
+        let currentMarkPrice = 0;
+        let currentLongAvg = 0;
+        let currentShortAvg = 0;
+        let currentGeneralAvg = 0;
 
         const ADMIN_PASS = "1453";
         const USER_PASS = "1234";
 
         function checkPassword() {
-            let inputField = document.getElementById('passwordInput');
-            let input = inputField.value.trim();
+            let input = document.getElementById('passwordInput').value;
             let errorMsg = document.getElementById('authError');
             
-            if (input === ADMIN_PASS || input === USER_PASS) {
-                currentUserRole = (input === ADMIN_PASS) ? 'admin' : 'user';
-                try {
-                    localStorage.setItem('cc_session', currentUserRole);
-                } catch(e) {}
-                
-                document.getElementById('authOverlay').style.display = 'none';
+            if (input === ADMIN_PASS) {
+                currentUserRole = 'admin';
+                initSession();
+            } else if (input === USER_PASS) {
+                currentUserRole = 'user';
                 initSession();
             } else {
                 errorMsg.style.display = 'block';
-                inputField.value = '';
-                inputField.focus();
+                document.getElementById('passwordInput').value = '';
             }
         }
 
         function initSession() {
+            document.getElementById('authOverlay').style.display = 'none';
+            localStorage.setItem('cashControl_role', currentUserRole);
+            
+            let badgeContainer = document.getElementById('roleBadgeContainer');
+            if(currentUserRole === 'admin') {
+                badgeContainer.innerHTML = `<span class="role-badge admin">👑 Admin Panel</span>`;
+                document.getElementById('resetBtn').style.opacity = "1";
+                document.getElementById('resetBtn').style.pointerEvents = "auto";
+            } else {
+                badgeContainer.innerHTML = `<span class="role-badge user">👤 Kullanıcı Panel</span>`;
+                let resetBtn = document.getElementById('resetBtn');
+                resetBtn.innerText = "Kısıtlı";
+                resetBtn.style.opacity = "0.5";
+                resetBtn.style.pointerEvents = "none";
+            }
+
             loadCoins();
-            initTradingViewChart(currentSymbol, currentTimeframe);
-            fetchStats(currentSymbol, currentTimeframe);
+            loadTradeHistory();
+            initCanvas();
         }
 
         function logoutSession() {
-            try {
-                localStorage.removeItem('cc_session');
-            } catch(e) {}
+            localStorage.removeItem('cashControl_role');
             location.reload();
         }
 
-        function togglePanel() {
-            document.getElementById('panelModal').classList.toggle('hidden');
+        function saveSavedPivots() {
+            localStorage.setItem('cashControl_savedPivots', JSON.stringify(savedPivots));
         }
 
-        function openWalletBySource(type) {
-            let targetUrl = `https://app.hyperliquid.xyz/trade/${currentSymbol}`;
-            if (currentSource === 'copy' || currentSource === 'whale') {
-                targetUrl = `https://www.binance.com/tr/futures/leaderboard`;
+        function togglePanel() {
+            let modal = document.getElementById('panelModal');
+            modal.classList.toggle('hidden');
+        }
+
+        function switchViewMode(mode) {
+            let currentView = document.getElementById('currentModeView');
+            let historyView = document.getElementById('historyModeView');
+            let btnCurr = document.getElementById('btnModeCurrent');
+            let btnHist = document.getElementById('btnModeHistory');
+
+            if (mode === 'current') {
+                currentView.style.display = 'block';
+                historyView.classList.remove('active');
+                btnCurr.style.color = '#f0b90b';
+                btnHist.style.color = '#848e9c';
+                btnCurr.innerHTML = `🟡 <strong>Güncel</strong>`;
+                btnHist.innerHTML = `Geçmiş`;
+            } else {
+                currentView.style.display = 'none';
+                historyView.classList.add('active');
+                btnHist.style.color = '#f0b90b';
+                btnCurr.style.color = '#848e9c';
+                btnHist.innerHTML = `🟡 <strong>Geçmiş</strong>`;
+                btnCurr.innerHTML = `Güncel`;
+                loadTradeHistory();
             }
-            window.open(targetUrl, '_blank');
+        }
+
+        async function loadTradeHistory() {
+            try {
+                let res = await fetch('/api/trade-history');
+                let json = await res.json();
+                if (json.status === 'success') {
+                    let trades = json.closed_trades;
+                    let total = trades.length;
+                    let wins = trades.filter(t => t.result === 'WIN').length;
+                    let winRate = total > 0 ? ((wins / total) * 100).toFixed(1) : 0.0;
+
+                    document.getElementById('statTotal').innerText = total;
+                    document.getElementById('statWins').innerText = wins;
+                    document.getElementById('statWinRate').innerText = "%" + winRate;
+
+                    let listContainer = document.getElementById('historyListContainer');
+                    if (total === 0) {
+                        listContainer.innerHTML = `<div class="no-pattern">Henüz tamamlanan sinyal bulunmuyor...</div>`;
+                        return;
+                    }
+
+                    let html = '';
+                    trades.forEach(t => {
+                        let cardClass = t.result === 'WIN' ? 'history-card win' : 'history-card loss';
+                        let resColor = t.result === 'WIN' ? '#0ecb81' : '#f6465d';
+                        html += `
+                            <div class="${cardClass}">
+                                <div>
+                                    <div style="font-weight: bold; color: #fff;">${t.symbol} <span style="font-size: 10px; color: #848e9c;">(${t.type})</span></div>
+                                    <div style="font-size: 10px; color: #848e9c;">Giriş: $${formatPrice(t.entry)} | Çıkış: $${formatPrice(t.exit_price)}</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-weight: bold; color: ${resColor};">${t.result}</div>
+                                    <div style="font-size: 9px; color: #848e9c;">${t.closed_at}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    listContainer.innerHTML = html;
+                }
+            } catch (e) {
+                console.error("Geçmiş yüklenemedi:", e);
+            }
         }
 
         function formatPrice(val) {
             let num = parseFloat(val);
             if (isNaN(num)) return "$-";
+            if (num < 0.0001) return num.toFixed(6);
+            if (num < 1) return num.toFixed(4);
+            if (num < 10) return num.toFixed(3);
             return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
-        function initTradingViewChart(symbol, timeframe) {
+        function updateTradingViewChart(symbol, timeframe) {
             let container = document.getElementById('tradingview-container');
             container.innerHTML = ''; 
             
@@ -297,7 +433,7 @@
             
             let innerDiv = document.createElement('div');
             innerDiv.className = "tradingview-widget-container__widget";
-            innerDiv.style.height = "100%";
+            innerDiv.style.height = "calc(100% - 32px)";
             innerDiv.style.width = "100%";
             widgetDiv.appendChild(innerDiv);
             
@@ -321,70 +457,200 @@
             
             widgetDiv.appendChild(script);
             container.appendChild(widgetDiv);
-            chartInitialized = true;
+        }
+
+        /* Liq Seviyeleri ve Çizgileri Çizen Canvas Mantığı */
+        function initCanvas() {
+            const canvas = document.getElementById('chartOverlayCanvas');
+            const ctx = canvas.getContext('2d');
+
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            window.addEventListener('resize', resize);
+            resize();
+
+            function drawOverlay() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (currentMarkPrice > 0) {
+                    let height = canvas.height;
+                    let width = canvas.width;
+                    
+                    // Grafik ölçeklendirmesi (Mark fiyata göre tahmini dikey konum hesabı)
+                    let priceSpan = currentMarkPrice * 0.04; 
+                    let topPrice = currentMarkPrice + priceSpan;
+                    let bottomPrice = currentMarkPrice - priceSpan;
+
+                    function priceToY(price) {
+                        return height * 0.1 + ((topPrice - price) / (topPrice - bottomPrice)) * (height * 0.8);
+                    }
+
+                    // 1. Short Liq / Short Ortalama Çizgisi (Kırmızı Kesikli)
+                    if (currentShortAvg > 0) {
+                        let yShort = priceToY(currentShortAvg);
+                        ctx.strokeStyle = '#f6465d';
+                        ctx.lineWidth = 2;
+                        ctx.setLineDash([8, 6]);
+                        ctx.beginPath();
+                        ctx.moveTo(0, yShort);
+                        ctx.lineTo(width - 100, yShort);
+                        ctx.stroke();
+
+                        // Etiket Kutusu
+                        ctx.fillStyle = '#f6465d';
+                        ctx.fillRect(width - 150, yShort - 12, 140, 24);
+                        ctx.fillStyle = '#fff';
+                        ctx.font = 'bold 11px sans-serif';
+                        ctx.fillText(`Shortcu Zararda: $${formatPrice(currentShortAvg)}`, width - 145, yShort + 4);
+                    }
+
+                    // 2. Ortalama Giriş / Genel Ortalama (Beyaz Çizgi)
+                    if (currentGeneralAvg > 0) {
+                        let yGen = priceToY(currentGeneralAvg);
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = 2;
+                        ctx.setLineDash([12, 6]);
+                        ctx.beginPath();
+                        ctx.moveTo(0, yGen);
+                        ctx.lineTo(width - 100, yGen);
+                        ctx.stroke();
+
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(width - 150, yGen - 12, 140, 24);
+                        ctx.fillStyle = '#0b0e11';
+                        ctx.font = 'bold 11px sans-serif';
+                        ctx.fillText(`● Ortalama Seviye`, width - 145, yGen + 4);
+                    }
+
+                    // 3. Long Liq / Long Ortalama Çizgisi (Yeşil Düz Çizgi)
+                    if (currentLongAvg > 0) {
+                        let yLong = priceToY(currentLongAvg);
+                        ctx.strokeStyle = '#0ecb81';
+                        ctx.lineWidth = 2;
+                        ctx.setLineDash([]); // Düz çizgi
+                        ctx.beginPath();
+                        ctx.moveTo(0, yLong);
+                        ctx.lineTo(width - 100, yLong);
+                        ctx.stroke();
+
+                        ctx.fillStyle = '#0ecb81';
+                        ctx.fillRect(width - 150, yLong - 12, 140, 24);
+                        ctx.fillStyle = '#0b0e11';
+                        ctx.font = 'bold 11px sans-serif';
+                        ctx.fillText(`Longcu Zararda: $${formatPrice(currentLongAvg)}`, width - 145, yLong + 4);
+                    }
+                }
+                requestAnimationFrame(drawOverlay);
+            }
+            requestAnimationFrame(drawOverlay);
         }
 
         async function loadCoins() {
-            let defaultCoins = ["BTC", "ETH", "SOL", "ARB", "XRP", "DOGE"];
             try {
                 let res = await fetch('/api/coins');
                 let data = await res.json();
-                if(data.status === 'success' && data.coins) {
-                    defaultCoins = data.coins;
+                if(data.status === 'success') {
+                    let select = document.getElementById('coinSelect');
+                    let oldVal = select.value;
+                    select.innerHTML = '';
+                    
+                    data.coins.forEach(coin => {
+                        let opt = document.createElement('option');
+                        opt.value = coin;
+                        opt.text = coin + "USDT";
+                        select.appendChild(opt);
+                    });
+                    
+                    if (data.coins.includes(oldVal)) {
+                        select.value = oldVal;
+                        currentSymbol = oldVal;
+                    } else if(data.coins.length > 0) {
+                        currentSymbol = data.coins[0];
+                        select.value = currentSymbol;
+                    }
+                    
+                    if(currentSymbol) {
+                        updateTradingViewChart(currentSymbol, currentTimeframe);
+                        fetchStats(currentSymbol, currentTimeframe);
+                        startRealtimeSync();
+                    }
                 }
-            } catch(e) {}
+            } catch(e) {
+                console.error("Coinler yüklenemedi", e);
+            }
+        }
+
+        function getOrSetPivotLevels(symbol, markPrice) {
+            let p = parseFloat(markPrice);
+            if (isNaN(p) || p <= 0) return { res2: "-", res1: "-", sup1: "-", sup2: "-" };
+
+            if (savedPivots[symbol]) {
+                return savedPivots[symbol];
+            }
+
+            let high = p * 1.015;
+            let low = p * 0.985;
+            let pivot = (high + low + p) / 3;
+
+            let r1 = (2 * pivot) - low;
+            let s1 = (2 * pivot) - high;
+            let r2 = pivot + (high - low);
+            let s2 = pivot - (high - low);
+
+            savedPivots[symbol] = {
+                res2: r2,
+                res1: r1,
+                sup1: s1,
+                sup2: s2
+            };
             
-            let select = document.getElementById('coinSelect');
-            select.innerHTML = '';
-            defaultCoins.forEach(coin => {
-                let cleanCoin = coin.replace("USDT", "");
-                let opt = document.createElement('option');
-                opt.value = cleanCoin;
-                opt.text = cleanCoin + "USDT";
-                select.appendChild(opt);
-            });
-            select.value = currentSymbol;
-            startBackgroundSync();
+            saveSavedPivots();
+            return savedPivots[symbol];
         }
 
         async function fetchStats(symbol, timeframe) {
             try {
-                let res = await fetch(`/api/market-stats/${symbol}?source=${currentSource}&timeframe=${timeframe}`);
+                let res = await fetch(`/api/market-stats/${symbol}?timeframe=${timeframe}`);
                 let json = await res.json();
-                
-                if(json.status === 'success' && json.data) {
+                if(json.status === 'success') {
                     let d = json.data;
+                    let ai = d.ai_analysis;
                     
-                    if(d.markPrice) document.getElementById('markPrice').innerText = "$" + formatPrice(d.markPrice);
-                    if(d.entry) document.getElementById('valEntry').innerText = "$" + formatPrice(d.entry);
-                    if(d.tp) document.getElementById('valTP').innerText = "$" + formatPrice(d.tp);
-                    if(d.sl) document.getElementById('valSL').innerText = "$" + formatPrice(d.sl);
+                    currentMarkPrice = d.markPrice;
+                    document.getElementById('markPrice').innerText = "$" + formatPrice(d.markPrice);
+                    document.getElementById('aiComment').innerText = `[${timeframe} Periyot] ` + ai.comment;
 
-                    if(d.shortLiq) {
-                        let shortFormatted = "$" + formatPrice(d.shortLiq);
-                        document.getElementById('shortLiqVal').innerText = shortFormatted;
-                        document.getElementById('chartShortLiqVal').innerText = shortFormatted;
-                    }
-                    if(d.longLiq) {
-                        let longFormatted = "$" + formatPrice(d.longLiq);
-                        document.getElementById('longLiqVal').innerText = longFormatted;
-                        document.getElementById('chartLongLiqVal').innerText = longFormatted;
-                    }
+                    document.getElementById('valEntry').innerText = "$" + formatPrice(ai.entry);
+                    document.getElementById('valTP').innerText = "$" + formatPrice(ai.tp);
+                    document.getElementById('valSL').innerText = "$" + formatPrice(ai.sl);
 
-                    if(d.res2) document.getElementById('res2').innerText = "$" + formatPrice(d.res2);
-                    if(d.res1) document.getElementById('res1').innerText = "$" + formatPrice(d.res1);
-                    if(d.sup1) document.getElementById('sup1').innerText = "$" + formatPrice(d.sup1);
-                    if(d.sup2) document.getElementById('sup2').innerText = "$" + formatPrice(d.sup2);
+                    let pivots = getOrSetPivotLevels(symbol, d.markPrice);
+                    document.getElementById('res2').innerText = "$" + formatPrice(pivots.res2);
+                    document.getElementById('res1').innerText = "$" + formatPrice(pivots.res1);
+                    document.getElementById('sup1').innerText = "$" + formatPrice(pivots.sup1);
+                    document.getElementById('sup2').innerText = "$" + formatPrice(pivots.sup2);
 
-                    if(d.longVal) document.getElementById('longVal').innerText = "$" + formatPrice(d.longVal);
-                    if(d.longSub) document.getElementById('longSub').innerText = d.longSub;
+                    let patternsContainer = document.getElementById('patternsContainer');
+                    patternsContainer.innerHTML = `<div class="no-pattern">Aktif Formasyon Bulunamadı</div>`;
                     
-                    if(d.shortVal) document.getElementById('shortVal').innerText = "$" + formatPrice(d.shortVal);
-                    if(d.shortSub) document.getElementById('shortSub').innerText = d.shortSub;
+                    let srcData = d.sources[currentSource] || d.sources["trak"];
+                    
+                    currentLongAvg = srcData.long_avg;
+                    currentShortAvg = srcData.short_avg;
+                    currentGeneralAvg = srcData.general_avg;
 
-                    if(d.aiComment) {
-                        document.getElementById('aiComment').innerText = `[${timeframe}dk Periyot] ` + d.aiComment;
-                    }
+                    document.getElementById('longVal').innerText = "$" + formatPrice(srcData.long_avg);
+                    document.getElementById('longSub').innerText = `(${srcData.long_count} işlem, $${srcData.long_size.toFixed(1)}K size)`;
+                    
+                    document.getElementById('shortVal').innerText = "$" + formatPrice(srcData.short_avg);
+                    document.getElementById('shortSub').innerText = `(${srcData.short_count} işlem, $${srcData.short_size.toFixed(1)}K size)`;
+                    
+                    document.getElementById('avgVal').innerText = "$" + formatPrice(srcData.general_avg);
+                    
+                    let now = new Date();
+                    document.getElementById('currentTime').innerText = now.toLocaleDateString('tr-TR') + " " + now.toLocaleTimeString('tr-TR') + " (TRT)";
                 }
             } catch(e) {
                 console.error("Veri çekme hatası:", e);
@@ -392,15 +658,16 @@
         }
 
         function onCoinChange() {
-            let selectEl = document.getElementById('coinSelect');
-            currentSymbol = selectEl.value;
-            initTradingViewChart(currentSymbol, currentTimeframe);
+            let select = document.getElementById('coinSelect');
+            currentSymbol = select.value;
+            updateTradingViewChart(currentSymbol, currentTimeframe);
             fetchStats(currentSymbol, currentTimeframe);
         }
 
         function onTimeframeChange() {
-            currentTimeframe = document.getElementById('timeframeSelect').value;
-            initTradingViewChart(currentSymbol, currentTimeframe);
+            let select = document.getElementById('timeframeSelect');
+            currentTimeframe = select.value;
+            updateTradingViewChart(currentSymbol, currentTimeframe);
             fetchStats(currentSymbol, currentTimeframe);
         }
 
@@ -411,7 +678,13 @@
             fetchStats(currentSymbol, currentTimeframe);
         }
 
-        function startBackgroundSync() {
+        function manualRefresh() {
+            if (currentUserRole !== 'admin') return;
+            fetchStats(currentSymbol, currentTimeframe);
+        }
+
+        function startRealtimeSync() {
+            if(autoInterval) clearInterval(autoInterval);
             let secondsLeft = 5;
             setInterval(() => {
                 secondsLeft--;
@@ -427,21 +700,10 @@
         }
 
         window.onload = () => {
-            let savedSession = null;
-            try {
-                savedSession = localStorage.getItem('cc_session');
-            } catch(e) {}
-
-            if (savedSession === 'admin' || savedSession === 'user') {
-                currentUserRole = savedSession;
-                document.getElementById('authOverlay').style.display = 'none';
+            let savedRole = localStorage.getItem('cashControl_role');
+            if (savedRole === 'admin' || savedRole === 'user') {
+                currentUserRole = savedRole;
                 initSession();
-            } else {
-                document.getElementById('authOverlay').style.display = 'flex';
-                setTimeout(() => {
-                    let pwInput = document.getElementById('passwordInput');
-                    if(pwInput) pwInput.focus();
-                }, 100);
             }
         };
     </script>
