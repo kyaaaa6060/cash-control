@@ -8,7 +8,7 @@
     <style>
         body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; height: 100vh; overflow: hidden; position: relative; }
         
-        /* Alt zaman şeridinin (09:00, 10:00 vb.) kesilmemesi için alttan 35px pay bırakıldı */
+        /* Zaman şeridinin kesilmemesi ve kaydırma yapmadan görünmesi için optimize edildi */
         #tradingview-container { width: 100vw; height: calc(100vh - 35px); position: absolute; top: 0; left: 0; z-index: 1; }
 
         .top-control-bar { position: absolute; top: 15px; right: 20px; z-index: 10; display: flex; gap: 8px; align-items: center; }
@@ -28,6 +28,9 @@
         .role-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 6px; }
         .role-badge.admin { background: rgba(240, 185, 11, 0.2); color: #f0b90b; border: 1px solid rgba(240, 185, 11, 0.4); }
         .role-badge.user { background: rgba(14, 203, 129, 0.2); color: #0ecb81; border: 1px solid rgba(14, 203, 129, 0.4); }
+
+        /* SAĞ ALT KÖŞEDEKİ ANLIK SAAT ETİKETİ */
+        .live-clock-badge { position: absolute; bottom: 8px; right: 15px; z-index: 5; background: rgba(18, 20, 24, 0.85); border: 1px solid #2f363d; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; color: #f0b90b; backdrop-filter: blur(4px); pointer-events: none; }
 
         .auth-overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(11, 14, 17, 0.95); z-index: 100; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(8px); }
         .auth-card { background: #181a20; border: 1px solid #2b2b2b; border-radius: 10px; width: 100%; max-width: 350px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); text-align: center; }
@@ -116,8 +119,11 @@
         </div>
     </div>
 
-    <!-- Zaman Ekseninin Kesin Görünmesi İçin Üstten ve Yandan Tam Oturtulmuş Kapsayıcı -->
+    <!-- TradingView Kapsayıcısı -->
     <div id="tradingview-container"></div>
+
+    <!-- Sağ Alt Köşedeki Anlık Canlı Saat -->
+    <div id="liveClockBadge" class="live-clock-badge">--:--:--</div>
 
     <div class="top-control-bar">
         <!-- HIZLI PERİYOT ÇUBUKLARI -->
@@ -286,6 +292,7 @@
         let currentTimeframe = "15";
         let currentSource = "trak";
         let autoInterval = null;
+        let clockInterval = null;
         let currentUserRole = null;
         let tvWidget = null;
         let savedPivots = JSON.parse(localStorage.getItem('cashControl_savedPivots')) || {};
@@ -331,6 +338,23 @@
 
             loadCoins();
             loadTradeHistory();
+            startLiveClock();
+        }
+
+        function startLiveClock() {
+            if(clockInterval) clearInterval(clockInterval);
+            
+            function updateClock() {
+                let now = new Date();
+                let timeString = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                let clockEl = document.getElementById('liveClockBadge');
+                if(clockEl) {
+                    clockEl.innerText = timeString;
+                }
+            }
+            
+            updateClock();
+            clockInterval = setInterval(updateClock, 1000);
         }
 
         function logoutSession() {
