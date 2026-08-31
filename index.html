@@ -101,7 +101,7 @@
         <div id="shortLiqWrapper" class="chart-line-wrapper" onclick="openWalletBySource('short')">
             <div class="chart-line-label">
                 <span>🔴 Shortcu Kar/Liq:</span>
-                <span id="chartShortLiqVal" style="color: #fff;">$70,850.00</span>
+                <span id="chartShortLiqVal" style="color: #fff;">$0.00</span>
                 <span style="font-size: 8px; background: #f6465d; color: #000; padding: 1px 4px; border-radius: 2px;">Cüzdana Git ↗</span>
             </div>
             <div class="chart-line-bar"></div>
@@ -110,7 +110,7 @@
         <div id="longLiqWrapper" class="chart-line-wrapper" onclick="openWalletBySource('long')">
             <div class="chart-line-label">
                 <span>🟢 Longcu Zarar/Liq:</span>
-                <span id="chartLongLiqVal" style="color: #fff;">$70,413.21</span>
+                <span id="chartLongLiqVal" style="color: #fff;">$0.00</span>
                 <span style="font-size: 8px; background: #0ecb81; color: #000; padding: 1px 4px; border-radius: 2px;">Cüzdana Git ↗</span>
             </div>
             <div class="chart-line-bar"></div>
@@ -139,28 +139,28 @@
 
             <div class="ivme-box">
                 <div class="ivme-top">
-                    <span class="badge-long">⚡ LONG İVME</span>
-                    <span id="currentTime" style="font-size: 8px;">13:32 (UTC)</span>
+                    <span class="badge-long" id="ivmeBadge">⚡ İVME</span>
+                    <span id="currentTime" style="font-size: 8px;">Aktif (UTC)</span>
                 </div>
-                <div class="ivme-desc" id="aiComment">[15dk Periyot] Long yönlü baskı korunuyor, likidite taraması aktif.</div>
+                <div class="ivme-desc" id="aiComment">Veriler yükleniyor...</div>
             </div>
 
             <div class="analysis-extra-grid">
                 <div class="extra-card">
                     <div class="extra-title">🛡️ Pivot Destek & Direnç</div>
                     <div class="extra-content">
-                        <div class="level-row"><span class="level-lbl">Direnç 2:</span> <span id="res2" style="color: #f6465d;">$71,200.00</span></div>
-                        <div class="level-row"><span class="level-lbl">Direnç 1:</span> <span id="res1" style="color: #f6465d;">$70,950.00</span></div>
-                        <div class="level-row"><span class="level-lbl">Destek 1:</span> <span id="sup1" style="color: #0ecb81;">$70,400.00</span></div>
-                        <div class="level-row"><span class="level-lbl">Destek 2:</span> <span id="sup2" style="color: #0ecb81;">$70,100.00</span></div>
+                        <div class="level-row"><span class="level-lbl">Direnç 2:</span> <span id="res2" style="color: #f6465d;">$-</span></div>
+                        <div class="level-row"><span class="level-lbl">Direnç 1:</span> <span id="res1" style="color: #f6465d;">$-</span></div>
+                        <div class="level-row"><span class="level-lbl">Destek 1:</span> <span id="sup1" style="color: #0ecb81;">$-</span></div>
+                        <div class="level-row"><span class="level-lbl">Destek 2:</span> <span id="sup2" style="color: #0ecb81;">$-</span></div>
                     </div>
                 </div>
 
                 <div class="extra-card">
                     <div class="extra-title">⚠️ Likidite Seviyeleri</div>
                     <div class="extra-content">
-                        <div class="level-row"><span class="level-lbl">Short Liq:</span> <span id="shortLiqVal" style="color: #f6465d; font-weight: bold;">$70,850.00</span></div>
-                        <div class="level-row"><span class="level-lbl">Long Liq:</span> <span id="longLiqVal" style="color: #0ecb81; font-weight: bold;">$70,413.21</span></div>
+                        <div class="level-row"><span class="level-lbl">Short Liq:</span> <span id="shortLiqVal" style="color: #f6465d; font-weight: bold;">$-</span></div>
+                        <div class="level-row"><span class="level-lbl">Long Liq:</span> <span id="longLiqVal" style="color: #0ecb81; font-weight: bold;">$-</span></div>
                         <div class="level-row" style="margin-top: 1px;"><span class="level-lbl">Durum:</span> <span style="color: #f0b90b;">Aktif</span></div>
                     </div>
                 </div>
@@ -169,15 +169,15 @@
             <div class="prices-grid">
                 <div class="price-item">
                     <div class="lbl">GİRİŞ (ENTRY)</div>
-                    <div class="val" id="valEntry" style="color: #f0b90b;">$70,500.00</div>
+                    <div class="val" id="valEntry" style="color: #f0b90b;">$-</div>
                 </div>
                 <div class="price-item">
                     <div class="lbl">KÂR AL (TP)</div>
-                    <div class="val" id="valTP" style="color: #0ecb81;">$71,100.00</div>
+                    <div class="val" id="valTP" style="color: #0ecb81;">$-</div>
                 </div>
                 <div class="price-item">
                     <div class="lbl">STOP OL (SL)</div>
-                    <div class="val" id="valSL" style="color: #f6465d;">$70,250.00</div>
+                    <div class="val" id="valSL" style="color: #f6465d;">$-</div>
                 </div>
             </div>
 
@@ -198,7 +198,7 @@
                 </div>
                 <div>
                     <span style="font-size: 10px; color: #848e9c;">Mark: </span>
-                    <span id="markPrice" class="mark-display">$70,613.00</span>
+                    <span id="markPrice" class="mark-display">$-</span>
                 </div>
             </div>
 
@@ -210,17 +210,17 @@
             <div class="result-card long" onclick="openWalletBySource('long')">
                 <div>
                     <div class="res-title"><span style="color: #0ecb81;">●</span> LONG Ortalama Giriş (Cüzdana Git)</div>
-                    <div class="res-sub" id="longSub">(12 işlem, $71.8K size)</div>
+                    <div class="res-sub" id="longSub">(Yükleniyor...)</div>
                 </div>
-                <div class="res-val" id="longVal" style="color: #0ecb81;">$70,736.00</div>
+                <div class="res-val" id="longVal" style="color: #0ecb81;">$-</div>
             </div>
 
             <div class="result-card short" onclick="openWalletBySource('short')">
                 <div>
                     <div class="res-title"><span style="color: #f6465d;">●</span> SHORT Ortalama Giriş (Cüzdana Git)</div>
-                    <div class="res-sub" id="shortSub">(5 işlem, $391.9K size)</div>
+                    <div class="res-sub" id="shortSub">(Yükleniyor...)</div>
                 </div>
-                <div class="res-val" id="shortVal" style="color: #f6465d;">$70,859.00</div>
+                <div class="res-val" id="shortVal" style="color: #f6465d;">$-</div>
             </div>
         </div>
     </div>
@@ -325,7 +325,7 @@
         }
 
         async function loadCoins() {
-            let defaultCoins = ["BTC", "ETH", "SOL", "ARBUSDT".replace("USDT",""), "XRP", "DOGE"];
+            let defaultCoins = ["BTC", "ETH", "SOL", "ARB", "XRP", "DOGE"];
             try {
                 let res = await fetch('/api/coins');
                 let data = await res.json();
@@ -337,9 +337,10 @@
             let select = document.getElementById('coinSelect');
             select.innerHTML = '';
             defaultCoins.forEach(coin => {
+                let cleanCoin = coin.replace("USDT", "");
                 let opt = document.createElement('option');
-                opt.value = coin;
-                opt.text = coin + "USDT";
+                opt.value = cleanCoin;
+                opt.text = cleanCoin + "USDT";
                 select.appendChild(opt);
             });
             select.value = currentSymbol;
@@ -385,11 +386,14 @@
                         document.getElementById('aiComment').innerText = `[${timeframe}dk Periyot] ` + d.aiComment;
                     }
                 }
-            } catch(e) {}
+            } catch(e) {
+                console.error("Veri çekme hatası:", e);
+            }
         }
 
         function onCoinChange() {
-            currentSymbol = document.getElementById('coinSelect').value;
+            let selectEl = document.getElementById('coinSelect');
+            currentSymbol = selectEl.value;
             initTradingViewChart(currentSymbol, currentTimeframe);
             fetchStats(currentSymbol, currentTimeframe);
         }
