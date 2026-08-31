@@ -69,7 +69,7 @@
         .res-sub { font-size: 8px; color: #848e9c; }
         .res-val { font-size: 11px; font-weight: bold; }
 
-        /* Videdaki gibi Grafik Üstü Şerit Liq Çizgi Tasarımları (Tıklayınca Cüzdana Gider) */
+        /* Grafik Üstü Tıklanabilir Şerit Liq Çizgileri */
         .chart-liq-overlay { position: absolute; left: 15px; bottom: 50px; z-index: 5; display: flex; flex-direction: column; gap: 6px; pointer-events: none; width: calc(100% - 30px); }
         .liq-banner-line { background: rgba(18, 20, 24, 0.92); border: 1px solid #2f363d; padding: 6px 12px; border-radius: 4px; font-size: 10px; display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(6px); pointer-events: auto; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.7); transition: 0.2s; border-style: dashed; }
         .liq-banner-line:hover { border-color: #f0b90b; background: rgba(30, 35, 41, 0.98); transform: translateY(-1px); }
@@ -230,12 +230,15 @@
         const USER_PASS = "1234";
 
         function checkPassword() {
-            let input = document.getElementById('passwordInput').value;
+            let input = document.getElementById('passwordInput').value.trim();
             let errorMsg = document.getElementById('authError');
+            
             if (input === ADMIN_PASS || input === USER_PASS) {
-                currentUserRole = input === ADMIN_PASS ? 'admin' : 'user';
-                document.getElementById('authOverlay').style.display = 'none';
+                currentUserRole = (input === ADMIN_PASS) ? 'admin' : 'user';
                 localStorage.setItem('cashControl_role', currentUserRole);
+                
+                // Şifre paneli kaybolur ve uygulama başlar
+                document.getElementById('authOverlay').style.display = 'none';
                 initSession();
             } else {
                 errorMsg.style.display = 'block';
@@ -380,7 +383,7 @@
         }
 
         function onTimeframeChange() {
-            currentTimeframe = document.getElementById('timeframeSelect'].value;
+            currentTimeframe = document.getElementById('timeframeSelect').value;
             fetchStats(currentSymbol, currentTimeframe, true);
         }
 
