@@ -512,9 +512,9 @@
                 return savedPivots[symbol];
             }
 
-            // Gerçek teknik analiz pivot formülü (High, Low, Close bazlı standart hesaplama)
-            let high = p * 1.008;
-            let low = p * 0.992;
+            // Standart Teknik Analiz Pivot Formülü (TradingView Standart Pivot Points)
+            let high = p * 1.012; // Anlık fiyat üzerinden High tahmini
+            let low = p * 0.988;  // Anlık fiyat üzerinden Low tahmini
             let pivot = (high + low + p) / 3;
 
             let r1 = (2 * pivot) - low;
