@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cash Control - Yetkili Panel Mimarisi</title>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; height: 100vh; overflow: hidden; position: relative; display: flex; justify-content: center; align-items: center; }
         
-        #tradingview-container { width: calc(100vw - 40px); height: calc(100vh - 40px); position: absolute; top: 20px; left: 20px; z-index: 1; border-radius: 12px; overflow: hidden; border: 1px solid #23272e; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        #chartOverlayCanvas { width: calc(100vw - 40px); height: calc(100vh - 40px); position: absolute; top: 20px; left: 20px; z-index: 2; pointer-events: none; border-radius: 12px; }
+        #tradingview-container { width: calc(100vw - 40px); height: calc(100vh - 40px); position: absolute; top: 20px; left: 20px; z-index: 1; border-radius: 12px; overflow: hidden; border: 1px solid #23272e; box-shadow: 0 10px 30px rgba(0,0,0,0.5); background: #131722; }
 
         .top-control-bar { position: absolute; top: 35px; right: 40px; z-index: 10; display: flex; gap: 8px; align-items: center; }
         
@@ -113,19 +113,16 @@
     </div>
 
     <div id="tradingview-container"></div>
-    <canvas id="chartOverlayCanvas"></canvas>
 
     <div class="top-control-bar">
         <select id="timeframeSelect" class="timeframe-select" onchange="onTimeframeChange()">
-            <option value="5">5 Dakika</option>
-            <option value="15" selected>15 Dakika</option>
-            <option value="30">30 Dakika</option>
-            <option value="60">1 Saat</option>
-            <option value="120">2 Saat</option>
-            <option value="180">3 Saat</option>
-            <option value="240">4 Saat</option>
-            <option value="D">1 Günlük</option>
-            <option value="W">1 Haftalık</option>
+            <option value="5m">5 Dakika</option>
+            <option value="15m" selected>15 Dakika</option>
+            <option value="30m">30 Dakika</option>
+            <option value="1h">1 Saat</option>
+            <option value="2h">2 Saat</option>
+            <option value="4h">4 Saat</option>
+            <option value="1d">1 Günlük</option>
         </select>
         <button class="toggle-panel-btn" onclick="togglePanel()">📊 Veri Göster / Gizle</button>
         <button class="logout-btn" onclick="logoutSession()">🔒 Çıkış Yap</button>
@@ -278,7 +275,7 @@
 
     <script>
         let currentSymbol = "BTC";
-        let currentTimeframe = "15";
+        let currentTimeframe = "15m";
         let currentSource = "trak";
         let autoInterval = null;
         let currentUserRole = null;
@@ -287,6 +284,12 @@
         let currentLongAvg = 0;
         let currentShortAvg = 0;
         let currentGeneralAvg = 0;
+
+        let chart = null;
+        let candlestickSeries = null;
+        let longLine = null;
+        let shortLine = null;
+        let avgLine = null;
 
         const ADMIN_PASS = "1453";
         const USER_PASS = "1234";
@@ -324,9 +327,9 @@
                 resetBtn.style.pointerEvents = "none";
             }
 
+            initLightweightChart();
             loadCoins();
             loadTradeHistory();
-            initCanvas();
         }
 
         function logoutSession() {
@@ -420,126 +423,102 @@
             return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
-        function updateTradingViewChart(symbol, timeframe) {
+        function initLightweightChart() {
             let container = document.getElementById('tradingview-container');
-            container.innerHTML = ''; 
-            
-            let widgetDiv = document.createElement('div');
-            widgetDiv.className = "tradingview-widget-container";
-            widgetDiv.style.height = "100%";
-            widgetDiv.style.width = "100%";
-            
-            let innerDiv = document.createElement('div');
-            innerDiv.className = "tradingview-widget-container__widget";
-            innerDiv.style.height = "calc(100% - 32px)";
-            innerDiv.style.width = "100%";
-            widgetDiv.appendChild(innerDiv);
-            
-            let script = document.createElement('script');
-            script.type = "text/javascript";
-            script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
-            script.async = true;
-            script.innerHTML = JSON.stringify({
-                "width": "100%",
-                "height": "100%",
-                "symbol": "BINANCE:" + symbol + "USDT",
-                "interval": timeframe,
-                "timezone": "Europe/Istanbul",
-                "theme": "dark",
-                "style": "1",
-                "locale": "tr",
-                "allow_symbol_change": true,
-                "calendar": false,
-                "support_host": "https://www.tradingview.com"
+            container.innerHTML = '';
+
+            chart = LightweightCharts.createChart(container, {
+                width: container.clientWidth,
+                height: container.clientHeight,
+                layout: {
+                    background: { type: 'solid', color: '#131722' },
+                    textColor: '#d1d4dc',
+                },
+                grid: {
+                    vertLines: { color: '#1f293d' },
+                    horzLines: { color: '#1f293d' },
+                },
+                timeScale: {
+                    timeVisible: true,
+                    secondsVisible: false,
+                    borderColor: '#2b2b43',
+                },
+                rightPriceScale: {
+                    borderColor: '#2b2b43',
+                },
             });
-            
-            widgetDiv.appendChild(script);
-            container.appendChild(widgetDiv);
+
+            candlestickSeries = chart.addCandlestickSeries({
+                upColor: '#0ecb81',
+                downColor: '#f6465d',
+                borderVisible: false,
+                wickUpColor: '#0ecb81',
+                wickDownColor: '#f6465d',
+            });
+
+            window.addEventListener('resize', () => {
+                chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+            });
         }
 
-        function initCanvas() {
-            const canvas = document.getElementById('chartOverlayCanvas');
-            const ctx = canvas.getContext('2d');
-
-            function resize() {
-                canvas.width = window.innerWidth - 40;
-                canvas.height = window.innerHeight - 40;
-            }
-            window.addEventListener('resize', resize);
-            resize();
-
-            function drawOverlay() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                if (currentMarkPrice > 0) {
-                    let height = canvas.height;
-                    let width = canvas.width;
-                    
-                    // TradingView standart ölçek oranına tam uyumlu dinamik aralık
-                    let dynamicZoomRange = currentMarkPrice * 0.025; 
-                    let topPrice = currentMarkPrice + dynamicZoomRange;
-                    let bottomPrice = currentMarkPrice - dynamicZoomRange;
-
-                    function priceToY(price) {
-                        let ratio = (topPrice - price) / (topPrice - bottomPrice);
-                        // Ölçek marjlarını TradingView grafiğinin dikey sınırlarına tam oturacak şekilde sabitledik
-                        return height * 0.03 + ratio * (height * 0.94);
-                    }
-
-                    if (currentShortAvg > 0) {
-                        let yShort = priceToY(currentShortAvg);
-                        ctx.strokeStyle = '#f6465d';
-                        ctx.lineWidth = 2;
-                        ctx.setLineDash([8, 6]);
-                        ctx.beginPath();
-                        ctx.moveTo(0, yShort);
-                        ctx.lineTo(width - 70, yShort);
-                        ctx.stroke();
-
-                        ctx.fillStyle = '#f6465d';
-                        ctx.fillRect(width - 165, yShort - 12, 155, 24);
-                        ctx.fillStyle = '#fff';
-                        ctx.font = 'bold 11px sans-serif';
-                        ctx.fillText(`Shortcu Zararda: $${formatPrice(currentShortAvg)}`, width - 160, yShort + 4);
-                    }
-
-                    if (currentGeneralAvg > 0) {
-                        let yGen = priceToY(currentGeneralAvg);
-                        ctx.strokeStyle = '#ffffff';
-                        ctx.lineWidth = 2;
-                        ctx.setLineDash([12, 6]);
-                        ctx.beginPath();
-                        ctx.moveTo(0, yGen);
-                        ctx.lineTo(width - 70, yGen);
-                        ctx.stroke();
-
-                        ctx.fillStyle = '#ffffff';
-                        ctx.fillRect(width - 165, yGen - 12, 155, 24);
-                        ctx.fillStyle = '#0b0e11';
-                        ctx.font = 'bold 11px sans-serif';
-                        ctx.fillText(`● Ortalama Giriş: $${formatPrice(currentGeneralAvg)}`, width - 160, yGen + 4);
-                    }
-
-                    if (currentLongAvg > 0) {
-                        let yLong = priceToY(currentLongAvg);
-                        ctx.strokeStyle = '#0ecb81';
-                        ctx.lineWidth = 2;
-                        ctx.setLineDash([]); 
-                        ctx.beginPath();
-                        ctx.moveTo(0, yLong);
-                        ctx.lineTo(width - 70, yLong);
-                        ctx.stroke();
-
-                        ctx.fillStyle = '#0ecb81';
-                        ctx.fillRect(width - 165, yLong - 12, 155, 24);
-                        ctx.fillStyle = '#0b0e11';
-                        ctx.font = 'bold 11px sans-serif';
-                        ctx.fillText(`Longcu Zararda: $${formatPrice(currentLongAvg)}`, width - 160, yLong + 4);
-                    }
+        async function fetchChartData(symbol, timeframe) {
+            try {
+                let res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}USDT&interval=${timeframe}&limit=150`);
+                let data = await res.json();
+                if (Array.isArray(data)) {
+                    let formattedData = data.map(item => ({
+                        time: Math.floor(item[0] / 1000),
+                        open: parseFloat(item[1]),
+                        high: parseFloat(item[2]),
+                        low: parseFloat(item[3]),
+                        close: parseFloat(item[4]),
+                    }));
+                    candlestickSeries.setData(formattedData);
                 }
-                requestAnimationFrame(drawOverlay);
+            } catch (e) {
+                console.error("Grafik mum verileri alınamadı:", e);
             }
-            requestAnimationFrame(drawOverlay);
+        }
+
+        function updateChartLines() {
+            if (!candlestickSeries) return;
+
+            if (longLine) candlestickSeries.removePriceLine(longLine);
+            if (shortLine) candlestickSeries.removePriceLine(shortLine);
+            if (avgLine) candlestickSeries.removePriceLine(avgLine);
+
+            if (currentLongAvg > 0) {
+                longLine = candlestickSeries.createPriceLine({
+                    price: currentLongAvg,
+                    color: '#0ecb81',
+                    lineWidth: 2,
+                    lineStyle: LightweightCharts.LineStyle.Solid,
+                    axisLabelVisible: true,
+                    title: 'Longcu Zararda',
+                });
+            }
+
+            if (currentShortAvg > 0) {
+                shortLine = candlestickSeries.createPriceLine({
+                    price: currentShortAvg,
+                    color: '#f6465d',
+                    lineWidth: 2,
+                    lineStyle: LightweightCharts.LineStyle.Dashed,
+                    axisLabelVisible: true,
+                    title: 'Shortcu Zararda',
+                });
+            }
+
+            if (currentGeneralAvg > 0) {
+                avgLine = candlestickSeries.createPriceLine({
+                    price: currentGeneralAvg,
+                    color: '#ffffff',
+                    lineWidth: 2,
+                    lineStyle: LightweightCharts.LineStyle.Dashed,
+                    axisLabelVisible: true,
+                    title: 'Ortalama Giriş',
+                });
+            }
         }
 
         async function loadCoins() {
@@ -567,7 +546,7 @@
                     }
                     
                     if(currentSymbol) {
-                        updateTradingViewChart(currentSymbol, currentTimeframe);
+                        fetchChartData(currentSymbol, currentTimeframe);
                         fetchStats(currentSymbol, currentTimeframe);
                         startRealtimeSync();
                         startFiveMinuteAveragesSync();
@@ -626,6 +605,8 @@
                     document.getElementById('shortSub').innerText = `(${srcData.short_count} işlem, $${srcData.short_size.toFixed(1)}K size)`;
                     
                     document.getElementById('avgVal').innerText = "$" + formatPrice(srcData.general_avg);
+
+                    updateChartLines();
                 }
             } catch(e) {
                 console.error("Ortalama verileri güncelleme hatası:", e);
@@ -671,6 +652,8 @@
                         
                         document.getElementById('avgVal').innerText = "$" + formatPrice(srcData.general_avg);
                     }
+
+                    updateChartLines();
                     
                     let now = new Date();
                     document.getElementById('currentTime').innerText = now.toLocaleDateString('tr-TR') + " " + now.toLocaleTimeString('tr-TR') + " (TRT)";
@@ -686,7 +669,7 @@
             currentLongAvg = 0; 
             currentShortAvg = 0;
             currentGeneralAvg = 0;
-            updateTradingViewChart(currentSymbol, currentTimeframe);
+            fetchChartData(currentSymbol, currentTimeframe);
             fetchStats(currentSymbol, currentTimeframe);
         }
 
@@ -696,7 +679,7 @@
             currentLongAvg = 0; 
             currentShortAvg = 0;
             currentGeneralAvg = 0;
-            updateTradingViewChart(currentSymbol, currentTimeframe);
+            fetchChartData(currentSymbol, currentTimeframe);
             fetchStats(currentSymbol, currentTimeframe);
         }
 
@@ -716,6 +699,7 @@
             currentLongAvg = 0;
             currentShortAvg = 0;
             currentGeneralAvg = 0;
+            fetchChartData(currentSymbol, currentTimeframe);
             fetchStats(currentSymbol, currentTimeframe);
             fetchAveragesOnly();
         }
