@@ -114,7 +114,7 @@
         </div>
     </div>
 
-    <!-- Zaman Ekseninin Tam Oturması İçin Sabitlenmiş Kapsayıcı -->
+    <!-- Zaman Ekseninin Kesilmemesi İçin Yükseklik Payı Bırakılan Kapsayıcı -->
     <div id="tradingview-container"></div>
 
     <div class="top-control-bar">
@@ -287,7 +287,6 @@
         let currentUserRole = null;
         let savedPivots = JSON.parse(localStorage.getItem('cashControl_savedPivots')) || {};
 
-        // 5 Dakikalık Sayaç Yönetimi (300 Saniye)
         let totalSyncSeconds = 300;
         let secondsLeft = 300;
 
@@ -433,7 +432,8 @@
             
             let innerDiv = document.createElement('div');
             innerDiv.className = "tradingview-widget-container__widget";
-            innerDiv.style.height = "calc(100% - 32px)";
+            // Alt zaman şeridinin (09:00, 10:00 vb.) kesilmeden görünmesi için yükseklik payı bırakıldı
+            innerDiv.style.height = "calc(100% - 40px)"; 
             innerDiv.style.width = "100%";
             widgetDiv.appendChild(innerDiv);
             
