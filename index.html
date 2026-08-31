@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cash Control - Liq Çizgileri & Cüzdan Yönlendirme</title>
+    <title>Cash Control - Liq Çizgi Paneli</title>
     <style>
         body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; height: 100vh; overflow: hidden; position: relative; font-size: 11px; }
         
@@ -61,7 +61,6 @@
         .refresh-status-bar { display: flex; justify-content: space-between; align-items: center; background: #261f12; border: 1px solid #4a3818; padding: 3px 6px; border-radius: 3px; margin-bottom: 5px; font-size: 9px; color: #f0b90b; }
         .reset-btn { background: #2b2b2b; color: #eaeaea; border: none; padding: 1px 4px; border-radius: 2px; cursor: pointer; font-size: 8px; }
         
-        /* Sonuç Kartları (Tıklayınca Doğru Cüzdana Yönlendirir) */
         .result-card { background: #1e2329; border: 1px solid #2f363d; border-radius: 4px; padding: 5px 8px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s; }
         .result-card:hover { border-color: #f0b90b; transform: translateY(-1px); }
         .result-card.long { border-left: 2px solid #0ecb81; }
@@ -70,12 +69,12 @@
         .res-sub { font-size: 8px; color: #848e9c; }
         .res-val { font-size: 11px; font-weight: bold; }
 
-        /* Grafik Üstü Tıklanabilir Liq Etiketleri */
-        .chart-liq-overlay { position: absolute; left: 10px; bottom: 40px; z-index: 5; display: flex; flex-direction: column; gap: 4px; pointer-events: none; }
-        .liq-badge-line { background: rgba(24, 26, 32, 0.85); border: 1px solid #2f363d; padding: 3px 6px; border-radius: 3px; font-size: 9px; display: flex; align-items: center; gap: 6px; backdrop-filter: blur(4px); pointer-events: auto; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.5); transition: 0.2s; }
-        .liq-badge-line:hover { border-color: #f0b90b; background: rgba(30, 35, 41, 0.95); }
-        .liq-badge-line.short-line { border-left: 2px solid #f6465d; }
-        .liq-badge-line.long-line { border-left: 2px solid #0ecb81; }
+        /* Grafik Üstü Belirgin Çizgi/Şerit Etiketleri (Üzerine tıklandığında cüzdana atar) */
+        .chart-liq-overlay { position: absolute; left: 15px; bottom: 50px; z-index: 5; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+        .liq-banner-line { background: rgba(18, 20, 24, 0.92); border: 1px solid #2f363d; padding: 6px 10px; border-radius: 4px; font-size: 10px; display: flex; align-items: center; gap: 8px; backdrop-filter: blur(6px); pointer-events: auto; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.7); transition: 0.2s; }
+        .liq-banner-line:hover { border-color: #f0b90b; background: rgba(30, 35, 41, 0.98); transform: scale(1.02); }
+        .liq-banner-line.short-line { border-left: 3px solid #f6465d; }
+        .liq-banner-line.long-line { border-left: 3px solid #0ecb81; }
     </style>
 </head>
 <body>
@@ -90,18 +89,20 @@
         </div>
     </div>
 
+    <!-- TradingView Konteyneri -->
     <div id="tradingview-container"></div>
 
+    <!-- Grafik Sol Alt Köşesinde Sabit & Tıklanabilir Liq Çizgi Panelleri -->
     <div class="chart-liq-overlay">
-        <div class="liq-badge-line short-line" onclick="openWalletBySource('short')">
-            <span style="color: #f6465d; font-weight: bold;">● Short Liq:</span>
-            <span id="chartShortLiqVal" style="color: #fff; font-weight: bold;">$-</span>
-            <span style="font-size: 8px; color: #848e9c;">(Cüzdana Git ↗)</span>
+        <div class="liq-banner-line short-line" onclick="openWalletBySource('short')">
+            <span style="color: #f6465d; font-weight: bold;">🔴 SHORT LIQ:</span>
+            <span id="chartShortLiqVal" style="color: #fff; font-weight: bold; font-size: 11px;">$-</span>
+            <span style="font-size: 8px; background: rgba(246,70,93,0.2); color: #f6465d; padding: 2px 5px; border-radius: 3px; font-weight: bold;">Cüzdana Git ↗</span>
         </div>
-        <div class="liq-badge-line long-line" onclick="openWalletBySource('long')">
-            <span style="color: #0ecb81; font-weight: bold;">● Long Liq:</span>
-            <span id="chartLongLiqVal" style="color: #fff; font-weight: bold;">$-</span>
-            <span style="font-size: 8px; color: #848e9c;">(Cüzdana Git ↗)</span>
+        <div class="liq-banner-line long-line" onclick="openWalletBySource('long')">
+            <span style="color: #0ecb81; font-weight: bold;">🟢 LONG LIQ:</span>
+            <span id="chartLongLiqVal" style="color: #fff; font-weight: bold; font-size: 11px;">$-</span>
+            <span style="font-size: 8px; background: rgba(14,203,129,0.2); color: #0ecb81; padding: 2px 5px; border-radius: 3px; font-weight: bold;">Cüzdana Git ↗</span>
         </div>
     </div>
 
@@ -252,18 +253,13 @@
             document.getElementById('panelModal').classList.toggle('hidden');
         }
 
-        // Videnodaki gibi: Hangi kaynak/cüzdan seçiliyse doğrudan onun özel linkine/cüzdanına gönderir
         function openWalletBySource(type) {
             let targetUrl = `https://app.hyperliquid.xyz/trade/${currentSymbol}`;
-            
-            // Eğer backend'den özel cüzdan/vault/profil linki geldiyse doğrudan onu kullanır (Videodaki HyperSonic veya Geruntis profili gibi)
             if (latestDataCache && latestDataCache.wallet_url) {
                 targetUrl = latestDataCache.wallet_url;
             } else if (currentSource === 'copy' || currentSource === 'whale') {
-                // Binance Smart Money veya Leaderboard cüzdan yönlendirmesi
                 targetUrl = `https://www.binance.com/tr/futures/leaderboard`;
             }
-
             window.open(targetUrl, '_blank');
         }
 
@@ -387,6 +383,7 @@
         }
 
         function setSource(src, element) {
+            document.querySelectorAll('.src-btn').srcButton?.classList.remove('active');
             document.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
             element.classList.add('active');
             currentSource = src;
