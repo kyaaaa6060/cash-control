@@ -259,6 +259,7 @@
             loadCoins();
             loadTradeHistory();
             startLiveClock();
+            startFastPriceTicker(); // Canlı fiyat akışı entegre edildi
         }
 
         function startLiveClock() {
@@ -394,6 +395,22 @@
                     document.getElementById('currentTime').innerText = now.toLocaleDateString('tr-TR') + " " + now.toLocaleTimeString('tr-TR') + " (TRT)";
                 }
             } catch(e) { console.error("Veri çekme hatası:", e); }
+        }
+
+        // Hızlı Fiyat Güncelleyici (Canlı Akış)
+        function startFastPriceTicker() {
+            setInterval(async () => {
+                if (!currentSymbol) return;
+                try {
+                    let res = await fetch(`/api/market-stats/${currentSymbol}?timeframe=${currentTimeframe}`);
+                    let json = await res.json();
+                    if (json.status === 'success') {
+                        let d = json.data;
+                        let markEl = document.getElementById('markPrice');
+                        if (markEl) markEl.innerText = "$" + formatPrice(d.markPrice);
+                    }
+                } catch (e) {}
+            }, 3000); // Her 3 saniyede bir paneldeki Mark Fiyatı grafik gibi akıcı günceller
         }
 
         function onCoinChange() {
