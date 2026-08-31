@@ -114,6 +114,7 @@
         </div>
     </div>
 
+    <!-- Zaman Ekseninin Tam Oturması İçin Sabitlenmiş Kapsayıcı -->
     <div id="tradingview-container"></div>
 
     <div class="top-control-bar">
@@ -432,7 +433,7 @@
             
             let innerDiv = document.createElement('div');
             innerDiv.className = "tradingview-widget-container__widget";
-            innerDiv.style.height = "100%";
+            innerDiv.style.height = "calc(100% - 32px)";
             innerDiv.style.width = "100%";
             widgetDiv.appendChild(innerDiv);
             
