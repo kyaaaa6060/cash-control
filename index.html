@@ -95,10 +95,8 @@
         </div>
     </div>
 
-    <!-- TradingView Konteyneri -->
     <div id="tradingview-container"></div>
 
-    <!-- Sağ Ölçeğe Sabitlenmiş Yatay Liq Çizgileri -->
     <div class="chart-liq-lines-container">
         <div id="shortLiqWrapper" class="chart-line-wrapper" onclick="openWalletBySource('short')">
             <div class="chart-line-label">
@@ -244,8 +242,10 @@
             
             if (input === ADMIN_PASS || input === USER_PASS) {
                 currentUserRole = (input === ADMIN_PASS) ? 'admin' : 'user';
-                localStorage.setItem('cashControl_auth', 'true');
-                localStorage.setItem('cashControl_role', currentUserRole);
+                try {
+                    localStorage.setItem('cc_session', currentUserRole);
+                } catch(e) {}
+                
                 document.getElementById('authOverlay').style.display = 'none';
                 initSession();
             } else {
@@ -262,8 +262,9 @@
         }
 
         function logoutSession() {
-            localStorage.removeItem('cashControl_auth');
-            localStorage.removeItem('cashControl_role');
+            try {
+                localStorage.removeItem('cc_session');
+            } catch(e) {}
             location.reload();
         }
 
@@ -384,9 +385,7 @@
                         document.getElementById('aiComment').innerText = `[${timeframe}dk Periyot] ` + d.aiComment;
                     }
                 }
-            } catch(e) {
-                console.error("Veri çekme hatası:", e);
-            }
+            } catch(e) {}
         }
 
         function onCoinChange() {
@@ -396,7 +395,7 @@
         }
 
         function onTimeframeChange() {
-            currentTimeframe = document.getElementById('timeframeSelect'].value;
+            currentTimeframe = document.getElementById('timeframeSelect').value;
             initTradingViewChart(currentSymbol, currentTimeframe);
             fetchStats(currentSymbol, currentTimeframe);
         }
@@ -424,10 +423,13 @@
         }
 
         window.onload = () => {
-            let isAuth = localStorage.getItem('cashControl_auth');
-            let savedRole = localStorage.getItem('cashControl_role');
-            if (isAuth === 'true' && savedRole) {
-                currentUserRole = savedRole;
+            let savedSession = null;
+            try {
+                savedSession = localStorage.getItem('cc_session');
+            } catch(e) {}
+
+            if (savedSession === 'admin' || savedSession === 'user') {
+                currentUserRole = savedSession;
                 document.getElementById('authOverlay').style.display = 'none';
                 initSession();
             } else {
