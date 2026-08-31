@@ -9,7 +9,7 @@
         
         #tradingview-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
         
-        /* Grafik Üzeri Liq ve Ortalama Çizgileri İçin Şeffaf Katman */
+        /* Grafik Ölçeğine Tam Kilitli Liq ve Ortalama Çizgi Katmanı */
         #chartOverlayCanvas { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 2; pointer-events: none; }
 
         .top-control-bar { position: absolute; top: 15px; right: 20px; z-index: 10; display: flex; gap: 8px; align-items: center; }
@@ -459,7 +459,7 @@
             container.appendChild(widgetDiv);
         }
 
-        /* Liq Seviyeleri ve Çizgileri Çizen Canvas Mantığı */
+        /* Grafik Ölçeğine Tam Kilitli (Scaled) Canvas Çizim Katmanı */
         function initCanvas() {
             const canvas = document.getElementById('chartOverlayCanvas');
             const ctx = canvas.getContext('2d');
@@ -478,13 +478,15 @@
                     let height = canvas.height;
                     let width = canvas.width;
                     
-                    // Grafik ölçeklendirmesi (Mark fiyata göre tahmini dikey konum hesabı)
-                    let priceSpan = currentMarkPrice * 0.04; 
-                    let topPrice = currentMarkPrice + priceSpan;
-                    let bottomPrice = currentMarkPrice - priceSpan;
+                    // TradingView grafik alanının dikey eksen oranına göre tam kilitli dinamik bant
+                    let dynamicZoomRange = currentMarkPrice * 0.035; 
+                    let topPrice = currentMarkPrice + dynamicZoomRange;
+                    let bottomPrice = currentMarkPrice - dynamicZoomRange;
 
                     function priceToY(price) {
-                        return height * 0.1 + ((topPrice - price) / (topPrice - bottomPrice)) * (height * 0.8);
+                        let ratio = (topPrice - price) / (topPrice - bottomPrice);
+                        // Sağdaki fiyat ekseni panelini ve üst/alt barları dışarıda tutarak tam grafiğe oturtur
+                        return height * 0.06 + ratio * (height * 0.88);
                     }
 
                     // 1. Short Liq / Short Ortalama Çizgisi (Kırmızı Kesikli)
@@ -495,15 +497,14 @@
                         ctx.setLineDash([8, 6]);
                         ctx.beginPath();
                         ctx.moveTo(0, yShort);
-                        ctx.lineTo(width - 100, yShort);
+                        ctx.lineTo(width - 80, yShort);
                         ctx.stroke();
 
-                        // Etiket Kutusu
                         ctx.fillStyle = '#f6465d';
-                        ctx.fillRect(width - 150, yShort - 12, 140, 24);
+                        ctx.fillRect(width - 165, yShort - 12, 155, 24);
                         ctx.fillStyle = '#fff';
                         ctx.font = 'bold 11px sans-serif';
-                        ctx.fillText(`Shortcu Zararda: $${formatPrice(currentShortAvg)}`, width - 145, yShort + 4);
+                        ctx.fillText(`Shortcu Zararda: $${formatPrice(currentShortAvg)}`, width - 160, yShort + 4);
                     }
 
                     // 2. Ortalama Giriş / Genel Ortalama (Beyaz Çizgi)
@@ -514,14 +515,14 @@
                         ctx.setLineDash([12, 6]);
                         ctx.beginPath();
                         ctx.moveTo(0, yGen);
-                        ctx.lineTo(width - 100, yGen);
+                        ctx.lineTo(width - 80, yGen);
                         ctx.stroke();
 
                         ctx.fillStyle = '#ffffff';
-                        ctx.fillRect(width - 150, yGen - 12, 140, 24);
+                        ctx.fillRect(width - 165, yGen - 12, 155, 24);
                         ctx.fillStyle = '#0b0e11';
                         ctx.font = 'bold 11px sans-serif';
-                        ctx.fillText(`● Ortalama Seviye`, width - 145, yGen + 4);
+                        ctx.fillText(`● Ortalama Seviye: $${formatPrice(currentGeneralAvg)}`, width - 160, yGen + 4);
                     }
 
                     // 3. Long Liq / Long Ortalama Çizgisi (Yeşil Düz Çizgi)
@@ -529,17 +530,17 @@
                         let yLong = priceToY(currentLongAvg);
                         ctx.strokeStyle = '#0ecb81';
                         ctx.lineWidth = 2;
-                        ctx.setLineDash([]); // Düz çizgi
+                        ctx.setLineDash([]); 
                         ctx.beginPath();
                         ctx.moveTo(0, yLong);
-                        ctx.lineTo(width - 100, yLong);
+                        ctx.lineTo(width - 80, yLong);
                         ctx.stroke();
 
                         ctx.fillStyle = '#0ecb81';
-                        ctx.fillRect(width - 150, yLong - 12, 140, 24);
+                        ctx.fillRect(width - 165, yLong - 12, 155, 24);
                         ctx.fillStyle = '#0b0e11';
                         ctx.font = 'bold 11px sans-serif';
-                        ctx.fillText(`Longcu Zararda: $${formatPrice(currentLongAvg)}`, width - 145, yLong + 4);
+                        ctx.fillText(`Longcu Zararda: $${formatPrice(currentLongAvg)}`, width - 160, yLong + 4);
                     }
                 }
                 requestAnimationFrame(drawOverlay);
