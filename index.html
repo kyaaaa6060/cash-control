@@ -508,11 +508,11 @@
             let p = parseFloat(markPrice);
             if (isNaN(p) || p <= 0) return { res3: "-", res2: "-", res1: "-", sup1: "-", sup2: "-", sup3: "-" };
 
-            if (savedPivots[symbol]) {
+            // Hafızadaki kayıt R3 ve S3 seviyelerini içeriyorsa direkt döndür, eksikse yeniden hesapla
+            if (savedPivots[symbol] && savedPivots[symbol].res3 !== undefined && savedPivots[symbol].sup3 !== undefined) {
                 return savedPivots[symbol];
             }
 
-            // Destek ve direnç seviyeleri 3 kademeli (R3, R2, R1 ve S1, S2, S3) olarak genişletildi
             let high = p * 1.05;
             let low = p * 0.95;
             let pivot = (high + low + p) / 3;
