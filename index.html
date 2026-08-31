@@ -117,7 +117,7 @@
     <div id="tradingview-container"></div>
 
     <div class="top-control-bar">
-        <!-- HIZLI PERİYOT ÇUBUKLARI (BUTONLARI) -->
+        <!-- HIZLI PERİYOT ÇUBUKLARI -->
         <div class="quick-timeframes">
             <button onclick="setExternalTimeframe('5', this)">5dk</button>
             <button onclick="setExternalTimeframe('15', this)" class="active">15dk</button>
@@ -428,7 +428,7 @@
             
             let innerDiv = document.createElement('div');
             innerDiv.className = "tradingview-widget-container__widget";
-            innerDiv.style.height = "calc(100% - 32px)";
+            innerDiv.style.height = "100%";
             innerDiv.style.width = "100%";
             widgetDiv.appendChild(innerDiv);
             
@@ -445,7 +445,11 @@
                 "theme": "dark",
                 "style": "1",
                 "locale": "tr",
-                "allow_symbol_change": true,
+                "toolbar_bg": "#f1f3f6",
+                "enable_publishing": false,
+                "hide_side_toolbar": true,      /* SOL ÇİZİM ARAÇLARINI TAMAMEN GİZLER */
+                "hide_top_toolbar": false,
+                "save_image": false,
                 "calendar": false,
                 "support_host": "https://www.tradingview.com"
             });
@@ -566,11 +570,9 @@
             fetchStats(currentSymbol, currentTimeframe);
         }
 
-        // Hızlı periyot butonlarından tetiklenen fonksiyon
         function setExternalTimeframe(tf, buttonElement) {
             currentTimeframe = tf;
             
-            // Aktif buton rengini değiştir
             document.querySelectorAll('.quick-timeframes button').forEach(btn => {
                 btn.classList.remove('active');
             });
