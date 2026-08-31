@@ -64,7 +64,7 @@
         .extra-card { background: #121418; border: 1px solid #23272e; border-radius: 6px; padding: 8px 10px; }
         .extra-title { font-size: 11px; font-weight: bold; color: #848e9c; margin-bottom: 6px; border-bottom: 1px solid #23272e; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
         .extra-content { font-size: 12px; color: #eaeaea; }
-        .level-row { display: flex; justify-content: space-between; margin-bottom: 3px; font-size: 11px; }
+        .level-row { display: flex; justify-content: space-between; margin-bottom: 2px; font-size: 11px; }
         .level-lbl { color: #848e9c; }
         .no-pattern { color: #848e9c; font-style: italic; font-size: 11px; text-align: center; padding: 6px; }
 
@@ -173,10 +173,12 @@
                     <div class="extra-card">
                         <div class="extra-title">🛡️ Pivot Destek & Direnç</div>
                         <div class="extra-content" id="supportResistanceContainer">
+                            <div class="level-row"><span class="level-lbl">Direnç 3:</span> <span id="res3" style="color: #f6465d;">$-</span></div>
                             <div class="level-row"><span class="level-lbl">Direnç 2:</span> <span id="res2" style="color: #f6465d;">$-</span></div>
                             <div class="level-row"><span class="level-lbl">Direnç 1:</span> <span id="res1" style="color: #f6465d;">$-</span></div>
                             <div class="level-row"><span class="level-lbl">Destek 1:</span> <span id="sup1" style="color: #0ecb81;">$-</span></div>
                             <div class="level-row"><span class="level-lbl">Destek 2:</span> <span id="sup2" style="color: #0ecb81;">$-</span></div>
+                            <div class="level-row"><span class="level-lbl">Destek 3:</span> <span id="sup3" style="color: #0ecb81;">$-</span></div>
                         </div>
                     </div>
 
@@ -504,27 +506,31 @@
 
         function getOrSetPivotLevels(symbol, markPrice) {
             let p = parseFloat(markPrice);
-            if (isNaN(p) || p <= 0) return { res2: "-", res1: "-", sup1: "-", sup2: "-" };
+            if (isNaN(p) || p <= 0) return { res3: "-", res2: "-", res1: "-", sup1: "-", sup2: "-", sup3: "-" };
 
             if (savedPivots[symbol]) {
                 return savedPivots[symbol];
             }
 
-            // Destek ve direnç aralıkları daha geniş ve belirgin seviyelere çıkarıldı
-            let high = p * 1.045;
-            let low = p * 0.955;
+            // Destek ve direnç seviyeleri 3 kademeli (R3, R2, R1 ve S1, S2, S3) olarak genişletildi
+            let high = p * 1.05;
+            let low = p * 0.95;
             let pivot = (high + low + p) / 3;
 
             let r1 = (2 * pivot) - low;
             let s1 = (2 * pivot) - high;
-            let r2 = pivot + (high - low) * 1.5;
-            let s2 = pivot - (high - low) * 1.5;
+            let r2 = pivot + (high - low);
+            let s2 = pivot - (high - low);
+            let r3 = high + 2 * (pivot - low);
+            let s3 = low - 2 * (high - pivot);
 
             savedPivots[symbol] = {
+                res3: r3,
                 res2: r2,
                 res1: r1,
                 sup1: s1,
-                sup2: s2
+                sup2: s2,
+                sup3: s3
             };
             
             saveSavedPivots();
@@ -547,10 +553,12 @@
                     document.getElementById('valSL').innerText = "$" + formatPrice(ai.sl);
 
                     let pivots = getOrSetPivotLevels(symbol, d.markPrice);
+                    document.getElementById('res3').innerText = "$" + formatPrice(pivots.res3);
                     document.getElementById('res2').innerText = "$" + formatPrice(pivots.res2);
                     document.getElementById('res1').innerText = "$" + formatPrice(pivots.res1);
                     document.getElementById('sup1').innerText = "$" + formatPrice(pivots.sup1);
                     document.getElementById('sup2').innerText = "$" + formatPrice(pivots.sup2);
+                    document.getElementById('sup3').innerText = "$" + formatPrice(pivots.sup3);
 
                     let patternsContainer = document.getElementById('patternsContainer');
                     patternsContainer.innerHTML = `<div class="no-pattern">Aktif Formasyon Bulunamadı</div>`;
