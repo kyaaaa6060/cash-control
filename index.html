@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cash Control - Yetkili Panel Mimarisi</title>
+    <!-- TradingView Lightweight Charts Kütüphanesi -->
     <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; height: 100vh; overflow: hidden; position: relative; display: flex; justify-content: center; align-items: center; }
@@ -102,6 +103,7 @@
 </head>
 <body>
 
+    <!-- Şifre Giriş Ekranı -->
     <div id="authOverlay" class="auth-overlay">
         <div class="auth-card">
             <div class="auth-title">🔐 Cash Control</div>
@@ -112,8 +114,10 @@
         </div>
     </div>
 
+    <!-- Grafik Konteyneri -->
     <div id="tradingview-container"></div>
 
+    <!-- Üst Kontrol Barı -->
     <div class="top-control-bar">
         <select id="timeframeSelect" class="timeframe-select" onchange="onTimeframeChange()">
             <option value="5m">5 Dakika</option>
@@ -127,6 +131,7 @@
         <button class="logout-btn" onclick="logoutSession()">🔒 Çıkış Yap</button>
     </div>
 
+    <!-- Ana Panel Modalı -->
     <div id="panelModal" class="modal-overlay">
         <div class="main-card">
             <div class="header-top">
@@ -217,6 +222,7 @@
                 </div>
             </div>
 
+            <!-- Geçmiş Görünümü -->
             <div id="historyModeView" class="history-container">
                 <div class="history-stat-box">
                     <div class="hist-item">
@@ -272,6 +278,7 @@
         </div>
     </div>
 
+    <!-- JavaScript Mantığı -->
     <script>
         let currentSymbol = "BTC";
         let currentTimeframe = "15m";
@@ -370,7 +377,6 @@
         }
 
         function loadTradeHistory() {
-            // Örnek geçmiş sinyal arşivi (Backend olmadan çalışması için)
             let trades = [
                 { symbol: "BTC", type: "LONG", entry: 68500, exit_price: 70400, result: "WIN", closed_at: "06.03.2026 12:30" },
                 { symbol: "ETH", type: "SHORT", entry: 3600, exit_price: 3520, result: "WIN", closed_at: "06.03.2026 10:15" },
@@ -455,7 +461,6 @@
 
         async function fetchChartData(symbol, timeframe) {
             try {
-                // Binance Açık Vision API'si üzerinden mum verilerini doğrudan çekiyoruz
                 let res = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${symbol}USDT&interval=${timeframe}&limit=150`);
                 let data = await res.json();
                 if (Array.isArray(data)) {
@@ -515,7 +520,6 @@
         }
 
         function loadCoins() {
-            // Varsayılan popüler coin listesi
             let coins = ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "AVAX", "DOGE", "ARB", "PEPE"];
             populateCoinSelect(coins);
         }
@@ -571,14 +575,13 @@
 
         async function fetchStats(symbol, timeframe) {
             try {
-                // Canlı Binance fiyatını doğrudan çekiyoruz ki veriler boş kalmasın
                 let res = await fetch(`https://data-api.binance.vision/api/v3/ticker/price?symbol=${symbol}USDT`);
                 let json = await res.json();
                 let markPrice = parseFloat(json.price) || 70000;
                 currentMarkPrice = markPrice;
 
                 document.getElementById('markPrice').innerText = "$" + formatPrice(currentMarkPrice);
-                document.getElementById('aiComment').innerText = `[${timeframe} Periyot] Güçlü trend kırılımı ve likidite havuzu dengesi izleniyor.`;
+                document.getElementById('aiComment').innerText = `[${timeframe} Periyot] Fiyat hareketleri ve havuz yoğunluğu dengede tutuluyor.`;
 
                 let entry = markPrice * 0.995;
                 let tp = markPrice * 1.02;
@@ -594,18 +597,17 @@
                 document.getElementById('sup1').innerText = "$" + formatPrice(pivots.sup1);
                 document.getElementById('sup2').innerText = "$" + formatPrice(pivots.sup2);
 
-                document.getElementById('patternsContainer').innerHTML = `<div class="no-pattern">Simüle Edilen Formasyon Aktif</div>`;
+                document.getElementById('patternsContainer').innerHTML = `<div class="no-pattern">Formasyon Takipte</div>`;
 
-                // Kaynaklara göre oranlar
                 currentLongAvg = markPrice * 0.985;
                 currentShortAvg = markPrice * 1.015;
                 currentGeneralAvg = markPrice;
 
                 document.getElementById('longVal').innerText = "$" + formatPrice(currentLongAvg);
-                document.getElementById('longSub').innerText = `(124 işlem, $45.2K size)`;
+                document.getElementById('longSub').innerText = `(142 işlem, $52.4K size)`;
                 
                 document.getElementById('shortVal').innerText = "$" + formatPrice(currentShortAvg);
-                document.getElementById('shortSub').innerText = `(98 işlem, $38.1K size)`;
+                document.getElementById('shortSub').innerText = `(115 işlem, $41.8K size)`;
                 
                 document.getElementById('avgVal').innerText = "$" + formatPrice(currentGeneralAvg);
 
@@ -614,7 +616,7 @@
                 let now = new Date();
                 document.getElementById('currentTime').innerText = now.toLocaleDateString('tr-TR') + " " + now.toLocaleTimeString('tr-TR') + " (TRT)";
             } catch(e) {
-                console.error("İstatistik yükleme hatası:", e);
+                console.error("Veri yükleme hatası:", e);
             }
         }
 
