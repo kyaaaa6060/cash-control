@@ -11,8 +11,11 @@
 
         .top-control-bar { position: absolute; top: 15px; right: 20px; z-index: 10; display: flex; gap: 8px; align-items: center; }
         
-        .timeframe-select { background: #1e2329; color: #f0b90b; border: 1px solid #2f363d; padding: 8px 10px; border-radius: 6px; font-weight: bold; font-size: 13px; outline: none; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-        .timeframe-select:focus { border-color: #f0b90b; }
+        /* Hızlı Periyot Butonları Grubu */
+        .quick-timeframes { display: flex; gap: 4px; background: #1e2329; padding: 4px; border-radius: 6px; border: 1px solid #2f363d; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .quick-timeframes button { background: none; border: none; color: #848e9c; cursor: pointer; font-size: 12px; font-weight: bold; padding: 6px 8px; border-radius: 4px; transition: 0.2s; }
+        .quick-timeframes button:hover { color: #fff; }
+        .quick-timeframes button.active { background: #2b2b23; color: #f0b90b; }
 
         .toggle-panel-btn { background: #f0b90b; color: #0b0e11; border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: 0.2s; }
         .toggle-panel-btn:hover { background: #fcd535; }
@@ -88,7 +91,6 @@
         .res-sub { font-size: 10px; color: #848e9c; margin-top: 2px; }
         .res-val { font-size: 14px; font-weight: bold; }
 
-        /* Geçmiş Modu Listesi için Stil */
         .history-container { display: none; }
         .history-container.active { display: block; }
         .history-stat-box { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #121418; padding: 10px; border-radius: 6px; margin-bottom: 10px; text-align: center; border: 1px solid #23272e; }
@@ -115,17 +117,18 @@
     <div id="tradingview-container"></div>
 
     <div class="top-control-bar">
-        <select id="timeframeSelect" class="timeframe-select" onchange="onTimeframeChange()">
-            <option value="5">5 Dakika</option>
-            <option value="15" selected>15 Dakika</option>
-            <option value="30">30 Dakika</option>
-            <option value="60">1 Saat</option>
-            <option value="120">2 Saat</option>
-            <option value="180">3 Saat</option>
-            <option value="240">4 Saat</option>
-            <option value="D">1 Günlük</option>
-            <option value="W">1 Haftalık</option>
-        </select>
+        <!-- HIZLI PERİYOT ÇUBUKLARI (BUTONLARI) -->
+        <div class="quick-timeframes">
+            <button onclick="setExternalTimeframe('5', this)">5dk</button>
+            <button onclick="setExternalTimeframe('15', this)" class="active">15dk</button>
+            <button onclick="setExternalTimeframe('30', this)">30dk</button>
+            <button onclick="setExternalTimeframe('60', this)">1sa</button>
+            <button onclick="setExternalTimeframe('120', this)">2sa</button>
+            <button onclick="setExternalTimeframe('240', this)">4sa</button>
+            <button onclick="setExternalTimeframe('D', this)">1G</button>
+            <button onclick="setExternalTimeframe('W', this)">1H</button>
+        </div>
+
         <button class="toggle-panel-btn" onclick="togglePanel()">📊 Veri Göster / Gizle</button>
         <button class="logout-btn" onclick="logoutSession()">🔒 Çıkış Yap</button>
     </div>
@@ -140,7 +143,6 @@
                 <div class="close-btn" onclick="togglePanel()">✕</div>
             </div>
 
-            <!-- GÜNCEL SEKME İÇERİĞİ -->
             <div id="currentModeView">
                 <div class="ivme-box">
                     <div class="ivme-top">
@@ -221,7 +223,6 @@
                 </div>
             </div>
 
-            <!-- GEÇMİŞ SEKME İÇERİĞİ (BAŞARI VE ARŞİV) -->
             <div id="historyModeView" class="history-container">
                 <div class="history-stat-box">
                     <div class="hist-item">
@@ -243,7 +244,6 @@
                 </div>
             </div>
 
-            <!-- ALT MOD DEĞİŞTİRİCİ (Tıklanabilir) -->
             <div class="mode-footer">
                 <div id="btnModeCurrent" onclick="switchViewMode('current')" style="color: #f0b90b;">🟡 <strong>Güncel</strong></div>
                 <div style="color: #444;">○</div>
@@ -340,7 +340,6 @@
             modal.classList.toggle('hidden');
         }
 
-        // Güncel / Geçmiş Mod Geçiş Fonksiyonu
         function switchViewMode(mode) {
             let currentView = document.getElementById('currentModeView');
             let historyView = document.getElementById('historyModeView');
@@ -361,7 +360,7 @@
                 btnCurr.style.color = '#848e9c';
                 btnHist.innerHTML = `🟡 <strong>Geçmiş</strong>`;
                 btnCurr.innerHTML = `Güncel`;
-                loadTradeHistory(); // Geçmişe tıklandığında verileri tazele
+                loadTradeHistory();
             }
         }
 
@@ -567,9 +566,18 @@
             fetchStats(currentSymbol, currentTimeframe);
         }
 
-        function onTimeframeChange() {
-            let select = document.getElementById('timeframeSelect');
-            currentTimeframe = select.value;
+        // Hızlı periyot butonlarından tetiklenen fonksiyon
+        function setExternalTimeframe(tf, buttonElement) {
+            currentTimeframe = tf;
+            
+            // Aktif buton rengini değiştir
+            document.querySelectorAll('.quick-timeframes button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            if(buttonElement) {
+                buttonElement.classList.add('active');
+            }
+
             updateTradingViewChart(currentSymbol, currentTimeframe);
             fetchStats(currentSymbol, currentTimeframe);
         }
