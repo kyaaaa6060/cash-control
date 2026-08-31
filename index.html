@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cash Control - Yetkili Panel Mimarisi</title>
+    <title>Cash Control - Liq & Yetkili Panel Mimarisi</title>
     <style>
         body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; height: 100vh; overflow: hidden; position: relative; }
         
@@ -88,7 +88,6 @@
         .res-sub { font-size: 10px; color: #848e9c; margin-top: 2px; }
         .res-val { font-size: 14px; font-weight: bold; }
 
-        /* Geçmiş Modu Listesi için Stil */
         .history-container { display: none; }
         .history-container.active { display: block; }
         .history-stat-box { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #121418; padding: 10px; border-radius: 6px; margin-bottom: 10px; text-align: center; border: 1px solid #23272e; }
@@ -134,13 +133,12 @@
         <div class="main-card">
             <div class="header-top">
                 <div class="title" id="panelTitle">
-                    📊 Tüm Kaynakların Ortalaması 
+                    📊 Tüm Kaynakların Ortalaması & Liq Seviyeleri
                     <span id="roleBadgeContainer"></span>
                 </div>
                 <div class="close-btn" onclick="togglePanel()">✕</div>
             </div>
 
-            <!-- GÜNCEL SEKME İÇERİĞİ -->
             <div id="currentModeView">
                 <div class="ivme-box">
                     <div class="ivme-top">
@@ -171,9 +169,11 @@
                     </div>
 
                     <div class="extra-card">
-                        <div class="extra-title">📐 Aktif Formasyonlar</div>
-                        <div class="extra-content" id="patternsContainer">
-                            <div class="no-pattern">Formasyon aranıyor...</div>
+                        <div class="extra-title">⚠️ Likidite (Liq) Bölgeleri</div>
+                        <div class="extra-content">
+                            <div class="level-row"><span class="level-lbl">Short Liq:</span> <span id="shortLiqVal" style="color: #f6465d; font-weight: bold;">$-</span></div>
+                            <div class="level-row"><span class="level-lbl">Long Liq:</span> <span id="longLiqVal" style="color: #0ecb81; font-weight: bold;">$-</span></div>
+                            <div class="level-row" style="margin-top: 6px;"><span class="level-lbl">Yoğunluk:</span> <span style="color: #f0b90b;">Yüksek Havuz</span></div>
                         </div>
                     </div>
                 </div>
@@ -221,7 +221,6 @@
                 </div>
             </div>
 
-            <!-- GEÇMİŞ SEKME İÇERİĞİ (BAŞARI VE ARŞİV) -->
             <div id="historyModeView" class="history-container">
                 <div class="history-stat-box">
                     <div class="hist-item">
@@ -243,7 +242,6 @@
                 </div>
             </div>
 
-            <!-- ALT MOD DEĞİŞTİRİCİ (Tıklanabilir) -->
             <div class="mode-footer">
                 <div id="btnModeCurrent" onclick="switchViewMode('current')" style="color: #f0b90b;">🟡 <strong>Güncel</strong></div>
                 <div style="color: #444;">○</div>
@@ -340,7 +338,6 @@
             modal.classList.toggle('hidden');
         }
 
-        // Güncel / Geçmiş Mod Geçiş Fonksiyonu
         function switchViewMode(mode) {
             let currentView = document.getElementById('currentModeView');
             let historyView = document.getElementById('historyModeView');
@@ -361,7 +358,7 @@
                 btnCurr.style.color = '#848e9c';
                 btnHist.innerHTML = `🟡 <strong>Geçmiş</strong>`;
                 btnCurr.innerHTML = `Güncel`;
-                loadTradeHistory(); // Geçmişe tıklandığında verileri tazele
+                loadTradeHistory();
             }
         }
 
@@ -418,7 +415,7 @@
             return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
-        function updateTradingViewChart(symbol, timeframe) {
+        function updateTradingViewChart(symbol, timeframe, studies = []) {
             let container = document.getElementById('tradingview-container');
             container.innerHTML = ''; 
             
@@ -448,7 +445,8 @@
                 "locale": "tr",
                 "allow_symbol_change": true,
                 "calendar": false,
-                "support_host": "https://www.tradingview.com"
+                "support_host": "https://www.tradingview.com",
+                "studies": studies
             });
             
             widgetDiv.appendChild(script);
@@ -480,7 +478,6 @@
                     }
                     
                     if(currentSymbol) {
-                        updateTradingViewChart(currentSymbol, currentTimeframe);
                         fetchStats(currentSymbol, currentTimeframe);
                         startRealtimeSync();
                     }
@@ -507,18 +504,12 @@
             let r2 = pivot + (high - low);
             let s2 = pivot - (high - low);
 
-            savedPivots[symbol] = {
-                res2: r2,
-                res1: r1,
-                sup1: s1,
-                sup2: s2
-            };
-            
+            savedPivots[symbol] = { res2: r2, res1: r1, sup1: s1, sup2: s2 };
             saveSavedPivots();
             return savedPivots[symbol];
         }
 
-        async function fetchStats(symbol, timeframe) {
+        async function fetchStats(symbol, timeframe, updateChart = false) {
             try {
                 let res = await fetch(`/api/market-stats/${symbol}?timeframe=${timeframe}`);
                 let json = await res.json();
@@ -539,11 +530,12 @@
                     document.getElementById('sup1').innerText = "$" + formatPrice(pivots.sup1);
                     document.getElementById('sup2').innerText = "$" + formatPrice(pivots.sup2);
 
-                    let patternsContainer = document.getElementById('patternsContainer');
-                    patternsContainer.innerHTML = `<div class="no-pattern">Aktif Formasyon Bulunamadı</div>`;
-                    
                     let srcData = d.sources[currentSource] || d.sources["trak"];
                     
+                    // Liq Alanlarını Bas
+                    document.getElementById('shortLiqVal').innerText = "$" + formatPrice(srcData.short_liq);
+                    document.getElementById('longLiqVal').innerText = "$" + formatPrice(srcData.long_liq);
+
                     document.getElementById('longVal').innerText = "$" + formatPrice(srcData.long_avg);
                     document.getElementById('longSub').innerText = `(${srcData.long_count} işlem, $${srcData.long_size.toFixed(1)}K size)`;
                     
@@ -554,6 +546,9 @@
                     
                     let now = new Date();
                     document.getElementById('currentTime').innerText = now.toLocaleDateString('tr-TR') + " " + now.toLocaleTimeString('tr-TR') + " (TRT)";
+
+                    // Grafiği güncelle veya ilk kez yükle
+                    updateTradingViewChart(symbol, timeframe);
                 }
             } catch(e) {
                 console.error("Veri çekme hatası:", e);
@@ -563,15 +558,13 @@
         function onCoinChange() {
             let select = document.getElementById('coinSelect');
             currentSymbol = select.value;
-            updateTradingViewChart(currentSymbol, currentTimeframe);
-            fetchStats(currentSymbol, currentTimeframe);
+            fetchStats(currentSymbol, currentTimeframe, true);
         }
 
         function onTimeframeChange() {
             let select = document.getElementById('timeframeSelect');
             currentTimeframe = select.value;
-            updateTradingViewChart(currentSymbol, currentTimeframe);
-            fetchStats(currentSymbol, currentTimeframe);
+            fetchStats(currentSymbol, currentTimeframe, true);
         }
 
         function setSource(src, element) {
