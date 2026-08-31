@@ -459,7 +459,7 @@
             container.appendChild(widgetDiv);
         }
 
-        /* Grafik Ölçeğine Tam Kilitli (Scaled) Canvas Çizim Katmanı */
+        /* Sabitlenmiş Doğrusal Ölçekleme Katmanı */
         function initCanvas() {
             const canvas = document.getElementById('chartOverlayCanvas');
             const ctx = canvas.getContext('2d');
@@ -478,18 +478,16 @@
                     let height = canvas.height;
                     let width = canvas.width;
                     
-                    // TradingView grafik alanının dikey eksen oranına göre tam kilitli dinamik bant
                     let dynamicZoomRange = currentMarkPrice * 0.035; 
                     let topPrice = currentMarkPrice + dynamicZoomRange;
                     let bottomPrice = currentMarkPrice - dynamicZoomRange;
 
                     function priceToY(price) {
                         let ratio = (topPrice - price) / (topPrice - bottomPrice);
-                        // Sağdaki fiyat ekseni panelini ve üst/alt barları dışarıda tutarak tam grafiğe oturtur
                         return height * 0.06 + ratio * (height * 0.88);
                     }
 
-                    // 1. Short Liq / Short Ortalama Çizgisi (Kırmızı Kesikli)
+                    // 1. Short Ortalama Çizgisi (Kırmızı Kesikli)
                     if (currentShortAvg > 0) {
                         let yShort = priceToY(currentShortAvg);
                         ctx.strokeStyle = '#f6465d';
@@ -507,7 +505,7 @@
                         ctx.fillText(`Shortcu Zararda: $${formatPrice(currentShortAvg)}`, width - 160, yShort + 4);
                     }
 
-                    // 2. Ortalama Giriş / Genel Ortalama (Beyaz Çizgi)
+                    // 2. Genel Ortalama Seviye (Beyaz Çizgi)
                     if (currentGeneralAvg > 0) {
                         let yGen = priceToY(currentGeneralAvg);
                         ctx.strokeStyle = '#ffffff';
@@ -525,7 +523,7 @@
                         ctx.fillText(`● Ortalama Seviye: $${formatPrice(currentGeneralAvg)}`, width - 160, yGen + 4);
                     }
 
-                    // 3. Long Liq / Long Ortalama Çizgisi (Yeşil Düz Çizgi)
+                    // 3. Long Ortalama Çizgisi (Yeşil Düz Çizgi)
                     if (currentLongAvg > 0) {
                         let yLong = priceToY(currentLongAvg);
                         ctx.strokeStyle = '#0ecb81';
