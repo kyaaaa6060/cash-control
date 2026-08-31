@@ -475,13 +475,15 @@
                     let height = canvas.height;
                     let width = canvas.width;
                     
-                    let dynamicZoomRange = currentMarkPrice * 0.035; 
+                    // TradingView standart ölçek oranına tam uyumlu dinamik aralık
+                    let dynamicZoomRange = currentMarkPrice * 0.025; 
                     let topPrice = currentMarkPrice + dynamicZoomRange;
                     let bottomPrice = currentMarkPrice - dynamicZoomRange;
 
                     function priceToY(price) {
                         let ratio = (topPrice - price) / (topPrice - bottomPrice);
-                        return height * 0.06 + ratio * (height * 0.88);
+                        // Ölçek marjlarını TradingView grafiğinin dikey sınırlarına tam oturacak şekilde sabitledik
+                        return height * 0.03 + ratio * (height * 0.94);
                     }
 
                     if (currentShortAvg > 0) {
@@ -491,7 +493,7 @@
                         ctx.setLineDash([8, 6]);
                         ctx.beginPath();
                         ctx.moveTo(0, yShort);
-                        ctx.lineTo(width - 80, yShort);
+                        ctx.lineTo(width - 70, yShort);
                         ctx.stroke();
 
                         ctx.fillStyle = '#f6465d';
@@ -508,7 +510,7 @@
                         ctx.setLineDash([12, 6]);
                         ctx.beginPath();
                         ctx.moveTo(0, yGen);
-                        ctx.lineTo(width - 80, yGen);
+                        ctx.lineTo(width - 70, yGen);
                         ctx.stroke();
 
                         ctx.fillStyle = '#ffffff';
@@ -525,7 +527,7 @@
                         ctx.setLineDash([]); 
                         ctx.beginPath();
                         ctx.moveTo(0, yLong);
-                        ctx.lineTo(width - 80, yLong);
+                        ctx.lineTo(width - 70, yLong);
                         ctx.stroke();
 
                         ctx.fillStyle = '#0ecb81';
@@ -566,9 +568,9 @@
                     
                     if(currentSymbol) {
                         updateTradingViewChart(currentSymbol, currentTimeframe);
-                        fetchStats(currentSymbol, currentTimeframe); // İlk açılış (tüm veriler ve 3 hedef ortalama yüklenir)
-                        startRealtimeSync(); // Sadece Mark fiyatı vb. anlık güncelleyen 5 sn döngüsü
-                        startFiveMinuteAveragesSync(); // Sadece Longcu, Shortcu ve Ortalama Giriş değerlerini güncelleyen 5 dk döngüsü
+                        fetchStats(currentSymbol, currentTimeframe);
+                        startRealtimeSync();
+                        startFiveMinuteAveragesSync();
                     }
                 }
             } catch(e) {
@@ -604,7 +606,6 @@
             return savedPivots[symbol];
         }
 
-        // Sadece Longcu Zararda, Shortcu Zararda ve Ortalama Giriş verilerini güncelleyen özel fonksiyon
         async function fetchAveragesOnly() {
             if (!currentSymbol) return;
             try {
@@ -627,11 +628,10 @@
                     document.getElementById('avgVal').innerText = "$" + formatPrice(srcData.general_avg);
                 }
             } catch(e) {
-                console.error("5 dakikalık ortalama verileri güncelleme hatası:", e);
+                console.error("Ortalama verileri güncelleme hatası:", e);
             }
         }
 
-        // Anlık fiyat ve diğer verileri çeken fonksiyon (Long/Short/Ortalama Değerlere dokunmaz!)
         async function fetchStats(symbol, timeframe) {
             try {
                 let res = await fetch(`/api/market-stats/${symbol}?timeframe=${timeframe}`);
@@ -657,7 +657,6 @@
                     let patternsContainer = document.getElementById('patternsContainer');
                     patternsContainer.innerHTML = `<div class="no-pattern">Aktif Formasyon Bulunamadı</div>`;
                     
-                    // Sadece ilk açılışta veya coin/kaynak değişiminde bu 3 değerin ilk ataması yapılır
                     let srcData = d.sources[currentSource] || d.sources["trak"];
                     if (currentLongAvg === 0) {
                         currentLongAvg = srcData.long_avg;
@@ -677,14 +676,14 @@
                     document.getElementById('currentTime').innerText = now.toLocaleDateString('tr-TR') + " " + now.toLocaleTimeString('tr-TR') + " (TRT)";
                 }
             } catch(e) {
-                console.error("Anlık veri çekme hatası:", e);
+                console.error("Veri çekme hatası:", e);
             }
         }
 
         function onCoinChange() {
             let select = document.getElementById('coinSelect');
             currentSymbol = select.value;
-            currentLongAvg = 0; // Coin değiştiğinde ortalamaları sıfırla ki yeni coinin verisi yüklensin
+            currentLongAvg = 0; 
             currentShortAvg = 0;
             currentGeneralAvg = 0;
             updateTradingViewChart(currentSymbol, currentTimeframe);
@@ -721,7 +720,6 @@
             fetchAveragesOnly();
         }
 
-        // Sadece mark fiyatı ve anlık grafikleri güncelleyen 5 saniyelik döngü
         function startRealtimeSync() {
             if(autoInterval) clearInterval(autoInterval);
             let secondsLeft = 5;
@@ -738,7 +736,6 @@
             }, 1000);
         }
 
-        // Longcu Zararda, Shortcu Zararda ve Ortalama Giriş seviyelerini TAM 5 DAKİKADA BİR güncelleyen sabit döngü
         function startFiveMinuteAveragesSync() {
             setInterval(() => {
                 fetchAveragesOnly();
