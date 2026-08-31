@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cash Control - Yetkili Panel Mimarisi</title>
+    <!-- TradingView Standart Grafik Kütüphanesi -->
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
     <style>
         body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; height: 100vh; overflow: hidden; position: relative; }
         
@@ -114,7 +116,7 @@
         </div>
     </div>
 
-    <!-- Zaman Ekseninin Kesilmemesi İçin Yükseklik Payı Bırakılan Kapsayıcı -->
+    <!-- Zaman Eksenini Kesintisiz Gösteren TV Kütüphane Kapsayıcısı -->
     <div id="tradingview-container"></div>
 
     <div class="top-control-bar">
@@ -285,6 +287,7 @@
         let currentSource = "trak";
         let autoInterval = null;
         let currentUserRole = null;
+        let tvWidget = null;
         let savedPivots = JSON.parse(localStorage.getItem('cashControl_savedPivots')) || {};
 
         let totalSyncSeconds = 300;
@@ -421,46 +424,25 @@
             return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
+        // TradingView Standart Kütüphane Widget Yapısı (Zaman Eksenini Asla Kapatmaz)
         function updateTradingViewChart(symbol, timeframe) {
-            let container = document.getElementById('tradingview-container');
-            container.innerHTML = ''; 
+            document.getElementById('tradingview-container').innerHTML = '';
             
-            let widgetDiv = document.createElement('div');
-            widgetDiv.className = "tradingview-widget-container";
-            widgetDiv.style.height = "100%";
-            widgetDiv.style.width = "100%";
-            
-            let innerDiv = document.createElement('div');
-            innerDiv.className = "tradingview-widget-container__widget";
-            // Alt zaman şeridinin (09:00, 10:00 vb.) kesilmeden görünmesi için yükseklik payı bırakıldı
-            innerDiv.style.height = "calc(100% - 40px)"; 
-            innerDiv.style.width = "100%";
-            widgetDiv.appendChild(innerDiv);
-            
-            let script = document.createElement('script');
-            script.type = "text/javascript";
-            script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
-            script.async = true;
-            script.innerHTML = JSON.stringify({
-                "width": "100%",
-                "height": "100%",
+            tvWidget = new TradingView.widget({
+                "autosize": true,
                 "symbol": "BINANCE:" + symbol + "USDT",
                 "interval": timeframe,
                 "timezone": "Europe/Istanbul",
                 "theme": "dark",
                 "style": "1",
                 "locale": "tr",
-                "toolbar_bg": "#f1f3f6",
+                "toolbar_bg": "#1e2329",
                 "enable_publishing": false,
                 "hide_side_toolbar": false,
                 "hide_top_toolbar": false,
                 "save_image": false,
-                "calendar": false,
-                "support_host": "https://www.tradingview.com"
+                "container_id": "tradingview-container"
             });
-            
-            widgetDiv.appendChild(script);
-            container.appendChild(widgetDiv);
         }
 
         async function loadCoins() {
