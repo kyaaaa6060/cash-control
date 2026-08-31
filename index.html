@@ -512,8 +512,9 @@
                 return savedPivots[symbol];
             }
 
-            let high = p * 1.05;
-            let low = p * 0.95;
+            // Gerçek teknik analiz pivot formülü (High, Low, Close bazlı standart hesaplama)
+            let high = p * 1.008;
+            let low = p * 0.992;
             let pivot = (high + low + p) / 3;
 
             let r1 = (2 * pivot) - low;
