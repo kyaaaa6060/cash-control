@@ -267,7 +267,7 @@
 
                 <div class="result-card avg">
                     <div>
-                        <div class="res-title"><span style="color: #f0b90b;">●</span> Ortalama Seviye:</div>
+                        <div class="res-title"><span style="color: #f0b90b;">●</span> Ortalama Giriş:</div>
                         <div class="res-sub">Ağırlıklı genel ortalama</div>
                     </div>
                     <div class="res-val" id="avgVal" style="color: #f0b90b;">$-</div>
@@ -567,8 +567,8 @@
                     if(currentSymbol) {
                         updateTradingViewChart(currentSymbol, currentTimeframe);
                         fetchStats(currentSymbol, currentTimeframe); // İlk açılış verisi
-                        startRealtimeSync(); // 5 sn'lik genel döngü
-                        startFiveMinuteAveragesSync(); // 5 dakikalık hedef veriler döngüsü
+                        startRealtimeSync(); // Anlık fiyat ve diğer veriler (5 sn)
+                        startFiveMinuteAveragesSync(); // Sadece long, short ve genel ortalamalar (5 dk)
                     }
                 }
             } catch(e) {
@@ -604,7 +604,7 @@
             return savedPivots[symbol];
         }
 
-        // Sadece Longcu, Shortcu ve Ortalama Seviye verilerini güncelleyen fonksiyon
+        // Sadece Longcu, Shortcu ve Ortalama Giriş verilerini güncelleyen fonksiyon
         async function fetchAveragesOnly() {
             if (!currentSymbol) return;
             try {
@@ -658,6 +658,7 @@
                     
                     let srcData = d.sources[currentSource] || d.sources["trak"];
                     
+                    // İlk yüklemede ve manuel değişimlerde bu değerler hemen atanır
                     currentLongAvg = srcData.long_avg;
                     currentShortAvg = srcData.short_avg;
                     currentGeneralAvg = srcData.general_avg;
@@ -720,7 +721,7 @@
             }, 1000);
         }
 
-        // İstediğiniz gibi Shortcu zararı, Ortalama seviye ve Longcu zararda verilerini tam 5 dakikada bir güncelleyen döngü
+        // Sadece Longcu Zararda, Shortcu Zararda ve Ortalama Giriş seviyelerini 5 dakikada bir güncelleyen bağımsız zamanlayıcı
         function startFiveMinuteAveragesSync() {
             setInterval(() => {
                 fetchAveragesOnly();
