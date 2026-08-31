@@ -69,12 +69,24 @@
         .res-sub { font-size: 8px; color: #848e9c; }
         .res-val { font-size: 11px; font-weight: bold; }
 
-        /* Grafik Üstü Tıklanabilir Şerit Liq Çizgileri */
-        .chart-liq-overlay { position: absolute; left: 15px; bottom: 50px; z-index: 5; display: flex; flex-direction: column; gap: 6px; pointer-events: none; width: calc(100% - 30px); }
-        .liq-banner-line { background: rgba(18, 20, 24, 0.92); border: 1px solid #2f363d; padding: 6px 12px; border-radius: 4px; font-size: 10px; display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(6px); pointer-events: auto; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.7); transition: 0.2s; border-style: dashed; }
-        .liq-banner-line:hover { border-color: #f0b90b; background: rgba(30, 35, 41, 0.98); transform: translateY(-1px); }
-        .liq-banner-line.short-line { border-color: #f6465d; border-left-width: 4px; border-left-style: solid; }
-        .liq-banner-line.long-line { border-color: #0ecb81; border-left-width: 4px; border-left-style: solid; }
+        /* Videdaki gibi Tam Ekran Yatay Liq Çizgileri ve Cüzdan Yönlendirme Alanı */
+        .chart-liq-lines-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 4; }
+        
+        .chart-line-wrapper { position: absolute; left: 0; width: 100%; display: flex; align-items: center; pointer-events: auto; cursor: pointer; transition: background 0.2s; }
+        .chart-line-wrapper:hover { background: rgba(255,255,255,0.03); }
+        
+        .chart-line-bar { flex-grow: 1; height: 1px; border-top: 2px dashed; margin: 0 10px; }
+        .chart-line-label { padding: 3px 8px; border-radius: 3px; font-size: 10px; font-weight: bold; backdrop-filter: blur(4px); box-shadow: 0 2px 8px rgba(0,0,0,0.5); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+        
+        /* Short Seviyesi (Kırmızı) */
+        #shortLiqWrapper { top: 35%; }
+        #shortLiqWrapper .chart-line-bar { border-color: #f6465d; }
+        #shortLiqWrapper .chart-line-label { background: rgba(246, 70, 93, 0.2); color: #f6465d; border: 1px solid #f6465d; }
+
+        /* Long Seviyesi (Yeşil) */
+        #longLiqWrapper { top: 68%; }
+        #longLiqWrapper .chart-line-bar { border-color: #0ecb81; }
+        #longLiqWrapper .chart-line-label { background: rgba(14, 203, 129, 0.2); color: #0ecb81; border: 1px solid #0ecb81; }
     </style>
 </head>
 <body>
@@ -91,20 +103,23 @@
 
     <div id="tradingview-container"></div>
 
-    <div class="chart-liq-overlay">
-        <div class="liq-banner-line short-line" onclick="openWalletBySource('short')">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="color: #f6465d; font-weight: bold;">--- 🔴 SHORT LİQ SEVİYESİ:</span>
-                <span id="chartShortLiqVal" style="color: #fff; font-weight: bold; font-size: 11px;">$-</span>
+    <div class="chart-liq-lines-container">
+        <div id="shortLiqWrapper" class="chart-line-wrapper" onclick="openWalletBySource('short')">
+            <div class="chart-line-label">
+                <span>🔴 Shortcu Kar/Liq:</span>
+                <span id="chartShortLiqVal" style="color: #fff;">$-</span>
+                <span style="font-size: 8px; background: #f6465d; color: #000; padding: 1px 4px; border-radius: 2px;">Cüzdana Git ↗</span>
             </div>
-            <span style="font-size: 8px; background: rgba(246,70,93,0.2); color: #f6465d; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Cüzdana Git ↗</span>
+            <div class="chart-line-bar"></div>
         </div>
-        <div class="liq-banner-line long-line" onclick="openWalletBySource('long')">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="color: #0ecb81; font-weight: bold;">--- 🟢 LONG LİQ SEVİYESİ:</span>
-                <span id="chartLongLiqVal" style="color: #fff; font-weight: bold; font-size: 11px;">$-</span>
+
+        <div id="longLiqWrapper" class="chart-line-wrapper" onclick="openWalletBySource('long')">
+            <div class="chart-line-label">
+                <span>🟢 Longcu Zarar/Liq:</span>
+                <span id="chartLongLiqVal" style="color: #fff;">$-</span>
+                <span style="font-size: 8px; background: #0ecb81; color: #000; padding: 1px 4px; border-radius: 2px;">Cüzdana Git ↗</span>
             </div>
-            <span style="font-size: 8px; background: rgba(14,203,129,0.2); color: #0ecb81; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Cüzdana Git ↗</span>
+            <div class="chart-line-bar"></div>
         </div>
     </div>
 
@@ -236,8 +251,6 @@
             if (input === ADMIN_PASS || input === USER_PASS) {
                 currentUserRole = (input === ADMIN_PASS) ? 'admin' : 'user';
                 localStorage.setItem('cashControl_role', currentUserRole);
-                
-                // Şifre paneli kaybolur ve uygulama başlar
                 document.getElementById('authOverlay').style.display = 'none';
                 initSession();
             } else {
@@ -383,7 +396,7 @@
         }
 
         function onTimeframeChange() {
-            currentTimeframe = document.getElementById('timeframeSelect').value;
+            currentTimeframe = document.getElementById('timeframeSelect'].value;
             fetchStats(currentSymbol, currentTimeframe, true);
         }
 
