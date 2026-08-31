@@ -515,7 +515,7 @@
                         ctx.fillRect(width - 165, yGen - 12, 155, 24);
                         ctx.fillStyle = '#0b0e11';
                         ctx.font = 'bold 11px sans-serif';
-                        ctx.fillText(`● Ortalama Seviye: $${formatPrice(currentGeneralAvg)}`, width - 160, yGen + 4);
+                        ctx.fillText(`● Ortalama Giriş: $${formatPrice(currentGeneralAvg)}`, width - 160, yGen + 4);
                     }
 
                     if (currentLongAvg > 0) {
@@ -566,9 +566,9 @@
                     
                     if(currentSymbol) {
                         updateTradingViewChart(currentSymbol, currentTimeframe);
-                        fetchStats(currentSymbol, currentTimeframe); // İlk açılış verisi
-                        startRealtimeSync(); // Anlık fiyat ve diğer veriler (5 sn)
-                        startFiveMinuteAveragesSync(); // Sadece long, short ve genel ortalamalar (5 dk)
+                        fetchStats(currentSymbol, currentTimeframe); // İlk açılış (tüm veriler ve 3 hedef ortalama yüklenir)
+                        startRealtimeSync(); // Sadece Mark fiyatı vb. anlık güncelleyen 5 sn döngüsü
+                        startFiveMinuteAveragesSync(); // Sadece Longcu, Shortcu ve Ortalama Giriş değerlerini güncelleyen 5 dk döngüsü
                     }
                 }
             } catch(e) {
@@ -604,7 +604,7 @@
             return savedPivots[symbol];
         }
 
-        // Sadece Longcu, Shortcu ve Ortalama Giriş verilerini güncelleyen fonksiyon
+        // Sadece Longcu Zararda, Shortcu Zararda ve Ortalama Giriş verilerini güncelleyen özel fonksiyon
         async function fetchAveragesOnly() {
             if (!currentSymbol) return;
             try {
@@ -627,10 +627,11 @@
                     document.getElementById('avgVal').innerText = "$" + formatPrice(srcData.general_avg);
                 }
             } catch(e) {
-                console.error("Ortalama verileri güncelleme hatası:", e);
+                console.error("5 dakikalık ortalama verileri güncelleme hatası:", e);
             }
         }
 
+        // Anlık fiyat ve diğer verileri çeken fonksiyon (Long/Short/Ortalama Değerlere dokunmaz!)
         async function fetchStats(symbol, timeframe) {
             try {
                 let res = await fetch(`/api/market-stats/${symbol}?timeframe=${timeframe}`);
@@ -656,32 +657,36 @@
                     let patternsContainer = document.getElementById('patternsContainer');
                     patternsContainer.innerHTML = `<div class="no-pattern">Aktif Formasyon Bulunamadı</div>`;
                     
+                    // Sadece ilk açılışta veya coin/kaynak değişiminde bu 3 değerin ilk ataması yapılır
                     let srcData = d.sources[currentSource] || d.sources["trak"];
-                    
-                    // İlk yüklemede ve manuel değişimlerde bu değerler hemen atanır
-                    currentLongAvg = srcData.long_avg;
-                    currentShortAvg = srcData.short_avg;
-                    currentGeneralAvg = srcData.general_avg;
+                    if (currentLongAvg === 0) {
+                        currentLongAvg = srcData.long_avg;
+                        currentShortAvg = srcData.short_avg;
+                        currentGeneralAvg = srcData.general_avg;
 
-                    document.getElementById('longVal').innerText = "$" + formatPrice(srcData.long_avg);
-                    document.getElementById('longSub').innerText = `(${srcData.long_count} işlem, $${srcData.long_size.toFixed(1)}K size)`;
-                    
-                    document.getElementById('shortVal').innerText = "$" + formatPrice(srcData.short_avg);
-                    document.getElementById('shortSub').innerText = `(${srcData.short_count} işlem, $${srcData.short_size.toFixed(1)}K size)`;
-                    
-                    document.getElementById('avgVal').innerText = "$" + formatPrice(srcData.general_avg);
+                        document.getElementById('longVal').innerText = "$" + formatPrice(srcData.long_avg);
+                        document.getElementById('longSub').innerText = `(${srcData.long_count} işlem, $${srcData.long_size.toFixed(1)}K size)`;
+                        
+                        document.getElementById('shortVal').innerText = "$" + formatPrice(srcData.short_avg);
+                        document.getElementById('shortSub').innerText = `(${srcData.short_count} işlem, $${srcData.short_size.toFixed(1)}K size)`;
+                        
+                        document.getElementById('avgVal').innerText = "$" + formatPrice(srcData.general_avg);
+                    }
                     
                     let now = new Date();
                     document.getElementById('currentTime').innerText = now.toLocaleDateString('tr-TR') + " " + now.toLocaleTimeString('tr-TR') + " (TRT)";
                 }
             } catch(e) {
-                console.error("Veri çekme hatası:", e);
+                console.error("Anlık veri çekme hatası:", e);
             }
         }
 
         function onCoinChange() {
             let select = document.getElementById('coinSelect');
             currentSymbol = select.value;
+            currentLongAvg = 0; // Coin değiştiğinde ortalamaları sıfırla ki yeni coinin verisi yüklensin
+            currentShortAvg = 0;
+            currentGeneralAvg = 0;
             updateTradingViewChart(currentSymbol, currentTimeframe);
             fetchStats(currentSymbol, currentTimeframe);
         }
@@ -689,6 +694,9 @@
         function onTimeframeChange() {
             let select = document.getElementById('timeframeSelect');
             currentTimeframe = select.value;
+            currentLongAvg = 0; 
+            currentShortAvg = 0;
+            currentGeneralAvg = 0;
             updateTradingViewChart(currentSymbol, currentTimeframe);
             fetchStats(currentSymbol, currentTimeframe);
         }
@@ -697,14 +705,23 @@
             document.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
             element.classList.add('active');
             currentSource = src;
+            currentLongAvg = 0; 
+            currentShortAvg = 0;
+            currentGeneralAvg = 0;
             fetchStats(currentSymbol, currentTimeframe);
+            fetchAveragesOnly();
         }
 
         function manualRefresh() {
             if (currentUserRole !== 'admin') return;
+            currentLongAvg = 0;
+            currentShortAvg = 0;
+            currentGeneralAvg = 0;
             fetchStats(currentSymbol, currentTimeframe);
+            fetchAveragesOnly();
         }
 
+        // Sadece mark fiyatı ve anlık grafikleri güncelleyen 5 saniyelik döngü
         function startRealtimeSync() {
             if(autoInterval) clearInterval(autoInterval);
             let secondsLeft = 5;
@@ -721,7 +738,7 @@
             }, 1000);
         }
 
-        // Sadece Longcu Zararda, Shortcu Zararda ve Ortalama Giriş seviyelerini 5 dakikada bir güncelleyen bağımsız zamanlayıcı
+        // Longcu Zararda, Shortcu Zararda ve Ortalama Giriş seviyelerini TAM 5 DAKİKADA BİR güncelleyen sabit döngü
         function startFiveMinuteAveragesSync() {
             setInterval(() => {
                 fetchAveragesOnly();
