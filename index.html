@@ -9,7 +9,6 @@
         
         #tradingview-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
 
-        /* Üst Kontrol Barı */
         .top-control-bar { position: absolute; top: 8px; right: 10px; z-index: 10; display: flex; gap: 4px; align-items: center; }
         
         .timeframe-select { background: #1e2329; color: #f0b90b; border: 1px solid #2f363d; padding: 3px 6px; border-radius: 3px; font-weight: bold; font-size: 10px; outline: none; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
@@ -28,7 +27,6 @@
         .modal-overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.4); z-index: 20; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
         .modal-overlay.hidden { display: none; }
 
-        /* Kompakt Ana Panel */
         .main-card { background: #181a20; border: 1px solid #2b2b2b; border-radius: 6px; width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto; padding: 8px 10px; box-shadow: 0 6px 20px rgba(0,0,0,0.8); }
         .header-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #23272e; padding-bottom: 4px; margin-bottom: 6px; }
         .title { display: flex; align-items: center; gap: 4px; font-weight: bold; color: #fff; font-size: 11px; }
@@ -69,8 +67,8 @@
         .res-sub { font-size: 8px; color: #848e9c; }
         .res-val { font-size: 11px; font-weight: bold; }
 
-        /* Videodaki Gibi Doğrudan Ekranı Kaplayan Yatay Liq Çizgileri */
-        .chart-liq-lines-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 4; }
+        /* Sağ Ölçeğe Hizalı, Üst üste yığılmayan Yatay Liq Çizgileri */
+        .chart-liq-lines-container { position: absolute; top: 0; left: 0; width: calc(100vw - 75px); height: 100vh; pointer-events: none; z-index: 4; }
         .chart-line-wrapper { position: absolute; left: 0; width: 100%; display: flex; align-items: center; pointer-events: auto; cursor: pointer; transition: background 0.2s; }
         .chart-line-wrapper:hover { background: rgba(255,255,255,0.03); }
         .chart-line-bar { flex-grow: 1; height: 1px; border-top: 2px dashed; margin: 0 10px; }
@@ -265,8 +263,16 @@
             document.getElementById('panelModal').classList.toggle('hidden');
         }
 
+        // Videodaki gibi kaynağa göre doğru cüzdana yönlendirme fonksiyonu
         function openWalletBySource(type) {
-            window.open(`https://app.hyperliquid.xyz/trade/${currentSymbol}`, '_blank');
+            let targetUrl = `https://app.hyperliquid.xyz/trade/${currentSymbol}`;
+            
+            // Eğer seçilen kaynak Copy veya Balina ise Binance Leaderboard sayfasına yönlendirir (Videodaki davranış)
+            if (currentSource === 'copy' || currentSource === 'whale') {
+                targetUrl = `https://www.binance.com/tr/futures/leaderboard`;
+            }
+            
+            window.open(targetUrl, '_blank');
         }
 
         function formatPrice(val) {
@@ -321,9 +327,7 @@
                 if(data.status === 'success' && data.coins) {
                     defaultCoins = data.coins;
                 }
-            } catch(e) {
-                // Backend yoksa varsayılan listeyle devam eder, site çökmEz
-            }
+            } catch(e) {}
             
             let select = document.getElementById('coinSelect');
             select.innerHTML = '';
@@ -345,9 +349,7 @@
                     let d = json.data;
                     document.getElementById('markPrice').innerText = "$" + formatPrice(d.markPrice);
                 }
-            } catch(e) {
-                // Backend verisi alınamazsa bile arayüzde hata oluşmaz
-            }
+            } catch(e) {}
         }
 
         function onCoinChange() {
@@ -357,7 +359,7 @@
         }
 
         function onTimeframeChange() {
-            currentTimeframe = document.getElementById('timeframeSelect').value;
+            currentTimeframe = document.getElementById('timeframeSelect'].value;
             initTradingViewChart(currentSymbol, currentTimeframe);
         }
 
