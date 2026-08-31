@@ -95,8 +95,10 @@
         </div>
     </div>
 
+    <!-- TradingView Konteyneri -->
     <div id="tradingview-container"></div>
 
+    <!-- Sağ Ölçeğe Sabitlenmiş Yatay Liq Çizgileri -->
     <div class="chart-liq-lines-container">
         <div id="shortLiqWrapper" class="chart-line-wrapper" onclick="openWalletBySource('short')">
             <div class="chart-line-label">
@@ -256,6 +258,7 @@
         function initSession() {
             loadCoins();
             initTradingViewChart(currentSymbol, currentTimeframe);
+            fetchStats(currentSymbol, currentTimeframe);
         }
 
         function logoutSession() {
@@ -344,13 +347,46 @@
 
         async function fetchStats(symbol, timeframe) {
             try {
-                let res = await fetch(`/api/market-stats/${symbol}`);
+                let res = await fetch(`/api/market-stats/${symbol}?source=${currentSource}&timeframe=${timeframe}`);
                 let json = await res.json();
-                if(json.status === 'success') {
+                
+                if(json.status === 'success' && json.data) {
                     let d = json.data;
-                    document.getElementById('markPrice').innerText = "$" + formatPrice(d.markPrice);
+                    
+                    if(d.markPrice) document.getElementById('markPrice').innerText = "$" + formatPrice(d.markPrice);
+                    if(d.entry) document.getElementById('valEntry').innerText = "$" + formatPrice(d.entry);
+                    if(d.tp) document.getElementById('valTP').innerText = "$" + formatPrice(d.tp);
+                    if(d.sl) document.getElementById('valSL').innerText = "$" + formatPrice(d.sl);
+
+                    if(d.shortLiq) {
+                        let shortFormatted = "$" + formatPrice(d.shortLiq);
+                        document.getElementById('shortLiqVal').innerText = shortFormatted;
+                        document.getElementById('chartShortLiqVal').innerText = shortFormatted;
+                    }
+                    if(d.longLiq) {
+                        let longFormatted = "$" + formatPrice(d.longLiq);
+                        document.getElementById('longLiqVal').innerText = longFormatted;
+                        document.getElementById('chartLongLiqVal').innerText = longFormatted;
+                    }
+
+                    if(d.res2) document.getElementById('res2').innerText = "$" + formatPrice(d.res2);
+                    if(d.res1) document.getElementById('res1').innerText = "$" + formatPrice(d.res1);
+                    if(d.sup1) document.getElementById('sup1').innerText = "$" + formatPrice(d.sup1);
+                    if(d.sup2) document.getElementById('sup2').innerText = "$" + formatPrice(d.sup2);
+
+                    if(d.longVal) document.getElementById('longVal').innerText = "$" + formatPrice(d.longVal);
+                    if(d.longSub) document.getElementById('longSub').innerText = d.longSub;
+                    
+                    if(d.shortVal) document.getElementById('shortVal').innerText = "$" + formatPrice(d.shortVal);
+                    if(d.shortSub) document.getElementById('shortSub').innerText = d.shortSub;
+
+                    if(d.aiComment) {
+                        document.getElementById('aiComment').innerText = `[${timeframe}dk Periyot] ` + d.aiComment;
+                    }
                 }
-            } catch(e) {}
+            } catch(e) {
+                console.error("Veri çekme hatası:", e);
+            }
         }
 
         function onCoinChange() {
@@ -360,14 +396,16 @@
         }
 
         function onTimeframeChange() {
-            currentTimeframe = document.getElementById('timeframeSelect').value;
+            currentTimeframe = document.getElementById('timeframeSelect'].value;
             initTradingViewChart(currentSymbol, currentTimeframe);
+            fetchStats(currentSymbol, currentTimeframe);
         }
 
         function setSource(src, element) {
             document.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
             element.classList.add('active');
             currentSource = src;
+            fetchStats(currentSymbol, currentTimeframe);
         }
 
         function startBackgroundSync() {
