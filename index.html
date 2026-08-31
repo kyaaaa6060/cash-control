@@ -81,21 +81,6 @@
             cursor: pointer;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
-
-        /* İsteğe bağlı ek panel stilleri */
-        .side-panel {
-            position: absolute;
-            top: 60px;
-            right: 10px;
-            background: rgba(30, 35, 41, 0.95);
-            border: 1px solid #2f363d;
-            border-radius: 8px;
-            padding: 10px;
-            z-index: 9;
-            max-height: calc(100dvh - 80px);
-            overflow-y: auto;
-            display: none;
-        }
     </style>
 </head>
 <body>
@@ -110,7 +95,7 @@
             <option value="240">4 Saat</option>
             <option value="D">1 Gün</option>
         </select>
-        <button id="toggleBtn" class="toggle-panel-bar toggle-panel-btn">Veri Gizle</button>
+        <button id="toggleBtn" class="toggle-panel-btn">Veri Gizle</button>
         <button onclick="location.href='/logout'" class="logout-btn">Çıkış Yap</button>
     </div>
 
@@ -119,6 +104,7 @@
 
     <script type="text/javascript">
         let tvWidget = null;
+        let isToolbarHidden = false;
 
         function initTradingView(symbol = "BINANCE:BNBUSDT", interval = "15") {
             document.getElementById('tradingview-container').innerHTML = '';
@@ -133,7 +119,7 @@
                 "locale": "tr",
                 "toolbar_bg": "#1e2329",
                 "enable_publishing": false,
-                "hide_side_toolbar": false,
+                "hide_side_toolbar": isToolbarHidden, // Duruma göre sol araç çubuğunu gizler/gösterir
                 "allow_symbol_change": true,
                 "container_id": "tradingview-container"
             });
@@ -151,13 +137,15 @@
                 }
             });
 
-            // Panel gizle/göster butonu örneği
+            // "Veri Göster / Gizle" butonu işlevi (Grafiğin sol araç çubuğunu açıp kapatır ve yeniden yükler)
             const toggleBtn = document.getElementById('toggleBtn');
-            let isVisible = true;
             toggleBtn.addEventListener('click', () => {
-                isVisible = !isVisible;
-                toggleBtn.textContent = isVisible ? "Veri Gizle" : "Veri Göster";
-                // Buraya panel gizleme mantığınızı ekleyebilirsiniz
+                isToolbarHidden = !isToolbarHidden;
+                toggleBtn.textContent = isToolbarHidden ? "Veri Göster" : "Veri Gizle";
+                
+                // Mevcut seçili zaman dilimini ve sembolü koruyarak grafiği yeniden oluştur
+                const currentInterval = document.getElementById('timeframeSelect').value;
+                initTradingView("BINANCE:BNBUSDT", currentInterval);
             });
         });
     </script>
