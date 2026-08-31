@@ -67,7 +67,7 @@
         .res-sub { font-size: 8px; color: #848e9c; }
         .res-val { font-size: 11px; font-weight: bold; }
 
-        /* Sağ Ölçeğe Hizalı, Üst üste yığılmayan Yatay Liq Çizgileri */
+        /* Sağ Ölçeğe Sabitlenmiş Yatay Liq Çizgileri */
         .chart-liq-lines-container { position: absolute; top: 0; left: 0; width: calc(100vw - 75px); height: 100vh; pointer-events: none; z-index: 4; }
         .chart-line-wrapper { position: absolute; left: 0; width: 100%; display: flex; align-items: center; pointer-events: auto; cursor: pointer; transition: background 0.2s; }
         .chart-line-wrapper:hover { background: rgba(255,255,255,0.03); }
@@ -89,7 +89,7 @@
         <div class="auth-card">
             <div class="auth-title">🔐 Cash Control</div>
             <div class="auth-desc">Devam etmek için erişim şifrenizi girin</div>
-            <input type="password" id="passwordInput" class="auth-input" placeholder="••••" onkeydown="if(event.key === 'Enter') checkPassword()">
+            <input type="password" id="passwordInput" class="auth-input" placeholder="••••" autofocus onkeydown="if(event.key === 'Enter') checkPassword()">
             <button class="auth-btn" onclick="checkPassword()">Giriş Yap</button>
             <div id="authError" class="auth-error">Hatalı Şifre! (Admin: 1453, User: 1234)</div>
         </div>
@@ -236,16 +236,20 @@
         const USER_PASS = "1234";
 
         function checkPassword() {
-            let input = document.getElementById('passwordInput').value.trim();
+            let inputField = document.getElementById('passwordInput');
+            let input = inputField.value.trim();
             let errorMsg = document.getElementById('authError');
             
             if (input === ADMIN_PASS || input === USER_PASS) {
                 currentUserRole = (input === ADMIN_PASS) ? 'admin' : 'user';
+                localStorage.setItem('cashControl_auth', 'true');
                 localStorage.setItem('cashControl_role', currentUserRole);
                 document.getElementById('authOverlay').style.display = 'none';
                 initSession();
             } else {
                 errorMsg.style.display = 'block';
+                inputField.value = '';
+                inputField.focus();
             }
         }
 
@@ -255,6 +259,7 @@
         }
 
         function logoutSession() {
+            localStorage.removeItem('cashControl_auth');
             localStorage.removeItem('cashControl_role');
             location.reload();
         }
@@ -263,15 +268,11 @@
             document.getElementById('panelModal').classList.toggle('hidden');
         }
 
-        // Videodaki gibi kaynağa göre doğru cüzdana yönlendirme fonksiyonu
         function openWalletBySource(type) {
             let targetUrl = `https://app.hyperliquid.xyz/trade/${currentSymbol}`;
-            
-            // Eğer seçilen kaynak Copy veya Balina ise Binance Leaderboard sayfasına yönlendirir (Videodaki davranış)
             if (currentSource === 'copy' || currentSource === 'whale') {
                 targetUrl = `https://www.binance.com/tr/futures/leaderboard`;
             }
-            
             window.open(targetUrl, '_blank');
         }
 
@@ -359,7 +360,7 @@
         }
 
         function onTimeframeChange() {
-            currentTimeframe = document.getElementById('timeframeSelect'].value;
+            currentTimeframe = document.getElementById('timeframeSelect').value;
             initTradingViewChart(currentSymbol, currentTimeframe);
         }
 
@@ -385,11 +386,18 @@
         }
 
         window.onload = () => {
+            let isAuth = localStorage.getItem('cashControl_auth');
             let savedRole = localStorage.getItem('cashControl_role');
-            if (savedRole) {
+            if (isAuth === 'true' && savedRole) {
                 currentUserRole = savedRole;
                 document.getElementById('authOverlay').style.display = 'none';
                 initSession();
+            } else {
+                document.getElementById('authOverlay').style.display = 'flex';
+                setTimeout(() => {
+                    let pwInput = document.getElementById('passwordInput');
+                    if(pwInput) pwInput.focus();
+                }, 100);
             }
         };
     </script>
