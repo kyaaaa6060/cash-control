@@ -14,8 +14,18 @@ CACHE = {
 }
 CACHE_DURATION = 5 
 
-# Aktif işlemler ve geçmiş arşivin tutulacağı dosya
 HISTORY_FILE = "trade_history.json"
+
+TF_MAP = {
+    "5": "5m",
+    "15": "15m",
+    "30": "30m",
+    "60": "1h",
+    "120": "2h",
+    "240": "4h",
+    "D": "1d",
+    "W": "1w"
+}
 
 def load_trade_history():
     if os.path.exists(HISTORY_FILE):
@@ -33,13 +43,11 @@ def save_trade_history(data):
     except Exception as e:
         print("Geçmiş kayıt hatası:", e)
 
-# Hafızayı ve dosyayı senkronize et
 TRADE_STORE = load_trade_history()
 ACTIVE_TRADES = TRADE_STORE.get("active", {})
 CLOSED_TRADES = TRADE_STORE.get("closed", [])
 
 def get_binance_futures_tickers():
-    """Binance Futures üzerinden anlık Mark Fiyatları ve Fonlama Oranlarını çeker"""
     try:
         url = "https://fapi.binance.com/fapi/v1/premiumIndex"
         res = requests.get(url, timeout=2)
@@ -58,15 +66,41 @@ def get_binance_futures_tickers():
         print("Binance Mark Price hatası:", e)
     return {}
 
+def get_pivot_levels(symbol: str, timeframe: str):
+    binance_tf = TF_MAP.get(timeframe, "15m")
+    url = f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}USDT&interval={binance_tf}&limit=2"
+    try:
+        res = requests.get(url, timeout=2)
+        if res.status_code == 200:
+            klines = res.json()
+            if klines and len(klines) > 0:
+                candle = klines[-2] if len(klines) >= 2 else klines[-1]
+                high = float(candle[2])
+                low = float(candle[3])
+                close = float(candle[4])
+                
+                pivot = (high + low + close) / 3
+                r1 = (2 * pivot) - low
+                s1 = (2 * pivot) - high
+                r2 = pivot + (high - low)
+                s2 = pivot - (high - low)
+                r3 = high + 2 * (pivot - low)
+                s3 = low - 2 * (high - pivot)
+                
+                return {
+                    "res3": r3, "res2": r2, "res1": r1,
+                    "pivot": pivot,
+                    "sup1": s1, "sup2": s2, "sup3": s3
+                }
+    except Exception as e:
+        print(f"Pivot hesaplama hatası ({symbol} {timeframe}):", e)
+    return None
+
 def fmt(val):
-    if val < 0.0001:
-        return f"{val:,.6f}"
-    elif val < 1:
-        return f"{val:,.4f}"
-    elif val < 10:
-        return f"{val:,.3f}"
-    else:
-        return f"{val:,.2f}"
+    if val < 0.0001: return f"{val:,.6f}"
+    elif val < 1: return f"{val:,.4f}"
+    elif val < 10: return f"{val:,.3f}"
+    else: return f"{val:,.2f}"
 
 def fetch_karma_market_data():
     global ACTIVE_TRADES, CLOSED_TRADES
@@ -84,7 +118,6 @@ def fetch_karma_market_data():
             data = res.json()
             universe = data[0].get("universe", [])
             ctxs = data[1]
-            
             sources = ["copy", "whale", "genel_terste", "ters_6_20", "top20_terste", "top20_oransal", "trak"]
             
             for i, asset in enumerate(universe):
@@ -99,8 +132,7 @@ def fetch_karma_market_data():
                     mark_px = float(ctx.get("markPx", 0))
                     funding = float(ctx.get("funding", 0)) * 100
                 
-                if mark_px <= 0:
-                    continue
+                if mark_px <= 0: continue
                 
                 all_prices.append(mark_px)
                 oi_usd = open_interest * mark_px
@@ -119,73 +151,46 @@ def fetch_karma_market_data():
                     short_size = (short_count * mark_px * 0.03) / 1000
                     
                     coin_sources_data[src] = {
-                        "long_avg": long_avg,
-                        "long_count": long_count,
-                        "long_size": long_size,
-                        "short_avg": short_avg,
-                        "short_count": short_count,
-                        "short_size": short_size,
+                        "long_avg": long_avg, "long_count": long_count, "long_size": long_size,
+                        "short_avg": short_avg, "short_count": short_count, "short_size": short_size,
                         "general_avg": general_avg
                     }
 
-                # --- ARKA PLANDA 7/24 CANLI İŞLEM VE BAŞARI TAKİBİ ---
                 if name not in ACTIVE_TRADES:
                     ACTIVE_TRADES[name] = {
-                        "symbol": f"{name}USDT",
-                        "type": "LONG",
-                        "entry": mark_px,
-                        "tp": mark_px * 1.028,
-                        "sl": mark_px * 0.978,
+                        "symbol": f"{name}USDT", "type": "LONG", "entry": mark_px,
+                        "tp": mark_px * 1.028, "sl": mark_px * 0.978,
                         "start_time": time.strftime("%Y-%m-%d %H:%M:%S")
                     }
                 
                 trade = ACTIVE_TRADES[name]
-                
                 hitTP = (trade["type"] == 'LONG' and mark_px >= trade["tp"]) or (trade["type"] == 'SHORT' and mark_px <= trade["tp"])
                 hitSL = (trade["type"] == 'LONG' and mark_px <= trade["sl"]) or (trade["type"] == 'SHORT' and mark_px >= trade["sl"])
                 
                 if hitTP or hitSL:
                     result_status = "WIN" if hitTP else "LOSS"
-                    closed_record = {
-                        "symbol": trade["symbol"],
-                        "type": trade["type"],
-                        "entry": trade["entry"],
-                        "exit_price": mark_px,
-                        "result": result_status,
-                        "closed_at": time.strftime("%Y-%m-%d %H:%M:%S")
-                    }
-                    CLOSED_TRADES.insert(0, closed_record)
-                    if len(CLOSED_TRADES) > 50:
-                        CLOSED_TRADES.pop()
-                    
+                    CLOSED_TRADES.insert(0, {
+                        "symbol": trade["symbol"], "type": trade["type"], "entry": trade["entry"],
+                        "exit_price": mark_px, "result": result_status, "closed_at": time.strftime("%Y-%m-%d %H:%M:%S")
+                    })
+                    if len(CLOSED_TRADES) > 50: CLOSED_TRADES.pop()
                     ACTIVE_TRADES[name] = {
-                        "symbol": f"{name}USDT",
-                        "type": "LONG",
-                        "entry": mark_px,
-                        "tp": mark_px * 1.028,
-                        "sl": mark_px * 0.978,
+                        "symbol": f"{name}USDT", "type": "LONG", "entry": mark_px,
+                        "tp": mark_px * 1.028, "sl": mark_px * 0.978,
                         "start_time": time.strftime("%Y-%m-%d %H:%M:%S")
                     }
                     trade = ACTIVE_TRADES[name]
-                    
                     save_trade_history({"active": ACTIVE_TRADES, "closed": CLOSED_TRADES})
 
                 ai_report = {
                     "signal": "LONG İVME BASKISI",
-                    "comment": f"Normal eğrinin üzerinde +4.7x Hız ile tetiklenen yoğunluk tespit edildi. Giriş ${fmt(trade['entry'])} seviyesinden planlandı; hedef ${fmt(trade['tp'])}, stop ${fmt(trade['sl'])} seviyesindedir.",
-                    "confluence": 88.4,
-                    "entry": trade["entry"],
-                    "tp": trade["tp"],
-                    "sl": trade["sl"]
+                    "comment": f"Normal eğrinin üzerinde +4.7x Hız ile tetiklenen yoğunluk tespit edildi. Giriş ${fmt(trade['entry'])} seviyesinden planlandı.",
+                    "confluence": 88.4, "entry": trade["entry"], "tp": trade["tp"], "sl": trade["sl"]
                 }
 
                 processed_coins[name] = {
-                    "symbol": f"{name}USDT",
-                    "markPrice": mark_px,
-                    "fundingRate": funding,
-                    "openInterestUSD": oi_usd,
-                    "sources": coin_sources_data,
-                    "ai_analysis": ai_report
+                    "symbol": f"{name}USDT", "markPrice": mark_px, "fundingRate": funding,
+                    "openInterestUSD": oi_usd, "sources": coin_sources_data, "ai_analysis": ai_report
                 }
             
             processed_coins["_GLOBAL_SUMMARY_"] = {
@@ -196,13 +201,10 @@ def fetch_karma_market_data():
             return processed_coins
     except Exception as e:
         print("Veri hatası:", e)
-        
     return {}
 
-# 7/24 Arka Planda Çalışacak Sürekli Döngü (Background Worker)
 def background_market_worker():
     global CACHE
-    print("🚀 Arka plan pazar takipçisi (Background Worker) başlatıldı.")
     while True:
         try:
             data = fetch_karma_market_data()
@@ -211,25 +213,16 @@ def background_market_worker():
                 CACHE["last_update"] = time.time()
                 save_trade_history({"active": ACTIVE_TRADES, "closed": CLOSED_TRADES})
         except Exception as e:
-            print("Arka plan worker hatası:", e)
-        time.sleep(5)  # Her 5 saniyede bir piyasayı tarar ve TP/SL kontrolü yapar
+            print("Worker hatası:", e)
+        time.sleep(5)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Sunucu ayağa kalkarken arka plan iş parçacığını başlat
-    worker_thread = threading.Thread(target=background_market_worker, daemon=True)
-    worker_thread.start()
+    threading.Thread(target=background_market_worker, daemon=True).start()
     yield
 
-app = FastAPI(title="Cash Control Engine - Live Trade Tracking", version="13.4", lifespan=lifespan)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app = FastAPI(title="Cash Control Engine", version="13.6", lifespan=lifespan)
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 @app.get("/", response_class=HTMLResponse)
 def read_index():
@@ -243,35 +236,31 @@ def read_index():
 def get_all_coins():
     coins = [k for k in CACHE["data"].keys() if not k.startswith("_")]
     if not coins:
-        # Eğer cache henüz dolmadıysa hemen tetikle
         CACHE["data"] = fetch_karma_market_data()
         CACHE["last_update"] = time.time()
         coins = [k for k in CACHE["data"].keys() if not k.startswith("_")]
     return {"status": "success", "coins": sorted(coins)}
 
 @app.get("/api/market-stats/{symbol}")
-def get_coin_stats(symbol: str):
-    current_time = time.time()
+def get_coin_stats(symbol: str, timeframe: str = "15"):
     symbol = symbol.upper()
     coin_data = CACHE["data"].get(symbol)
-    global_data = CACHE["data"].get("_GLOBAL_SUMMARY_", {})
-    
-    if not coin_data:
-        return {"status": "error", "message": "Coin bulunamadı"}
+    if not coin_data: return {"status": "error", "message": "Coin bulunamadı"}
 
-    return {
-        "status": "success",
-        "cache_remaining_seconds": int(CACHE_DURATION - (current_time - CACHE["last_update"])),
-        "data": coin_data,
-        "global": global_data
-    }
+    pivots = get_pivot_levels(symbol, timeframe)
+    if not pivots:
+        mark_px = coin_data["markPrice"]
+        high, low = mark_px * 1.012, mark_px * 0.988
+        pivot = (high + low + mark_px) / 3
+        pivots = {"res3": high + 2*(pivot-low), "res2": pivot+(high-low), "res1": (2*pivot)-low, "pivot": pivot, "sup1": (2*pivot)-high, "sup2": pivot-(high-low), "sup3": low-2*(high-pivot)}
+
+    response_data = dict(coin_data)
+    response_data["pivots"] = pivots
+    return {"status": "success", "data": response_data, "global": CACHE["data"].get("_GLOBAL_SUMMARY_", {})}
 
 @app.get("/api/trade-history")
 def get_trade_history():
-    return {
-        "status": "success",
-        "closed_trades": CLOSED_TRADES
-    }
+    return {"status": "success", "closed_trades": CLOSED_TRADES}
 
 if __name__ == "__main__":
     import uvicorn
