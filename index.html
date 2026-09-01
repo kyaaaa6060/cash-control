@@ -334,6 +334,11 @@
                         if (coinData) {
                             foundAny = true;
                             let srcData = coinData[currentSource] || coinData['trak'] || {};
+                            
+                            // Parantez içindeki K size değerlerini güvenli bir şekilde ekliyoruz
+                            let longSize = (srcData.long_size !== undefined) ? srcData.long_size.toFixed(1) : "0.0";
+                            let shortSize = (srcData.short_size !== undefined) ? srcData.short_size.toFixed(1) : "0.0";
+
                             html += `
                             <div class="history-card" style="flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 6px;">
                                 <div style="display: flex; justify-content: space-between; width: 100%;">
@@ -341,8 +346,8 @@
                                     <span style="font-size: 10px; color: #848e9c;">${currentSymbol}USDT (${currentSource})</span>
                                 </div>
                                 <div style="font-size: 11px; display: flex; gap: 10px; width: 100%; justify-content: space-between;">
-                                    <span style="color: #0ecb81;">LONG: $${formatPrice(srcData.long_avg || 0)} (${srcData.long_count || 0} işlem)</span>
-                                    <span style="color: #f6465d;">SHORT: $${formatPrice(srcData.short_avg || 0)} (${srcData.short_count || 0} işlem)</span>
+                                    <span style="color: #0ecb81;">LONG: $${formatPrice(srcData.long_avg || 0)} (${srcData.long_count || 0} işlem, $${longSize}K)</span>
+                                    <span style="color: #f6465d;">SHORT: $${formatPrice(srcData.short_avg || 0)} (${srcData.short_count || 0} işlem, $${shortSize}K)</span>
                                     <span style="color: #f0b90b;">ORT: $${formatPrice(srcData.general_avg || 0)}</span>
                                 </div>
                             </div>`;
