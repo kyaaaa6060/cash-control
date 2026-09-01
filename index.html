@@ -191,9 +191,9 @@
                     <div class="hist-item"><div class="h-lbl">KAZANAN (WIN)</div><div class="h-val" id="statWins" style="color: #0ecb81;">0</div></div>
                     <div class="hist-item"><div class="h-lbl">BAŞARI ORANI</div><div class="h-val" id="statWinRate" style="color: #f0b90b;">%0.0</div></div>
                 </div>
-                <div class="source-label" style="margin-bottom: 8px;">Kapanan Canlı Sinyal Arşivi:</div>
+                <div class="source-label" style="margin-bottom: 8px;">Saatlik Ortalama Giriş Arşivi (<span id="historyCoinLabel">Tümü</span>):</div>
                 <div class="history-list" id="historyListContainer">
-                    <div class="no-pattern">Henüz tamamlanan sinyal bulunmuyor...</div>
+                    <div class="no-pattern">Henüz saatlik kayıt bulunmuyor...</div>
                 </div>
             </div>
 
@@ -259,7 +259,7 @@
             loadCoins();
             loadTradeHistory();
             startLiveClock();
-            startFastPriceTicker(); // Canlı fiyat akışı entegre edildi
+            startFastPriceTicker();
         }
 
         function startLiveClock() {
@@ -307,17 +307,57 @@
                     document.getElementById('statTotal').innerText = total;
                     document.getElementById('statWins').innerText = wins;
                     document.getElementById('statWinRate').innerText = "%" + winRate;
-                    let listContainer = document.getElementById('historyListContainer');
-                    if (total === 0) { listContainer.innerHTML = `<div class="no-pattern">Henüz tamamlanan sinyal bulunmuyor...</div>`; return; }
-                    let html = '';
-                    trades.forEach(t => {
-                        let cardClass = t.result === 'WIN' ? 'history-card win' : 'history-card loss';
-                        let resColor = t.result === 'WIN' ? '#0ecb81' : '#f6465d';
-                        html += `<div class="${cardClass}"><div><div style="font-weight: bold; color: #fff;">${t.symbol} <span style="font-size: 10px; color: #848e9c;">(${t.type})</span></div><div style="font-size: 10px; color: #848e9c;">Giriş: $${formatPrice(t.entry)} | Çıkış: $${formatPrice(t.exit_price)}</div></div><div style="text-align: right;"><div style="font-weight: bold; color: ${resColor};">${t.result}</div><div style="font-size: 9px; color: #848e9c;">${t.closed_at}</div></div></div>`;
-                    });
-                    listContainer.innerHTML = html;
+                    
+                    loadHourlyRecordsUI();
                 }
             } catch (e) { console.error("Geçmiş yüklenemedi:", e); }
+        }
+
+        async function loadHourlyRecordsUI() {
+            try {
+                let res = await fetch('/api/hourly-history');
+                let json = await res.json();
+                if (json.status === 'success') {
+                    let historyList = json.hourly_history;
+                    let listContainer = document.getElementById('historyListContainer');
+                    document.getElementById('historyCoinLabel').innerText = currentSymbol;
+                    if (!historyList || historyList.length === 0) {
+                        listContainer.innerHTML = `<div class="no-pattern">Henüz saatlik kayıt bulunmuyor...</div>`;
+                        return;
+                    }
+
+                    let html = '';
+                    let foundAny = false;
+
+                    historyList.forEach(record => {
+                        let coinData = record.coins[currentSymbol];
+                        if (coinData) {
+                            foundAny = true;
+                            let srcData = coinData[currentSource] || coinData['trak'] || {};
+                            html += `
+                            <div class="history-card" style="flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 6px;">
+                                <div style="display: flex; justify-content: space-between; width: 100%;">
+                                    <span style="color: #f0b90b; font-weight: bold;">📅 ${record.timestamp}</span>
+                                    <span style="font-size: 10px; color: #848e9c;">${currentSymbol}USDT (${currentSource})</span>
+                                </div>
+                                <div style="font-size: 11px; display: flex; gap: 10px; width: 100%; justify-content: space-between;">
+                                    <span style="color: #0ecb81;">LONG: $${formatPrice(srcData.long_avg || 0)} (${srcData.long_count || 0} işlem)</span>
+                                    <span style="color: #f6465d;">SHORT: $${formatPrice(srcData.short_avg || 0)} (${srcData.short_count || 0} işlem)</span>
+                                    <span style="color: #f0b90b;">ORT: $${formatPrice(srcData.general_avg || 0)}</span>
+                                </div>
+                            </div>`;
+                        }
+                    });
+
+                    if (!foundAny) {
+                        listContainer.innerHTML = `<div class="no-pattern">${currentSymbol} için henüz saatlik kayıt oluşmadı...</div>`;
+                    } else {
+                        listContainer.innerHTML = html;
+                    }
+                }
+            } catch (e) {
+                console.error("Saatlik geçmiş alınamadı:", e);
+            }
         }
 
         function formatPrice(val) {
@@ -372,7 +412,6 @@
                     document.getElementById('valTP').innerText = "$" + formatPrice(ai.tp);
                     document.getElementById('valSL').innerText = "$" + formatPrice(ai.sl);
 
-                    // Backendden gelen gerçek periyot pivotları
                     let pivots = d.pivots;
                     if (pivots) {
                         document.getElementById('res3').innerText = "$" + formatPrice(pivots.res3);
@@ -397,7 +436,6 @@
             } catch(e) { console.error("Veri çekme hatası:", e); }
         }
 
-        // Hızlı Fiyat Güncelleyici (Canlı Akış)
         function startFastPriceTicker() {
             setInterval(async () => {
                 if (!currentSymbol) return;
@@ -410,7 +448,7 @@
                         if (markEl) markEl.innerText = "$" + formatPrice(d.markPrice);
                     }
                 } catch (e) {}
-            }, 3000); // Her 3 saniyede bir paneldeki Mark Fiyatı grafik gibi akıcı günceller
+            }, 3000);
         }
 
         function onCoinChange() {
@@ -418,6 +456,7 @@
             updateTradingViewChart(currentSymbol, currentTimeframe);
             secondsLeft = totalSyncSeconds;
             fetchStats(currentSymbol, currentTimeframe);
+            loadHourlyRecordsUI();
         }
 
         function setExternalTimeframe(tf, buttonElement) {
@@ -434,6 +473,7 @@
             element.classList.add('active');
             currentSource = src;
             fetchStats(currentSymbol, currentTimeframe);
+            loadHourlyRecordsUI();
         }
 
         function manualRefresh() {
