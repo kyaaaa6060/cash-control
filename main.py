@@ -15,6 +15,7 @@ CACHE = {
 CACHE_DURATION = 5 
 
 HISTORY_FILE = "trade_history.json"
+HOURLY_HISTORY_FILE = "hourly_history.json"
 
 TF_MAP = {
     "5": "5m",
@@ -43,9 +44,28 @@ def save_trade_history(data):
     except Exception as e:
         print("Geçmiş kayıt hatası:", e)
 
+def load_hourly_history():
+    if os.path.exists(HOURLY_HISTORY_FILE):
+        try:
+            with open(HOURLY_HISTORY_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    return []
+
+def save_hourly_history(history_data):
+    try:
+        with open(HOURLY_HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(history_data, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        print("Saatlik geçmiş kayıt hatası:", e)
+
 TRADE_STORE = load_trade_history()
 ACTIVE_TRADES = TRADE_STORE.get("active", {})
 CLOSED_TRADES = TRADE_STORE.get("closed", [])
+
+HOURLY_RECORDS = load_hourly_history()
+LAST_RECORDED_HOUR = -1
 
 def get_binance_futures_tickers():
     try:
@@ -103,7 +123,7 @@ def fmt(val):
     else: return f"{val:,.2f}"
 
 def fetch_karma_market_data():
-    global ACTIVE_TRADES, CLOSED_TRADES
+    global ACTIVE_TRADES, CLOSED_TRADES, HOURLY_RECORDS, LAST_RECORDED_HOUR
     processed_coins = {}
     total_open_interest_usd = 0
     all_prices = []
@@ -179,7 +199,6 @@ def fetch_karma_market_data():
                         "tp": mark_px * 1.028, "sl": mark_px * 0.978,
                         "start_time": time.strftime("%Y-%m-%d %H:%M:%S")
                     }
-                    trade = ACTIVE_TRADES[name]
                     save_trade_history({"active": ACTIVE_TRADES, "closed": CLOSED_TRADES})
 
                 ai_report = {
@@ -193,6 +212,23 @@ def fetch_karma_market_data():
                     "openInterestUSD": oi_usd, "sources": coin_sources_data, "ai_analysis": ai_report
                 }
             
+            # Her saat başı tüm coinlerin kaynak verilerini kaydetme kontrolü
+            current_hour = time.localtime().tm_hour
+            if current_hour != LAST_RECORDED_HOUR:
+                hourly_snapshot = {
+                    "timestamp": time.strftime("%Y-%m-%d %H:00:00"),
+                    "coins": {}
+                }
+                for c_name, c_info in processed_coins.items():
+                    if not c_name.startswith("_"):
+                        hourly_snapshot["coins"][c_name] = c_info.get("sources", {})
+                
+                HOURLY_RECORDS.insert(0, hourly_snapshot)
+                if len(HOURLY_RECORDS) > 168: # Son 1 haftalık saatlik kayıt
+                    HOURLY_RECORDS.pop()
+                save_hourly_history(HOURLY_RECORDS)
+                LAST_RECORDED_HOUR = current_hour
+
             processed_coins["_GLOBAL_SUMMARY_"] = {
                 "totalActiveCoins": len(processed_coins),
                 "totalAUM_OI": total_open_interest_usd,
@@ -261,6 +297,10 @@ def get_coin_stats(symbol: str, timeframe: str = "15"):
 @app.get("/api/trade-history")
 def get_trade_history():
     return {"status": "success", "closed_trades": CLOSED_TRADES}
+
+@app.get("/api/hourly-history")
+def get_hourly_history():
+    return {"status": "success", "hourly_history": HOURLY_RECORDS}
 
 if __name__ == "__main__":
     import uvicorn
