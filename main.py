@@ -212,7 +212,7 @@ def fetch_karma_market_data():
                     "openInterestUSD": oi_usd, "sources": coin_sources_data, "ai_analysis": ai_report
                 }
             
-            # Her saat başı tüm coinlerin kaynak verilerini kaydetme kontrolü
+            # Her saat başı tüm coinlerin kaynak verilerini (long_size ve short_size dahil) kaydetme kontrolü
             current_hour = time.localtime().tm_hour
             if current_hour != LAST_RECORDED_HOUR:
                 hourly_snapshot = {
