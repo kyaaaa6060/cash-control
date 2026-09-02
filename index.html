@@ -3,420 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cash Control - Yetkili Panel Mimarisi</title>
-    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-    <style>
-        body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; height: 100vh; overflow: auto; position: relative; }
-        #tradingview-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
-        .top-control-bar { position: absolute; top: 15px; right: 20px; z-index: 10; display: flex; gap: 8px; align-items: center; }
-        .quick-timeframes { display: flex; gap: 4px; background: #1e2329; padding: 4px; border-radius: 6px; border: 1px solid #2f363d; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-        .quick-timeframes button { background: none; border: none; color: #848e9c; cursor: pointer; font-size: 12px; font-weight: bold; padding: 6px 8px; border-radius: 4px; transition: 0.2s; }
-        .quick-timeframes button:hover { color: #fff; }
-        .quick-timeframes button.active { background: #2b2b23; color: #f0b90b; }
-        .toggle-panel-btn { background: #f0b90b; color: #0b0e11; border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: 0.2s; }
-        .toggle-panel-btn:hover { background: #fcd535; }
-        .logout-btn { background: #1e2329; color: #f6465d; border: 1px solid #2f363d; padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transition: 0.2s; }
-        .logout-btn:hover { background: rgba(246, 70, 93, 0.15); border-color: #f6465d; }
-        .role-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 6px; }
-        .role-badge.admin { background: rgba(240, 185, 11, 0.2); color: #f0b90b; border: 1px solid rgba(240, 185, 11, 0.4); }
-        .role-badge.user { background: rgba(14, 203, 129, 0.2); color: #0ecb81; border: 1px solid rgba(14, 203, 129, 0.4); }
-        .live-clock-badge { position: absolute; bottom: 12px; right: 15px; z-index: 5; background: rgba(18, 20, 24, 0.9); border: 1px solid #2f363d; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; color: #f0b90b; backdrop-filter: blur(4px); pointer-events: none; }
-        .auth-overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(11, 14, 17, 0.95); z-index: 100; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(8px); }
-        .auth-card { background: #181a20; border: 1px solid #2b2b2b; border-radius: 10px; width: 100%; max-width: 350px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); text-align: center; }
-        .auth-title { font-size: 16px; font-weight: bold; color: #fff; margin-bottom: 6px; }
-        .auth-desc { font-size: 11px; color: #848e9c; margin-bottom: 20px; }
-        .auth-input { width: 100%; background: #1e2329; border: 1px solid #2f363d; color: #fff; padding: 10px; border-radius: 6px; font-size: 14px; outline: none; box-sizing: border-box; text-align: center; margin-bottom: 12px; letter-spacing: 2px; }
-        .auth-input:focus { border-color: #f0b90b; }
-        .auth-btn { width: 100%; background: #f0b90b; color: #0b0e11; border: none; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; transition: 0.2s; }
-        .auth-btn:hover { background: #fcd535; }
-        .auth-error { color: #f6465d; font-size: 11px; margin-top: 8px; display: none; }
-        .modal-overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.6); z-index: 20; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(3px); transition: 0.3s ease; }
-        .modal-overlay.hidden { display: none; }
-        .main-card { background: #181a20; border: 1px solid #2b2b2b; border-radius: 10px; width: 100%; max-width: 750px; max-height: 90vh; overflow-y: auto; padding: 12px 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.7); }
-        .header-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #23272e; padding-bottom: 8px; margin-bottom: 10px; }
-        .title { display: flex; align-items: center; gap: 6px; font-weight: bold; color: #fff; font-size: 14px; }
-        .close-btn { color: #f0b90b; cursor: pointer; font-size: 16px; }
-        .ivme-box { background: #1e2329; border: 1px solid #2f363d; border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; }
-        .ivme-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 12px; color: #848e9c; flex-wrap: wrap; gap: 4px; }
-        .badge-long { background: rgba(14, 203, 129, 0.15); color: #0ecb81; border: 1px solid rgba(14, 203, 129, 0.4); padding: 2px 6px; border-radius: 3px; font-weight: bold; font-size: 11px; }
-        .badge-speed { background: rgba(112, 122, 138, 0.2); color: #c9d1d9; border: 1px solid #3a4149; padding: 2px 6px; border-radius: 3px; font-size: 11px; }
-        .badge-active { background: rgba(240, 185, 11, 0.15); color: #f0b90b; border: 1px solid rgba(240, 185, 11, 0.4); padding: 2px 6px; border-radius: 3px; font-size: 11px; }
-        .ivme-desc { font-size: 12px; color: #b7bdc6; line-height: 1.4; margin-bottom: 8px; }
-        .ivme-footer { display: flex; gap: 15px; font-size: 11px; color: #848e9c; border-top: 1px solid #2b2b2b; padding-top: 6px; }
-        .prices-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #121418; padding: 8px 10px; border-radius: 6px; margin-bottom: 10px; text-align: center; border: 1px solid #23272e; }
-        .price-item .lbl { font-size: 10px; color: #848e9c; margin-bottom: 2px; }
-        .price-item .val { font-size: 13px; font-weight: bold; word-break: break-all; }
-        .source-label { font-size: 11px; color: #848e9c; margin-bottom: 6px; text-align: center; }
-        .source-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
-        .src-btn { background: #1e2329; border: 1px solid #2f363d; color: #848e9c; padding: 6px 8px; border-radius: 5px; font-size: 11px; cursor: pointer; text-align: center; transition: 0.2s; }
-        .src-btn.active { background: #2b2b23; border-color: #f0b90b; color: #f0b90b; font-weight: bold; }
-        .bottom-bar { display: flex; justify-content: space-between; align-items: center; background: #121418; padding: 8px 12px; border-radius: 6px; border: 1px solid #23272e; margin-bottom: 8px; }
-        .coin-select { background: #1e2329; color: #fff; border: 1px solid #2f363d; padding: 4px 8px; border-radius: 4px; outline: none; cursor: pointer; font-size: 12px; }
-        .mark-display { font-size: 13px; font-weight: bold; color: #f0b90b; }
-        .refresh-status-bar { display: flex; justify-content: space-between; align-items: center; background: #261f12; border: 1px solid #4a3818; padding: 6px 10px; border-radius: 5px; margin-bottom: 8px; font-size: 11px; color: #f0b90b; }
-        .reset-btn { background: #2b2b2b; color: #eaeaea; border: none; padding: 3px 6px; border-radius: 3px; cursor: pointer; font-size: 10px; }
-        .mode-footer { display: flex; justify-content: center; gap: 12px; margin-bottom: 10px; font-size: 11px; color: #848e9c; align-items: center; cursor: pointer; user-select: none; }
-        .mode-footer div:hover { color: #fff; }
-        .result-card { background: #1e2329; border: 1px solid #2f363d; border-radius: 6px; padding: 10px 14px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .result-card.long { border-left: 3px solid #0ecb81; }
-        .result-card.short { border-left: 3px solid #f6465d; }
-        .result-card.avg { border-left: 3px solid #f0b90b; }
-        .res-title { font-size: 12px; font-weight: bold; color: #fff; display: flex; align-items: center; gap: 5px; }
-        .res-sub { font-size: 10px; color: #848e9c; margin-top: 2px; }
-        .res-val { font-size: 14px; font-weight: bold; }
-        .history-container { display: none; }
-        .history-container.active { display: block; }
-        .history-stat-box { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #121418; padding: 10px; border-radius: 6px; margin-bottom: 10px; text-align: center; border: 1px solid #23272e; }
-        .hist-item .h-lbl { font-size: 10px; color: #848e9c; margin-bottom: 2px; }
-        .hist-item .h-val { font-size: 13px; font-weight: bold; color: #fff; }
-        .history-list { max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
-        .history-card { background: #1e2329; border: 1px solid #2f363d; border-radius: 6px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
-    </style>
+    <title>Cash Control - Trading Panel</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="authOverlay" class="auth-overlay">
-        <div class="auth-card">
-            <div class="auth-title">🔐 Cash Control</div>
-            <div class="auth-desc">Devam etmek için erişim şifrenizi girin</div>
-            <input type="password" id="passwordInput" class="auth-input" placeholder="••••" onkeydown="if(event.key === 'Enter') checkPassword()">
-            <button class="auth-btn" onclick="checkPassword()">Giriş Yap</button>
-            <div id="authError" class="auth-error">Hatalı Şifre!</div>
+
+    <!-- Üst Bar / Panel -->
+    <div class="control-panel">
+        <div class="panel-header">
+            <span class="title">⚡ BINANCE SMART MONEY & ORTALAMALAR</span>
+            <span class="time">02.09.2026 12:53:50 (TRT)</span>
         </div>
-    </div>
 
-    <div id="tradingview-container"></div>
-    <div id="liveClockBadge" class="live-clock-badge">--:--:--</div>
-
-    <div class="top-control-bar">
-        <div class="quick-timeframes">
-            <button onclick="setExternalTimeframe('5', this)">5dk</button>
-            <button onclick="setExternalTimeframe('15', this)" class="active">15dk</button>
-            <button onclick="setExternalTimeframe('30', this)">30dk</button>
-            <button onclick="setExternalTimeframe('60', this)">1sa</button>
-            <button onclick="setExternalTimeframe('120', this)">2sa</button>
-            <button onclick="setExternalTimeframe('240', this)">4sa</button>
-            <button onclick="setExternalTimeframe('D', this)">1G</button>
-            <button onclick="setExternalTimeframe('W', this)">1H</button>
+        <!-- BEYAZ ALAN: Sadece Ortalama Girişler Kaldı (Liq Buradan Çıkarıldı) -->
+        <div class="white-box-container">
+            <div class="avg-item">
+                <span class="label">LONG ORT. GİRİŞ</span>
+                <span class="value long-val">$59,520.00</span>
+            </div>
+            <div class="avg-item">
+                <span class="label">SHORT ORT. GİRİŞ</span>
+                <span class="value short-val">$60,480.00</span>
+            </div>
         </div>
-        <button class="toggle-panel-btn" onclick="togglePanel()">📊 Veri Göster / Gizle</button>
-        <button class="logout-btn" onclick="logoutSession()">🔒 Çıkış Yap</button>
-    </div>
 
-    <div id="panelModal" class="modal-overlay">
-        <div class="main-card">
-            <div class="header-top">
-                <div class="title" id="panelTitle">📊 Binance Smart Money & Ortalamalar <span id="roleBadgeContainer"></span></div>
-                <div class="close-btn" onclick="togglePanel()">✕</div>
+        <!-- Diğer Panel Verileri -->
+        <div class="panel-stats">
+            <div class="stat-row">
+                <span>Long Pozisyon (AUM):</span>
+                <span class="green">$1.16B</span>
             </div>
-
-            <div id="currentModeView">
-                <div class="ivme-box">
-                    <div class="ivme-top">
-                        <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                            <span class="badge-long">⚡ SMART MONEY</span>
-                            <span class="badge-speed" id="smartRatioBadge">Notional L/S: --</span>
-                            <span class="badge-active">🚀 Canlı Takip</span>
-                        </div>
-                        <div id="currentTime" style="font-size: 10px;">--</div>
-                    </div>
-                    <div class="ivme-desc" id="aiComment">Binance Leaderboard verileri taranıyor...</div>
-                    <div class="ivme-footer">
-                        <div>📈 Long Ort.: <span id="footerLongAvg" style="color: #0ecb81; font-weight: bold;">$-</span></div>
-                        <div>📉 Short Ort.: <span id="footerShortAvg" style="color: #f6465d; font-weight: bold;">$-</span></div>
-                    </div>
-                </div>
-
-                <div class="prices-grid">
-                    <div class="price-item"><div class="lbl">LONG ORT. GİRİŞ</div><div class="val" id="valLongEntry" style="color: #0ecb81;">$-</div></div>
-                    <div class="price-item"><div class="lbl">SHORT ORT. GİRİŞ</div><div class="val" id="valShortEntry" style="color: #f6465d;">$-</div></div>
-                    <div class="price-item"><div class="lbl">TAHMİNİ LİQ. SEVİYESİ</div><div class="val" id="valLiq" style="color: #f0b90b; cursor: pointer;" onclick="window.open('https://www.binance.com/en/futures/leaderboard', '_blank')">$- 🔗</div></div>
-                </div>
-
-                <div class="source-label">Veri Kaynağı Seçin:</div>
-                <div class="source-grid">
-                    <div class="src-btn active" onclick="setSource('smart_traders', this)" style="grid-column: span 3;">Binance Smart Traders (Leaderboard)</div>
-                </div>
-
-                <div class="bottom-bar">
-                    <div><span style="font-size: 12px; color: #848e9c; margin-right: 6px;">Coin:</span><select id="coinSelect" class="coin-select" onchange="onCoinChange()"></select></div>
-                    <div><span style="font-size: 12px; color: #848e9c;">Mark Fiyat: </span><span id="markPrice" class="mark-display">$-</span></div>
-                </div>
-
-                <div class="refresh-status-bar">
-                    <div>⏳ Sonraki Güncelleme: <span id="refreshCountdown">05:00</span></div>
-                    <button class="reset-btn" id="resetBtn" onclick="manualRefresh()">Hemen Yenile</button>
-                </div>
+            <div class="stat-row">
+                <span>Short Pozisyon (AUM):</span>
+                <span class="red">$459.48M</span>
             </div>
-
-            <div id="historyModeView" class="history-container">
-                <div class="history-stat-box">
-                    <div class="hist-item"><div class="h-lbl">TOPLAM İŞLEM</div><div class="h-val" id="statTotal">0</div></div>
-                    <div class="hist-item"><div class="h-lbl">KAZANAN (WIN)</div><div class="h-val" id="statWins" style="color: #0ecb81;">0</div></div>
-                    <div class="hist-item"><div class="h-lbl">BAŞARI ORANI</div><div class="h-val" id="statWinRate" style="color: #f0b90b;">%0.0</div></div>
-                </div>
-                <div class="source-label" style="margin-bottom: 8px;">Akıllı Cüzdan Geçmiş İşlemleri:</div>
-                <div class="history-list" id="historyListContainer">
-                    <div class="no-pattern">Kayıt bulunmuyor...</div>
-                </div>
-            </div>
-
-            <div class="mode-footer">
-                <div id="btnModeCurrent" onclick="switchViewMode('current')" style="color: #f0b90b;">🟡 <strong>Güncel</strong></div>
-                <div style="color: #444;">○</div>
-                <div id="btnModeHistory" onclick="switchViewMode('history')">Geçmiş</div>
-            </div>
-
-            <div id="resultCardsContainer">
-                <div class="result-card long">
-                    <div><div class="res-title"><span style="color: #0ecb81;">●</span> Long Pozisyon (AUM):</div><div class="res-sub" id="longSub">(- trader, -$ size)</div></div>
-                    <div class="res-val" id="longVal" style="color: #0ecb81;">$-</div>
-                </div>
-                <div class="result-card short">
-                    <div><div class="res-title"><span style="color: #f6465d;">●</span> Short Pozisyon (AUM):</div><div class="res-sub" id="shortSub">(- trader, -$ size)</div></div>
-                    <div class="res-val" id="shortVal" style="color: #f6465d;">$-</div>
-                </div>
-                <div class="result-card avg">
-                    <div><div class="res-title"><span style="color: #f0b90b;">●</span> Tahmini Likidasyon:</div><div class="res-sub">Akıllı cüzdan ortalaması (Tıkla &rarr; Cüzdan)</div></div>
-                    <div class="res-val" id="avgVal" style="color: #f0b90b; cursor: pointer;" onclick="window.open('https://www.binance.com/en/futures/leaderboard', '_blank')">$- ↗</div>
-                </div>
+            <!-- Likidite artık grafik üzerinde ve tıklanabilir -->
+            <div class="stat-row clickable" onclick="openLiquidityDetail()">
+                <span>Tahmini Likidasyon (Grafikte):</span>
+                <span class="liq-link">$52,200.00 ↗</span>
             </div>
         </div>
     </div>
 
-    <script>
-        let currentSymbol = "BTC";
-        let currentTimeframe = "15";
-        let currentSource = "smart_traders";
-        let autoInterval = null;
-        let clockInterval = null;
-        let currentUserRole = null;
-        let tvWidget = null;
-        let totalSyncSeconds = 300;
-        let secondsLeft = 300;
-        const ADMIN_PASS = "1453";
-        const USER_PASS = "1234";
+    <!-- Grafik Alanı -->
+    <div id="chart-container">
+        <!-- Grafik ve Liq çizgileri buraya render edilecek -->
+    </div>
 
-        function checkPassword() {
-            let input = document.getElementById('passwordInput').value;
-            let errorMsg = document.getElementById('authError');
-            if (input === ADMIN_PASS) { currentUserRole = 'admin'; initSession(); }
-            else if (input === USER_PASS) { currentUserRole = 'user'; initSession(); }
-            else { errorMsg.style.display = 'block'; document.getElementById('passwordInput').value = ''; }
-        }
-
-        function initSession() {
-            document.getElementById('authOverlay').style.display = 'none';
-            localStorage.setItem('cashControl_role', currentUserRole);
-            let badgeContainer = document.getElementById('roleBadgeContainer');
-            if(currentUserRole === 'admin') {
-                badgeContainer.innerHTML = `<span class="role-badge admin">👑 Admin Panel</span>`;
-            } else {
-                badgeContainer.innerHTML = `<span class="role-badge user">👤 Kullanıcı Panel</span>`;
-            }
-            loadCoins();
-            startLiveClock();
-            startFastPriceTicker();
-        }
-
-        function startLiveClock() {
-            if(clockInterval) clearInterval(clockInterval);
-            function updateClock() {
-                let now = new Date();
-                let clockEl = document.getElementById('liveClockBadge');
-                if(clockEl) clockEl.innerText = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            }
-            updateClock();
-            clockInterval = setInterval(updateClock, 1000);
-        }
-
-        function logoutSession() { localStorage.removeItem('cashControl_role'); location.reload(); }
-        function togglePanel() { document.getElementById('panelModal').classList.toggle('hidden'); }
-
-        function switchViewMode(mode) {
-            let currentView = document.getElementById('currentModeView');
-            let historyView = document.getElementById('historyModeView');
-            let btnCurr = document.getElementById('btnModeCurrent');
-            let btnHist = document.getElementById('btnModeHistory');
-            if (mode === 'current') {
-                currentView.style.display = 'block';
-                historyView.classList.remove('active');
-                btnCurr.style.color = '#f0b90b'; btnHist.style.color = '#848e9c';
-            } else {
-                currentView.style.display = 'none';
-                historyView.classList.add('active');
-                btnHist.style.color = '#f0b90b'; btnCurr.style.color = '#848e9c';
-            }
-        }
-
-        function formatPrice(val) {
-            let num = parseFloat(val);
-            if (isNaN(num)) return "$-";
-            if (num < 0.0001) return num.toFixed(6);
-            if (num < 1) return num.toFixed(4);
-            if (num < 10) return num.toFixed(3);
-            return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
-
-        function updateTradingViewChart(symbol, timeframe) {
-            document.getElementById('tradingview-container').innerHTML = '';
-            tvWidget = new TradingView.widget({
-                "autosize": true, 
-                "symbol": "BINANCE:" + symbol + "USDT", 
-                "interval": timeframe,
-                "timezone": "Europe/Istanbul", 
-                "theme": "dark", 
-                "style": "1", 
-                "locale": "tr",
-                "toolbar_bg": "#1e2329", 
-                "enable_publishing": false, 
-                "container_id": "tradingview-container",
-                "studies": [],
-                "onready": function(widget) {
-                    fetch(`/api/market-stats/${symbol}?timeframe=${timeframe}`)
-                        .then(res => res.json())
-                        .then(json => {
-                            if(json.status === 'success') {
-                                let d = json.data;
-                                let chart = tvWidget.chart();
-                                
-                                // Long Avg Giriş Çizgisi (Tıklanınca Leaderboard sayfasına gider)
-                                chart.createShape({price: d.long_avg, time: Math.floor(Date.now()/1000) - 86400}, {
-                                    shape: "horizontal_line",
-                                    text: `Binance Smart (LONG Ort.): $${formatPrice(d.long_avg)} (Cüzdana Git)`,
-                                    overrides: {linecolor: "#0ecb81", linewidth: 2},
-                                    link: "https://www.binance.com/en/futures/leaderboard"
-                                });
-
-                                // Short Avg Giriş Çizgisi (Tıklanınca Leaderboard sayfasına gider)
-                                chart.createShape({price: d.short_avg, time: Math.floor(Date.now()/1000) - 86400}, {
-                                    shape: "horizontal_line",
-                                    text: `Binance Smart (SHORT Ort.): $${formatPrice(d.short_avg)} (Cüzdana Git)`,
-                                    overrides: {linecolor: "#f6465d", linewidth: 2},
-                                    link: "https://www.binance.com/en/futures/leaderboard"
-                                });
-
-                                // Tahmini Likidasyon Çizgisi (Tıklanınca cüzdana/işleme yönlendirir - video davranış birebir)
-                                chart.createShape({price: d.liq_price, time: Math.floor(Date.now()/1000) - 86400}, {
-                                    shape: "horizontal_line",
-                                    text: `🚨 Smart Money Liq: $${formatPrice(d.liq_price)} (İşleme/Cüzdana Git)`,
-                                    overrides: {linecolor: "#f0b90b", linewidth: 2, linestyle: 2},
-                                    link: "https://www.binance.com/en/futures/leaderboard"
-                                });
-                            }
-                        });
-                }
-            });
-        }
-
-        async function loadCoins() {
-            try {
-                let res = await fetch('/api/coins');
-                let data = await res.json();
-                if(data.status === 'success') {
-                    let select = document.getElementById('coinSelect');
-                    select.innerHTML = '';
-                    data.coins.forEach(coin => {
-                        let opt = document.createElement('option');
-                        opt.value = coin; opt.text = coin + "USDT";
-                        select.appendChild(opt);
-                    });
-                    if(data.coins.length > 0) { currentSymbol = data.coins[0]; select.value = currentSymbol; }
-                    if(currentSymbol) { updateTradingViewChart(currentSymbol, currentTimeframe); fetchStats(currentSymbol, currentTimeframe); startRealtimeSync(); }
-                }
-            } catch(e) { console.error("Coinler yüklenemedi", e); }
-        }
-
-        async function fetchStats(symbol, timeframe) {
-            try {
-                let res = await fetch(`/api/market-stats/${symbol}?timeframe=${timeframe}`);
-                let json = await res.json();
-                if(json.status === 'success') {
-                    let d = json.data;
-                    document.getElementById('markPrice').innerText = "$" + formatPrice(d.markPrice);
-                    document.getElementById('aiComment').innerText = `Binance Leaderboard Smart Traders verilerine göre ${symbol} paritesinde Long/Short ağırlıklı pozisyonlar kümelenmiştir.`;
-                    
-                    document.getElementById('valLongEntry').innerText = "$" + formatPrice(d.long_avg);
-                    document.getElementById('valShortEntry').innerText = "$" + formatPrice(d.short_avg);
-                    document.getElementById('valLiq').innerText = "$" + formatPrice(d.liq_price) + " 🔗";
-
-                    document.getElementById('footerLongAvg').innerText = "$" + formatPrice(d.long_avg);
-                    document.getElementById('footerShortAvg').innerText = "$" + formatPrice(d.short_avg);
-
-                    let longAumStr = d.long_pos_usd >= 1e9 ? (d.long_pos_usd/1e9).toFixed(2) + "B" : (d.long_pos_usd/1e6).toFixed(2) + "M";
-                    let shortAumStr = d.short_pos_usd >= 1e9 ? (d.short_pos_usd/1e9).toFixed(2) + "B" : (d.short_pos_usd/1e6).toFixed(2) + "M";
-
-                    document.getElementById('longVal').innerText = "$" + longAumStr;
-                    document.getElementById('longSub').innerText = `(${d.long_traders} trader, ${d.long_profitable}% karda)`;
-                    
-                    document.getElementById('shortVal').innerText = "$" + shortAumStr;
-                    document.getElementById('shortSub').innerText = `(${d.short_traders} trader, ${d.short_profitable}% karda)`;
-                    
-                    document.getElementById('avgVal').innerText = "$" + formatPrice(d.liq_price) + " ↗";
-                    document.getElementById('smartRatioBadge').innerText = "Notional L/S: " + d.long_short_ratio + "%";
-                    
-                    let now = new Date();
-                    document.getElementById('currentTime').innerText = now.toLocaleDateString('tr-TR') + " " + now.toLocaleTimeString('tr-TR') + " (TRT)";
-                }
-            } catch(e) { console.error("Veri çekme hatası:", e); }
-        }
-
-        function startFastPriceTicker() {
-            setInterval(async () => {
-                if (!currentSymbol) return;
-                try {
-                    let res = await fetch(`/api/market-stats/${currentSymbol}?timeframe=${currentTimeframe}`);
-                    let json = await res.json();
-                    if (json.status === 'success') {
-                        let markEl = document.getElementById('markPrice');
-                        if (markEl) markEl.innerText = "$" + formatPrice(json.data.markPrice);
-                    }
-                } catch (e) {}
-            }, 3000);
-        }
-
-        function onCoinChange() {
-            currentSymbol = document.getElementById('coinSelect').value;
-            updateTradingViewChart(currentSymbol, currentTimeframe);
-            secondsLeft = totalSyncSeconds;
-            fetchStats(currentSymbol, currentTimeframe);
-        }
-
-        function setExternalTimeframe(tf, buttonElement) {
-            currentTimeframe = tf;
-            document.querySelectorAll('.quick-timeframes button').forEach(btn => btn.classList.remove('active'));
-            if(buttonElement) buttonElement.classList.add('active');
-            updateTradingViewChart(currentSymbol, currentTimeframe);
-            secondsLeft = totalSyncSeconds;
-            fetchStats(currentSymbol, currentTimeframe);
-        }
-
-        function setSource(src, element) {
-            document.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
-            element.classList.add('active');
-            currentSource = src;
-            fetchStats(currentSymbol, currentTimeframe);
-        }
-
-        function manualRefresh() {
-            secondsLeft = totalSyncSeconds;
-            fetchStats(currentSymbol, currentTimeframe);
-        }
-
-        function startRealtimeSync() {
-            if(autoInterval) clearInterval(autoInterval);
-            autoInterval = setInterval(() => {
-                secondsLeft--;
-                if(secondsLeft <= 0) { secondsLeft = totalSyncSeconds; if(currentSymbol) fetchStats(currentSymbol, currentTimeframe); }
-                let min = Math.floor(secondsLeft / 60), sec = secondsLeft % 60;
-                let countEl = document.getElementById('refreshCountdown');
-                if(countEl) countEl.innerText = (min < 10 ? "0" + min : min) + ":" + (sec < 10 ? "0" + sec : sec);
-            }, 1000);
-        }
-
-        window.onload = () => {
-            let savedRole = localStorage.getItem('cashControl_role');
-            if (savedRole === 'admin' || savedRole === 'user') { currentUserRole = savedRole; initSession(); }
-        };
-    </script>
+    <script src="app.js"></script>
 </body>
 </html>
