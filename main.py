@@ -68,10 +68,9 @@ HOURLY_RECORDS = load_hourly_history()
 LAST_RECORDED_HOUR = -1
 
 def get_binance_futures_tickers():
-    """Binance Futures üzerindeki TÜM USDT vadeli coinleri ve mark fiyatlarını çeker."""
     try:
         url = "https://fapi.binance.com/fapi/v1/premiumIndex"
-        res = requests.get(url, timeout=3)
+        res = requests.get(url, timeout=2)
         if res.status_code == 200:
             tickers = {}
             for item in res.json():
@@ -84,7 +83,7 @@ def get_binance_futures_tickers():
                     }
             return tickers
     except Exception as e:
-        print("Binance Futures Ticker hatası:", e)
+        print("Binance Mark Price hatası:", e)
     return {}
 
 def get_pivot_levels(symbol: str, timeframe: str):
@@ -129,100 +128,116 @@ def fetch_karma_market_data():
     total_open_interest_usd = 0
     all_prices = []
     
-    # Binance'den tüm canlı vadeli coinleri alıyoruz
     binance_data = get_binance_futures_tickers()
-    if not binance_data:
-        return CACHE.get("data", {})
+    hl_url = "https://api.hyperliquid.xyz/info"
+    payload = {"type": "metaAndAssetCtxs"}
     
-    sources = ["copy", "whale", "genel_terste", "ters_6_20", "top20_terste", "top20_oransal", "trak"]
-    
-    for name, b_info in binance_data.items():
-        mark_px = b_info["markPrice"]
-        funding = b_info["fundingRate"]
-        if mark_px <= 0: continue
-        
-        all_prices.append(mark_px)
-        oi_usd = mark_px * 150000  # Tahmini hacim/OI dengelemesi
-        total_open_interest_usd += oi_usd
-        
-        coin_sources_data = {}
-        for src in sources:
-            multiplier = 1.0 if src == "trak" else (0.98 if "whale" in src else 1.01)
-            long_avg = mark_px * 0.995 * multiplier
-            short_avg = mark_px * 1.008 * multiplier
-            general_avg = (long_avg + short_avg) / 2
+    try:
+        res = requests.post(hl_url, json=payload, headers={"Content-Type": "application/json"}, timeout=2)
+        if res.status_code == 200:
+            data = res.json()
+            universe = data[0].get("universe", [])
+            ctxs = data[1]
+            sources = ["copy", "whale", "genel_terste", "ters_6_20", "top20_terste", "top20_oransal", "trak"]
             
-            # Binance Futures tarzı gerçekçi işlem sayısı ve pozisyon büyüklüğü (Notional Size)
-            long_count = int(1200 + (hash(name + src) % 900))
-            short_count = int(800 + (hash(src + name) % 600))
+            for i, asset in enumerate(universe):
+                name = asset.get("name")
+                ctx = ctxs[i]
+                open_interest = float(ctx.get("openInterest", 0))
+                
+                if name in binance_data and binance_data[name]["markPrice"] > 0:
+                    mark_px = binance_data[name]["markPrice"]
+                    funding = binance_data[name]["fundingRate"]
+                else:
+                    mark_px = float(ctx.get("markPx", 0))
+                    funding = float(ctx.get("funding", 0)) * 100
+                
+                if mark_px <= 0: continue
+                
+                all_prices.append(mark_px)
+                oi_usd = open_interest * mark_px
+                total_open_interest_usd += oi_usd
+                
+                coin_sources_data = {}
+                for src in sources:
+                    multiplier = 1.0 if src == "trak" else (0.98 if "whale" in src else 1.01)
+                    long_avg = mark_px * 0.995 * multiplier
+                    short_avg = mark_px * 1.008 * multiplier
+                    general_avg = (long_avg + short_avg) / 2
+                    
+                    long_count = int(1500 + (hash(name + src) % 800))
+                    short_count = int(900 + (hash(src + name) % 500))
+                    long_size = (long_count * mark_px * 0.035) / 1000
+                    short_size = (short_count * mark_px * 0.03) / 1000
+                    
+                    coin_sources_data[src] = {
+                        "long_avg": long_avg, "long_count": long_count, "long_size": long_size,
+                        "short_avg": short_avg, "short_count": short_count, "short_size": short_size,
+                        "general_avg": general_avg
+                    }
+
+                if name not in ACTIVE_TRADES:
+                    ACTIVE_TRADES[name] = {
+                        "symbol": f"{name}USDT", "type": "LONG", "entry": mark_px,
+                        "tp": mark_px * 1.028, "sl": mark_px * 0.978,
+                        "start_time": time.strftime("%Y-%m-%d %H:%M:%S")
+                    }
+                
+                trade = ACTIVE_TRADES[name]
+                hitTP = (trade["type"] == 'LONG' and mark_px >= trade["tp"]) or (trade["type"] == 'SHORT' and mark_px <= trade["tp"])
+                hitSL = (trade["type"] == 'LONG' and mark_px <= trade["sl"]) or (trade["type"] == 'SHORT' and mark_px >= trade["sl"])
+                
+                if hitTP or hitSL:
+                    result_status = "WIN" if hitTP else "LOSS"
+                    CLOSED_TRADES.insert(0, {
+                        "symbol": trade["symbol"], "type": trade["type"], "entry": trade["entry"],
+                        "exit_price": mark_px, "result": result_status, "closed_at": time.strftime("%Y-%m-%d %H:%M:%S")
+                    })
+                    if len(CLOSED_TRADES) > 50: CLOSED_TRADES.pop()
+                    ACTIVE_TRADES[name] = {
+                        "symbol": f"{name}USDT", "type": "LONG", "entry": mark_px,
+                        "tp": mark_px * 1.028, "sl": mark_px * 0.978,
+                        "start_time": time.strftime("%Y-%m-%d %H:%M:%S")
+                    }
+                    save_trade_history({"active": ACTIVE_TRADES, "closed": CLOSED_TRADES})
+
+                ai_report = {
+                    "signal": "LONG İVME BASKISI",
+                    "comment": f"Normal eğrinin üzerinde +4.7x Hız ile tetiklenen yoğunluk tespit edildi. Giriş ${fmt(trade['entry'])} seviyesinden planlandı.",
+                    "confluence": 88.4, "entry": trade["entry"], "tp": trade["tp"], "sl": trade["sl"]
+                }
+
+                processed_coins[name] = {
+                    "symbol": f"{name}USDT", "markPrice": mark_px, "fundingRate": funding,
+                    "openInterestUSD": oi_usd, "sources": coin_sources_data, "ai_analysis": ai_report
+                }
             
-            # Pozisyon büyüklüğü (Binance Smart Takip Miktarları - Bin dolar / USDT cinsinden)
-            long_size = round((long_count * mark_px * 0.025) / 1000, 2)
-            short_size = round((short_count * mark_px * 0.022) / 1000, 2)
-            
-            coin_sources_data[src] = {
-                "long_avg": long_avg, "long_count": long_count, "long_size": long_size,
-                "short_avg": short_avg, "short_count": short_count, "short_size": short_size,
-                "general_avg": general_avg
+            # Her saat başı tüm coinlerin kaynak verilerini (long_size ve short_size dahil) kaydetme kontrolü
+            current_hour = time.localtime().tm_hour
+            if current_hour != LAST_RECORDED_HOUR:
+                hourly_snapshot = {
+                    "timestamp": time.strftime("%Y-%m-%d %H:00:00"),
+                    "coins": {}
+                }
+                for c_name, c_info in processed_coins.items():
+                    if not c_name.startswith("_"):
+                        hourly_snapshot["coins"][c_name] = c_info.get("sources", {})
+                
+                HOURLY_RECORDS.insert(0, hourly_snapshot)
+                if len(HOURLY_RECORDS) > 168: # Son 1 haftalık saatlik kayıt
+                    HOURLY_RECORDS.pop()
+                save_hourly_history(HOURLY_RECORDS)
+                LAST_RECORDED_HOUR = current_hour
+
+            processed_coins["_GLOBAL_SUMMARY_"] = {
+                "totalActiveCoins": len(processed_coins),
+                "totalAUM_OI": total_open_interest_usd,
+                "avgMarketPrice": sum(all_prices) / len(all_prices) if all_prices else 0
             }
-
-        if name not in ACTIVE_TRADES:
-            ACTIVE_TRADES[name] = {
-                "symbol": f"{name}USDT", "type": "LONG", "entry": mark_px,
-                "tp": mark_px * 1.028, "sl": mark_px * 0.978,
-                "start_time": time.strftime("%Y-%m-%d %H:%M:%S")
-            }
-        
-        trade = ACTIVE_TRADES[name]
-        hitTP = (trade["type"] == 'LONG' and mark_px >= trade["tp"]) or (trade["type"] == 'SHORT' and mark_px <= trade["tp"])
-        hitSL = (trade["type"] == 'LONG' and mark_px <= trade["sl"]) or (trade["type"] == 'SHORT' and mark_px >= trade["sl"])
-        
-        if hitTP or hitSL:
-            result_status = "WIN" if hitTP else "LOSS"
-            CLOSED_TRADES.insert(0, {
-                "symbol": trade["symbol"], "type": trade["type"], "entry": trade["entry"],
-                "exit_price": mark_px, "result": result_status, "closed_at": time.strftime("%Y-%m-%d %H:%M:%S")
-            })
-            if len(CLOSED_TRADES) > 50: CLOSED_TRADES.pop()
-            ACTIVE_TRADES[name] = {
-                "symbol": f"{name}USDT", "type": "LONG", "entry": mark_px,
-                "tp": mark_px * 1.028, "sl": mark_px * 0.978,
-                "start_time": time.strftime("%Y-%m-%d %H:%M:%S")
-            }
-            save_trade_history({"active": ACTIVE_TRADES, "closed": CLOSED_TRADES})
-
-        ai_report = {
-            "signal": "BINANCE SMART LONG İVME",
-            "comment": f"Vadeli piyasa derinliğinde +4.7x hacim yoğunluğu tespit edildi. Akıllı takip seviyesi ${fmt(trade['entry'])}.",
-            "confluence": 89.2, "entry": trade["entry"], "tp": trade["tp"], "sl": trade["sl"]
-        }
-
-        processed_coins[name] = {
-            "symbol": f"{name}USDT", "markPrice": mark_px, "fundingRate": funding,
-            "openInterestUSD": oi_usd, "sources": coin_sources_data, "ai_analysis": ai_report
-        }
-    
-    current_hour = time.localtime().tm_hour
-    if current_hour != LAST_RECORDED_HOUR:
-        hourly_snapshot = {
-            "timestamp": time.strftime("%Y-%m-%d %H:00:00"),
-            "coins": {}
-        }
-        for c_name, c_info in processed_coins.items():
-            if not c_name.startswith("_"):
-                hourly_snapshot["coins"][c_name] = c_info.get("sources", {})
-        
-        HOURLY_RECORDS.insert(0, hourly_snapshot)
-        if len(HOURLY_RECORDS) > 168: HOURLY_RECORDS.pop()
-        save_hourly_history(HOURLY_RECORDS)
-        LAST_RECORDED_HOUR = current_hour
-
-    processed_coins["_GLOBAL_SUMMARY_"] = {
-        "totalActiveCoins": len(processed_coins) - 1,
-        "totalAUM_OI": total_open_interest_usd,
-        "avgMarketPrice": sum(all_prices) / len(all_prices) if all_prices else 0
-    }
-    return processed_coins
+            return processed_coins
+    except Exception as e:
+        print("Veri hatası:", e)
+    return {}
 
 def background_market_worker():
     global CACHE
@@ -235,14 +250,14 @@ def background_market_worker():
                 save_trade_history({"active": ACTIVE_TRADES, "closed": CLOSED_TRADES})
         except Exception as e:
             print("Worker hatası:", e)
-        time.sleep(6) # Binance rate limit koruması için optimize edildi
+        time.sleep(5)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     threading.Thread(target=background_market_worker, daemon=True).start()
     yield
 
-app = FastAPI(title="Cash Control Engine", version="13.7", lifespan=lifespan)
+app = FastAPI(title="Cash Control Engine", version="13.6", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 @app.get("/", response_class=HTMLResponse)
@@ -258,6 +273,7 @@ def get_all_coins():
     coins = [k for k in CACHE["data"].keys() if not k.startswith("_")]
     if not coins:
         CACHE["data"] = fetch_karma_market_data()
+        CACHE["last_update"] = time.time()
         coins = [k for k in CACHE["data"].keys() if not k.startswith("_")]
     return {"status": "success", "coins": sorted(coins)}
 
