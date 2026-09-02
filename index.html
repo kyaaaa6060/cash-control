@@ -3,53 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cash Control - Trading Panel</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Cash Control - Smart Money Engine</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .control-panel {
+            background-color: #1e1e2d;
+            border-radius: 8px;
+            padding: 15px;
+            width: 450px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #a0aec0;
+            margin-bottom: 12px;
+        }
+
+        /* Beyaz Alan / İstediğin Bölge: Sadece Ortalama Girişler */
+        .white-box-container {
+            background: #2d2d3d;
+            border: 1px solid #4a5568;
+            border-radius: 6px;
+            padding: 12px;
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 15px;
+        }
+
+        .avg-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .avg-item .label {
+            font-size: 10px;
+            color: #a0aec0;
+            margin-bottom: 4px;
+        }
+
+        .long-val {
+            color: #48bb78;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .short-val {
+            color: #f56565;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .panel-stats .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #2d2d3d;
+            font-size: 13px;
+        }
+
+        /* Tıklanabilir Likidite Alanı */
+        .stat-row.clickable {
+            cursor: pointer;
+            color: #63b3ed;
+        }
+
+        .stat-row.clickable:hover {
+            text-decoration: underline;
+        }
+
+        #chart-container {
+            width: 100%;
+            height: 500px;
+            margin-top: 20px;
+            background: #181824;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            border: 1px dashed #333;
+        }
+    </style>
 </head>
 <body>
 
-    <!-- Üst Bar / Panel -->
+    <!-- Kontrol Paneli -->
     <div class="control-panel">
         <div class="panel-header">
-            <span class="title">⚡ BINANCE SMART MONEY & ORTALAMALAR</span>
-            <span class="time">02.09.2026 12:53:50 (TRT)</span>
+            <span>⚡ BINANCE SMART MONEY & ORTALAMALAR</span>
+            <span id="live-time">02.09.2026 12:53:50 (TRT)</span>
         </div>
 
-        <!-- BEYAZ ALAN: Sadece Ortalama Girişler Kaldı (Liq Buradan Çıkarıldı) -->
+        <!-- BEYAZ ALAN: Sadece Long ve Short Ortalama Girişler (Liq Kaldırıldı) -->
         <div class="white-box-container">
             <div class="avg-item">
                 <span class="label">LONG ORT. GİRİŞ</span>
-                <span class="value long-val">$59,520.00</span>
+                <span id="long-avg-val" class="long-val">$59,520.00</span>
             </div>
             <div class="avg-item">
                 <span class="label">SHORT ORT. GİRİŞ</span>
-                <span class="value short-val">$60,480.00</span>
+                <span id="short-avg-val" class="short-val">$60,480.00</span>
             </div>
         </div>
 
-        <!-- Diğer Panel Verileri -->
+        <!-- Panel Alt İstatistikleri -->
         <div class="panel-stats">
             <div class="stat-row">
                 <span>Long Pozisyon (AUM):</span>
-                <span class="green">$1.16B</span>
+                <span style="color: #48bb78;">$1.16B</span>
             </div>
             <div class="stat-row">
                 <span>Short Pozisyon (AUM):</span>
-                <span class="red">$459.48M</span>
+                <span style="color: #f56565;">$459.48M</span>
             </div>
-            <!-- Likidite artık grafik üzerinde ve tıklanabilir -->
-            <div class="stat-row clickable" onclick="openLiquidityDetail()">
+            <!-- Likidite Değeri - Tıklandığında yeni sekmede işlem sayfasına yönlendirir -->
+            <div class="stat-row clickable" onclick="openLiquidityDetail('BTCUSDT')">
                 <span>Tahmini Likidasyon (Grafikte):</span>
-                <span class="liq-link">$52,200.00 ↗</span>
+                <span id="liq-price-val">$52,200.00 ↗</span>
             </div>
         </div>
     </div>
 
-    <!-- Grafik Alanı -->
+    <!-- Grafik Alanı (Liq değerleri mumlar üzerinde gösterilecek alan) -->
     <div id="chart-container">
-        <!-- Grafik ve Liq çizgileri buraya render edilecek -->
+        [ TradingView / Grafik Alanı - Likidite Çizgileri Mumlar Üzerinde Çizilir ]
     </div>
 
-    <script src="app.js"></script>
+    <script>
+        // FastAPI backend'inden verileri çekip arayüze yansıtma fonksiyonu
+        async function fetchMarketData() {
+            try {
+                const response = await fetch('/api/market-stats/BTC');
+                const result = await response.json();
+                if(result.status === "success") {
+                    const data = result.data;
+                    document.getElementById('long-avg-val').innerText = `$${data.long_avg.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    document.getElementById('short-avg-val').innerText = `$${data.short_avg.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                    document.getElementById('liq-price-val').innerText = `$${data.liq_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ↗`;
+                }
+            } catch (error) {
+                console.error("Veri çekilemedi:", error);
+            }
+        }
+
+        // Videodaki gibi tıklayınca yeni sayfa/sekme açıp o işleme yönlendiren fonksiyon
+        function openLiquidityDetail(symbol) {
+            const targetUrl = `https://futures.binance.com/tr/trade/${symbol}`;
+            window.open(targetUrl, '_blank');
+        }
+
+        // Sayfa yüklendiğinde verileri güncelle
+        fetchMarketData();
+        setInterval(fetchMarketData, 5000); // 5 saniyede bir tazele
+    </script>
 </body>
 </html>
