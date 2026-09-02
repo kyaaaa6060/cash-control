@@ -40,17 +40,9 @@
         .ivme-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 12px; color: #848e9c; flex-wrap: wrap; gap: 4px; }
         .badge-long { background: rgba(14, 203, 129, 0.15); color: #0ecb81; border: 1px solid rgba(14, 203, 129, 0.4); padding: 2px 6px; border-radius: 3px; font-weight: bold; font-size: 11px; }
         .badge-speed { background: rgba(112, 122, 138, 0.2); color: #c9d1d9; border: 1px solid #3a4149; padding: 2px 6px; border-radius: 3px; font-size: 11px; }
-        .badge-breakout { background: rgba(138, 43, 226, 0.2); color: #d8b4fe; border: 1px solid rgba(138, 43, 226, 0.4); padding: 2px 6px; border-radius: 3px; font-size: 11px; }
         .badge-active { background: rgba(240, 185, 11, 0.15); color: #f0b90b; border: 1px solid rgba(240, 185, 11, 0.4); padding: 2px 6px; border-radius: 3px; font-size: 11px; }
         .ivme-desc { font-size: 12px; color: #b7bdc6; line-height: 1.4; margin-bottom: 8px; }
         .ivme-footer { display: flex; gap: 15px; font-size: 11px; color: #848e9c; border-top: 1px solid #2b2b2b; padding-top: 6px; }
-        .analysis-extra-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-        .extra-card { background: #121418; border: 1px solid #23272e; border-radius: 6px; padding: 8px 10px; }
-        .extra-title { font-size: 11px; font-weight: bold; color: #848e9c; margin-bottom: 6px; border-bottom: 1px solid #23272e; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
-        .extra-content { font-size: 12px; color: #eaeaea; }
-        .level-row { display: flex; justify-content: space-between; margin-bottom: 2px; font-size: 11px; }
-        .level-lbl { color: #848e9c; }
-        .no-pattern { color: #848e9c; font-style: italic; font-size: 11px; text-align: center; padding: 6px; }
         .prices-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #121418; padding: 8px 10px; border-radius: 6px; margin-bottom: 10px; text-align: center; border: 1px solid #23272e; }
         .price-item .lbl { font-size: 10px; color: #848e9c; margin-bottom: 2px; }
         .price-item .val { font-size: 13px; font-weight: bold; word-break: break-all; }
@@ -113,7 +105,7 @@
     <div id="panelModal" class="modal-overlay">
         <div class="main-card">
             <div class="header-top">
-                <div class="title" id="panelTitle">📊 Binance Smart Money & AUM Analizi <span id="roleBadgeContainer"></span></div>
+                <div class="title" id="panelTitle">📊 Binance Smart Money & Ortalamalar <span id="roleBadgeContainer"></span></div>
                 <div class="close-btn" onclick="togglePanel()">✕</div>
             </div>
 
@@ -123,21 +115,21 @@
                         <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
                             <span class="badge-long">⚡ SMART MONEY</span>
                             <span class="badge-speed" id="smartRatioBadge">Notional L/S: --</span>
-                            <span class="badge-active">🚀 API-Siz Canlı Takip</span>
+                            <span class="badge-active">🚀 Canlı Takip</span>
                         </div>
                         <div id="currentTime" style="font-size: 10px;">--</div>
                     </div>
                     <div class="ivme-desc" id="aiComment">Binance Leaderboard verileri taranıyor...</div>
                     <div class="ivme-footer">
-                        <div>💰 Toplam AUM: <span id="totalAumVal" style="color: #0ecb81; font-weight: bold;">$0</span></div>
-                        <div>📊 İşlem Adedi: <span id="totalTradersVal" style="color: #fff; font-weight: bold;">0</span></div>
+                        <div>📈 Long Ort.: <span id="footerLongAvg" style="color: #0ecb81; font-weight: bold;">$-</span></div>
+                        <div>📉 Short Ort.: <span id="footerShortAvg" style="color: #f6465d; font-weight: bold;">$-</span></div>
                     </div>
                 </div>
 
                 <div class="prices-grid">
                     <div class="price-item"><div class="lbl">LONG ORT. GİRİŞ</div><div class="val" id="valLongEntry" style="color: #0ecb81;">$-</div></div>
                     <div class="price-item"><div class="lbl">SHORT ORT. GİRİŞ</div><div class="val" id="valShortEntry" style="color: #f6465d;">$-</div></div>
-                    <div class="price-item"><div class="lbl">TAHMİNİ LİQ. SEVİYESİ</div><div class="val" id="valLiq" style="color: #f0b90b;">$-</div></div>
+                    <div class="price-item"><div class="lbl">TAHMİNİ LİQ. SEVİYESİ</div><div class="val" id="valLiq" style="color: #f0b90b; cursor: pointer;" onclick="window.open('https://www.binance.com/en/futures/leaderboard', '_blank')">$- 🔗</div></div>
                 </div>
 
                 <div class="source-label">Veri Kaynağı Seçin:</div>
@@ -176,16 +168,16 @@
 
             <div id="resultCardsContainer">
                 <div class="result-card long">
-                    <div><div class="res-title"><span style="color: #0ecb81;">●</span> Long Pozisyon AUM:</div><div class="res-sub" id="longSub">(- trader, -$ size)</div></div>
+                    <div><div class="res-title"><span style="color: #0ecb81;">●</span> Long Pozisyon (AUM):</div><div class="res-sub" id="longSub">(- trader, -$ size)</div></div>
                     <div class="res-val" id="longVal" style="color: #0ecb81;">$-</div>
                 </div>
                 <div class="result-card short">
-                    <div><div class="res-title"><span style="color: #f6465d;">●</span> Short Pozisyon AUM:</div><div class="res-sub" id="shortSub">(- trader, -$ size)</div></div>
+                    <div><div class="res-title"><span style="color: #f6465d;">●</span> Short Pozisyon (AUM):</div><div class="res-sub" id="shortSub">(- trader, -$ size)</div></div>
                     <div class="res-val" id="shortVal" style="color: #f6465d;">$-</div>
                 </div>
                 <div class="result-card avg">
-                    <div><div class="res-title"><span style="color: #f0b90b;">●</span> Tahmini Likidasyon:</div><div class="res-sub">Akıllı cüzdan ortalaması</div></div>
-                    <div class="res-val" id="avgVal" style="color: #f0b90b;">$-</div>
+                    <div><div class="res-title"><span style="color: #f0b90b;">●</span> Tahmini Likidasyon:</div><div class="res-sub">Akıllı cüzdan ortalaması (Tıkla &rarr; Cüzdan)</div></div>
+                    <div class="res-val" id="avgVal" style="color: #f0b90b; cursor: pointer;" onclick="window.open('https://www.binance.com/en/futures/leaderboard', '_blank')">$- ↗</div>
                 </div>
             </div>
         </div>
@@ -280,7 +272,6 @@
                 "container_id": "tradingview-container",
                 "studies": [],
                 "onready": function(widget) {
-                    // Grafiğe Smart Money Liq ve Avg giriş çizgilerini ekleme ve yönlendirme aksiyonu
                     fetch(`/api/market-stats/${symbol}?timeframe=${timeframe}`)
                         .then(res => res.json())
                         .then(json => {
@@ -288,26 +279,26 @@
                                 let d = json.data;
                                 let chart = tvWidget.chart();
                                 
-                                // Long Avg Giriş Çizgisi
+                                // Long Avg Giriş Çizgisi (Tıklanınca Leaderboard sayfasına gider)
                                 chart.createShape({price: d.long_avg, time: Math.floor(Date.now()/1000) - 86400}, {
                                     shape: "horizontal_line",
-                                    text: `Binance Smart (LONG): $${formatPrice(d.long_avg)} (Tıkla)`,
+                                    text: `Binance Smart (LONG Ort.): $${formatPrice(d.long_avg)} (Cüzdana Git)`,
                                     overrides: {linecolor: "#0ecb81", linewidth: 2},
                                     link: "https://www.binance.com/en/futures/leaderboard"
                                 });
 
-                                // Short Avg Giriş Çizgisi
+                                // Short Avg Giriş Çizgisi (Tıklanınca Leaderboard sayfasına gider)
                                 chart.createShape({price: d.short_avg, time: Math.floor(Date.now()/1000) - 86400}, {
                                     shape: "horizontal_line",
-                                    text: `Binance Smart (SHORT): $${formatPrice(d.short_avg)} (Tıkla)`,
+                                    text: `Binance Smart (SHORT Ort.): $${formatPrice(d.short_avg)} (Cüzdana Git)`,
                                     overrides: {linecolor: "#f6465d", linewidth: 2},
                                     link: "https://www.binance.com/en/futures/leaderboard"
                                 });
 
-                                // Tahmini Likidasyon Çizgisi (Üzerine tıklayınca Binance Cüzdan/Leaderboard sayfasına yönlendirir)
+                                // Tahmini Likidasyon Çizgisi (Tıklanınca cüzdana/işleme yönlendirir - video davranış birebir)
                                 chart.createShape({price: d.liq_price, time: Math.floor(Date.now()/1000) - 86400}, {
                                     shape: "horizontal_line",
-                                    text: `🚨 Smart Money Liq: $${formatPrice(d.liq_price)} (Cüzdana Git)`,
+                                    text: `🚨 Smart Money Liq: $${formatPrice(d.liq_price)} (İşleme/Cüzdana Git)`,
                                     overrides: {linecolor: "#f0b90b", linewidth: 2, linestyle: 2},
                                     link: "https://www.binance.com/en/futures/leaderboard"
                                 });
@@ -346,19 +337,22 @@
                     
                     document.getElementById('valLongEntry').innerText = "$" + formatPrice(d.long_avg);
                     document.getElementById('valShortEntry').innerText = "$" + formatPrice(d.short_avg);
-                    document.getElementById('valLiq').innerText = "$" + formatPrice(d.liq_price);
+                    document.getElementById('valLiq').innerText = "$" + formatPrice(d.liq_price) + " 🔗";
 
-                    document.getElementById('totalAumVal').innerText = "$" + (d.total_aum >= 1e9 ? (d.total_aum/1e9).toFixed(2) + "B" : (d.total_aum/1e6).toFixed(2) + "M");
-                    document.getElementById('totalTradersVal').innerText = d.total_traders;
-                    document.getElementById('smartRatioBadge').innerText = "Notional L/S: " + d.long_short_ratio + "%";
+                    document.getElementById('footerLongAvg').innerText = "$" + formatPrice(d.long_avg);
+                    document.getElementById('footerShortAvg').innerText = "$" + formatPrice(d.short_avg);
 
-                    document.getElementById('longVal').innerText = "$" + (d.long_pos_usd >= 1e9 ? (d.long_pos_usd/1e9).toFixed(2) + "B" : (d.long_pos_usd/1e6).toFixed(2) + "M");
+                    let longAumStr = d.long_pos_usd >= 1e9 ? (d.long_pos_usd/1e9).toFixed(2) + "B" : (d.long_pos_usd/1e6).toFixed(2) + "M";
+                    let shortAumStr = d.short_pos_usd >= 1e9 ? (d.short_pos_usd/1e9).toFixed(2) + "B" : (d.short_pos_usd/1e6).toFixed(2) + "M";
+
+                    document.getElementById('longVal').innerText = "$" + longAumStr;
                     document.getElementById('longSub').innerText = `(${d.long_traders} trader, ${d.long_profitable}% karda)`;
                     
-                    document.getElementById('shortVal').innerText = "$" + (d.short_pos_usd >= 1e9 ? (d.short_pos_usd/1e9).toFixed(2) + "B" : (d.short_pos_usd/1e6).toFixed(2) + "M");
+                    document.getElementById('shortVal').innerText = "$" + shortAumStr;
                     document.getElementById('shortSub').innerText = `(${d.short_traders} trader, ${d.short_profitable}% karda)`;
                     
-                    document.getElementById('avgVal').innerText = "$" + formatPrice(d.liq_price);
+                    document.getElementById('avgVal').innerText = "$" + formatPrice(d.liq_price) + " ↗";
+                    document.getElementById('smartRatioBadge').innerText = "Notional L/S: " + d.long_short_ratio + "%";
                     
                     let now = new Date();
                     document.getElementById('currentTime').innerText = now.toLocaleDateString('tr-TR') + " " + now.toLocaleTimeString('tr-TR') + " (TRT)";
