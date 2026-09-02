@@ -116,8 +116,7 @@
     <script>
         // Sayfa yüklendiğinde daha önceden oturum açılıp açılmadığını kontrol et
         window.onload = function() {
-            const isLoggedIn = localStorage.getItem("isLoggedIn");
-            if (isLoggedIn === "true") {
+            if (localStorage.getItem("isLoggedIn") === "true") {
                 showDashboard();
             }
         };
@@ -126,16 +125,14 @@
             const passwordInput = document.getElementById("password").value.trim();
             const errorMsg = document.getElementById("errorMsg");
 
-            // Geçerli şifreler (Admin: 1453, Kullanıcı: 1234)
+            // Kabul edilen şifreler (1453 veya 1234 yazarak girebilirsiniz)
             const validPasswords = ["1453", "1234"];
 
             if (validPasswords.includes(passwordInput)) {
-                // Şifre doğru, oturum bilgisini hafızaya kaydet
                 localStorage.setItem("isLoggedIn", "true");
                 errorMsg.textContent = "";
                 showDashboard();
             } else {
-                // Şifre yanlış
                 errorMsg.textContent = "Hatalı şifre! Lütfen tekrar deneyin.";
             }
         }
@@ -146,7 +143,6 @@
         }
 
         function handleLogout() {
-            // Oturumu kapat ve veriyi temizle
             localStorage.removeItem("isLoggedIn");
             document.getElementById("password").value = "";
             document.getElementById("dashboardSection").style.display = "none";
