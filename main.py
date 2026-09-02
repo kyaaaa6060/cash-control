@@ -9,8 +9,14 @@ from contextlib import asynccontextmanager
 async def lifespan(app: FastAPI):
     yield
 
-app = FastAPI(title="Cash Control Smart Money Engine", version="14.1", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app = FastAPI(title="Cash Control Smart Money Engine", version="14.2", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware, 
+    allow_origins=["*"], 
+    allow_credentials=True, 
+    allow_methods=["*"], 
+    allow_headers=["*"]
+)
 
 @app.get("/", response_class=HTMLResponse)
 def read_index():
@@ -18,12 +24,27 @@ def read_index():
         with open("index.html", "r", encoding="utf-8") as f:
             return f.read()
     except FileNotFoundError:
-        return "<h3>index.html dosyası bulunamadı!</h3>"
+        return "<h3>index.html dosyası bulunamadı! Lütfen index.html dosyasını main.py ile aynı dizine ekleyin.</h3>"
 
 @app.get("/api/coins")
 def get_all_coins():
-    coins = ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "AVAX", "DOGE", "LINK", "SUI"]
-    return {"status": "success", "coins": coins}
+    """Binance Vadeli İşlemler (USDⓈ-M) piyasasındaki tüm aktif USDT paritelerini çeker"""
+    try:
+        res = requests.get("https://fapi.binance.com/fapi/v1/exchangeInfo", timeout=5)
+        if res.status_code == 200:
+            data = res.json()
+            # Sadece USDT ile işlem gören ve durumu TRADING olan coinleri filtrele
+            coins = [
+                s["baseAsset"] for s in data.get("symbols", [])
+                if s["quoteAsset"] == "USDT" and s["status"] == "TRADING"
+            ]
+            return {"status": "success", "coins": sorted(list(set(coins)))}
+    except Exception as e:
+        pass
+    
+    # Hata durumunda yedek liste
+    fallback_coins = ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "AVAX", "DOGE", "LINK", "SUI"]
+    return {"status": "success", "coins": fallback_coins}
 
 @app.get("/api/market-stats/{symbol}")
 def get_coin_stats(symbol: str, timeframe: str = "15"):
