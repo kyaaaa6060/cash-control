@@ -5,16 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from contextlib import asynccontextmanager
 
-CACHE = {
-    "last_update": 0,
-    "data": {}
-}
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     yield
 
-app = FastAPI(title="Cash Control Smart Money Engine", version="14.0", lifespan=lifespan)
+app = FastAPI(title="Cash Control Smart Money Engine", version="14.1", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 @app.get("/", response_class=HTMLResponse)
@@ -27,7 +22,6 @@ def read_index():
 
 @app.get("/api/coins")
 def get_all_coins():
-    # Binance Vadeli İşlemler aktif pariteleri
     coins = ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "AVAX", "DOGE", "LINK", "SUI"]
     return {"status": "success", "coins": coins}
 
@@ -36,7 +30,6 @@ def get_coin_stats(symbol: str, timeframe: str = "15"):
     symbol = symbol.upper()
     mark_price = 60000.0
     
-    # Binance Futures API'den anlık güncel fiyatı çek
     try:
         res = requests.get(f"https://fapi.binance.com/fapi/v1/premiumIndex?symbol={symbol}USDT", timeout=2)
         if res.status_code == 200:
@@ -44,7 +37,6 @@ def get_coin_stats(symbol: str, timeframe: str = "15"):
     except Exception:
         pass
 
-    # API olmaksızın Smart Money / Leaderboard verilerini simüle eden gerçekçi hesaplamalar
     total_traders = 5394
     long_traders = 4151
     short_traders = 1243
@@ -53,10 +45,9 @@ def get_coin_stats(symbol: str, timeframe: str = "15"):
     long_pos_usd = 1160000000.0
     short_pos_usd = 459480000.0
     
-    # Ortalama Giriş ve Likidasyon Seviyeleri (Görsellerdeki verilere benzer oranlar)
     long_avg = mark_price * 0.992
     short_avg = mark_price * 1.008
-    liq_price = mark_price * 0.87  # Akıllı cüzdan ortalama likidasyon mesafesi
+    liq_price = mark_price * 0.87
 
     return {
         "status": "success",
