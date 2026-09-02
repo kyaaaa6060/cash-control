@@ -24,7 +24,7 @@ def read_index():
         with open("index.html", "r", encoding="utf-8") as f:
             return f.read()
     except FileNotFoundError:
-        return "<h3>index.html dosyası bulunamadı! Lütfen index.html dosyasını main.py ile aynı dizine ekleyin.</h3>"
+        return "<h3>index.html dosyası bulunamadı!</h3>"
 
 @app.get("/api/coins")
 def get_all_coins():
@@ -33,13 +33,12 @@ def get_all_coins():
         res = requests.get("https://fapi.binance.com/fapi/v1/exchangeInfo", timeout=5)
         if res.status_code == 200:
             data = res.json()
-            # Sadece USDT ile işlem gören ve durumu TRADING olan coinleri filtrele
             coins = [
                 s["baseAsset"] for s in data.get("symbols", [])
                 if s["quoteAsset"] == "USDT" and s["status"] == "TRADING"
             ]
             return {"status": "success", "coins": sorted(list(set(coins)))}
-    except Exception as e:
+    except Exception:
         pass
     
     # Hata durumunda yedek liste
