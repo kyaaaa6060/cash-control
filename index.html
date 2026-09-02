@@ -100,7 +100,7 @@
             <h2>Giriş Yap</h2>
             <div class="form-group">
                 <label for="password">Şifre</label>
-                <input type="password" id="password" placeholder="Şifrenizi girin (Örn: 1453 veya 1234)">
+                <input type="password" id="password" placeholder="Şifrenizi girin">
             </div>
             <button onclick="handleLogin()">Giriş Yap</button>
             <div id="errorMsg" class="error-message"></div>
@@ -114,7 +114,7 @@
     </div>
 
     <script>
-        // Sayfa yüklendiğinde daha önceden oturum açılıp açılmadığını kontrol et
+        // Sayfa yüklendiğinde hafızadaki oturum durumunu kontrol et
         window.onload = function() {
             if (localStorage.getItem("isLoggedIn") === "true") {
                 showDashboard();
@@ -125,7 +125,7 @@
             const passwordInput = document.getElementById("password").value.trim();
             const errorMsg = document.getElementById("errorMsg");
 
-            // Kabul edilen şifreler (1453 veya 1234 yazarak girebilirsiniz)
+            // Kabul edilen şifreler
             const validPasswords = ["1453", "1234"];
 
             if (validPasswords.includes(passwordInput)) {
