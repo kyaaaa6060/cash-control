@@ -24,9 +24,32 @@
         .panel-header {
             display: flex;
             justify-content: space-between;
+            align-items: center;
             font-size: 11px;
             color: #a0aec0;
             margin-bottom: 12px;
+        }
+
+        /* Coin Seçim Alanı */
+        .coin-select-container {
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #2d2d3d;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #4a5568;
+        }
+
+        .coin-select-container select {
+            background: #1e1e2d;
+            color: #ffffff;
+            border: 1px solid #4a5568;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
         }
 
         /* Beyaz Alan / İstediğin Bölge: Sadece Ortalama Girişler */
@@ -101,19 +124,27 @@
     <!-- Kontrol Paneli -->
     <div class="control-panel">
         <div class="panel-header">
-            <span>⚡ BINANCE SMART MONEY & ORTALAMALAR</span>
-            <span id="live-time">02.09.2026 12:53:50 (TRT)</span>
+            <span>⚡ BINANCE SMART MONEY</span>
+            <span id="live-time">02.09.2026 13:01</span>
         </div>
 
-        <!-- BEYAZ ALAN: Sadece Long ve Short Ortalama Girişler (Liq Kaldırıldı) -->
+        <!-- Tüm Binance Vadeli Coinlerini Seçme Kutusu -->
+        <div class="coin-select-container">
+            <span style="font-size: 12px; font-weight: bold;">AKTİF COİN:</span>
+            <select id="coinDropdown" onchange="changeSelectedCoin()">
+                <option value="BTC">Yükleniyor...</option>
+            </select>
+        </div>
+
+        <!-- BEYAZ ALAN: Sadece Long ve Short Ortalama Girişler -->
         <div class="white-box-container">
             <div class="avg-item">
                 <span class="label">LONG ORT. GİRİŞ</span>
-                <span id="long-avg-val" class="long-val">$59,520.00</span>
+                <span id="long-avg-val" class="long-val">--</span>
             </div>
             <div class="avg-item">
                 <span class="label">SHORT ORT. GİRİŞ</span>
-                <span id="short-avg-val" class="short-val">$60,480.00</span>
+                <span id="short-avg-val" class="short-val">--</span>
             </div>
         </div>
 
@@ -127,24 +158,51 @@
                 <span>Short Pozisyon (AUM):</span>
                 <span style="color: #f56565;">$459.48M</span>
             </div>
-            <!-- Likidite Değeri - Tıklandığında yeni sekmede işlem sayfasına yönlendirir -->
-            <div class="stat-row clickable" onclick="openLiquidityDetail('BTCUSDT')">
+            <!-- Likidite Değeri - Tıklandığında yeni sekmede seçilen coinin işlem sayfasını açar -->
+            <div class="stat-row clickable" onclick="openLiquidityDetail()">
                 <span>Tahmini Likidasyon (Grafikte):</span>
-                <span id="liq-price-val">$52,200.00 ↗</span>
+                <span id="liq-price-val">-- ↗</span>
             </div>
         </div>
     </div>
 
-    <!-- Grafik Alanı (Liq değerleri mumlar üzerinde gösterilecek alan) -->
+    <!-- Grafik Alanı -->
     <div id="chart-container">
-        [ TradingView / Grafik Alanı - Likidite Çizgileri Mumlar Üzerinde Çizilir ]
+        [ TradingView / Grafik Alanı - Seçilen Coin Likidite Çizgileri ]
     </div>
 
     <script>
-        // FastAPI backend'inden verileri çekip arayüze yansıtma fonksiyonu
-        async function fetchMarketData() {
+        let currentSymbol = "BTC";
+
+        // Binance'deki tüm vadeli coinleri API'den çekip dropdown menüyü doldurur
+        async function loadCoins() {
             try {
-                const response = await fetch('/api/market-stats/BTC');
+                const response = await fetch('/api/coins');
+                const result = await response.json();
+                if(result.status === "success") {
+                    const dropdown = document.getElementById('coinDropdown');
+                    dropdown.innerHTML = "";
+                    result.coins.forEach(coin => {
+                        let opt = document.createElement('option');
+                        opt.value = coin;
+                        opt.text = coin + "USDT";
+                        if(coin === "BTC") opt.selected = true;
+                        dropdown.appendChild(opt);
+                    });
+                    fetchMarketData();
+                }
+            } catch (error) {
+                console.error("Coinler yüklenemedi:", error);
+            }
+        }
+
+        // Seçilen coinin verilerini backend'den çeker
+        async function fetchMarketData() {
+            const select = document.getElementById('coinDropdown');
+            currentSymbol = select ? select.value : "BTC";
+
+            try {
+                const response = await fetch(`/api/market-stats/${currentSymbol}`);
                 const result = await response.json();
                 if(result.status === "success") {
                     const data = result.data;
@@ -157,15 +215,19 @@
             }
         }
 
-        // Videodaki gibi tıklayınca yeni sayfa/sekme açıp o işleme yönlendiren fonksiyon
-        function openLiquidityDetail(symbol) {
-            const targetUrl = `https://futures.binance.com/tr/trade/${symbol}`;
+        function changeSelectedCoin() {
+            fetchMarketData();
+        }
+
+        // Tıklandığında yeni sekmede seçilen coinin Binance Futures sayfasını açar
+        function openLiquidityDetail() {
+            const targetUrl = `https://futures.binance.com/tr/trade/${currentSymbol}USDT`;
             window.open(targetUrl, '_blank');
         }
 
-        // Sayfa yüklendiğinde verileri güncelle
-        fetchMarketData();
-        setInterval(fetchMarketData, 5000); // 5 saniyede bir tazele
+        // Sayfa açıldığında coinleri yükle ve her 5 saniyede bir verileri tazele
+        loadCoins();
+        setInterval(fetchMarketData, 5000);
     </script>
 </body>
 </html>
