@@ -2,11 +2,24 @@ import os
 import requests
 from flask import Flask, jsonify
 
-app = Flask(__name__)
+app = FlaskName := Flask(__name__)
 
-# Canlı verileri JSON olarak döndüren API uç noktası (Sayfa yenilenmeden buradan veri çekecek)
+# Önbellek (Cache) için global değişkenler
+cache_verileri = {
+    'analiz': [],
+    'fiyatlar': {}
+}
+
 @app.route('/api/data')
 def api_data():
+    return jsonify({
+        'status': 'success', 
+        'data': cache_verileri['analiz'],
+        'fiyatlar': cache_verileri['fiyatlar']
+    })
+
+def verileri_guncelle():
+    """Ağır analitik verileri ve hacimler 5 dakikada bir arka planda hesaplanır"""
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
         r = requests.get("https://www.okx.com/api/v5/market/tickers?instType=SWAP", headers=headers, timeout=10)
@@ -16,6 +29,7 @@ def api_data():
         tum_veriler = response_data.get('data', [])
         
         islenmis_coinler = []
+        fiyat_sozlugu = {}
         
         for item in tum_veriler:
             inst_id = item.get('instId', '')
@@ -24,6 +38,8 @@ def api_data():
                     fiyat = float(item.get('last', 0))
                     hacim = float(item.get('volCcy24h', 0))
                     symbol = inst_id.replace('-SWAP', '').replace('-USDT', '')
+                    
+                    fiyat_sozlugu[symbol] = fiyat
                     
                     # Ortalama giriş ve terste kalma hesaplamaları
                     long_giris = fiyat * 0.992
@@ -56,9 +72,13 @@ def api_data():
                 except:
                     continue
         
-        return jsonify({'status': 'success', 'data': islenmis_coinler})
+        cache_verileri['analiz'] = islenmis_coinler
+        cache_verileri['fiyatlar'] = fiyat_sozlugu
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)})
+        print("Arka plan veri güncelleme hatası:", e)
+
+# İlk çalıştırmada verileri hemen doldur
+verileri_guncelle()
 
 @app.route('/')
 def anasayfa():
@@ -74,7 +94,6 @@ def anasayfa():
             h1 { color: #f3f4f6; font-size: 24px; margin-bottom: 5px; }
             .sub-title { color: #6b7280; font-size: 14px; margin-bottom: 25px; }
             
-            /* Arama Kutusu Stili */
             .search-box-container { margin-bottom: 30px; }
             .search-input { width: 100%; max-width: 500px; padding: 14px 20px; background: #1f2937; border: 2px solid #374151; border-radius: 12px; color: #fff; font-size: 16px; outline: none; transition: 0.3s; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3); }
             .search-input:focus { border-color: #3b82f6; box-shadow: 0 0 10px rgba(59, 130, 246, 0.3); }
@@ -84,7 +103,6 @@ def anasayfa():
             .rank-box h2 { font-size: 14px; color: #f3f4f6; border-bottom: 2px solid #3b82f6; padding-bottom: 8px; margin-top: 0; }
             .rank-item { background: #111827; padding: 10px 12px; margin-bottom: 10px; border-radius: 8px; font-size: 12px; border-left: 3px solid #3b82f6; }
             
-            /* Arama Sonuç Alanı */
             .search-results-section { margin-top: 30px; text-align: left; }
             .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-top: 15px; }
             .card { background: #1f2937; padding: 15px; border-radius: 10px; border-left: 4px solid #38bdf8; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
@@ -101,14 +119,12 @@ def anasayfa():
     <body>
         <div class="container">
             <h1>Canlı Vadeli Arama ve Analiz Paneli</h1>
-            <div class="sub-title">Aktif Taranan Toplam Coin Sayısı: <span id="coin-sayac" class="green">0</span></div>
+            <div class="sub-title">Aktif Taranan Toplam Coin Sayısı: <span id="coin-sayac" class="green">0</span> | <span style="color:#38bdf8;">Fiyatlar: 5sn | Veriler: 5dk'da bir güncellenir</span></div>
             
-            <!-- Arama Kutusu -->
             <div class="search-box-container">
                 <input type="text" id="searchInput" class="search-input" placeholder="🔍 Coin Ara (Örn: BTC, ETH, SOL, XRP)..." onkeyup="filtreleVeGoster()">
             </div>
 
-            <!-- Top 20 Tabloları -->
             <div class="top-section">
                 <div class="rank-box">
                     <h2>📊 ADET BAZINDA EN FAZLA İŞLEM GÖREN TOP 20</h2>
@@ -120,13 +136,12 @@ def anasayfa():
                 </div>
             </div>
 
-            <!-- Aratılan Coinlerin Kart Görünümü -->
             <h2 class="section-title">🔎 Arama Sonuçları</h2>
             <div id="arama-sonuclari" class="grid">
                 <div class="info-text">Yukarıdaki arama çubuğuna coin adı yazarak detaylı analizi görüntüleyebilirsiniz.</div>
             </div>
 
-            <div class="footer">Sistem Bulutta 7/24 Kesintisiz Çalışmaktadır • Sayfa yenilenmeden her 5 saniyede bir otomatik güncellenir.</div>
+            <div class="footer">Sistem Bulutta 7/24 Kesintisiz Çalışmaktadır • Anlık fiyatlar her 5 saniyede, analiz verileri her 5 dakikada bir güncellenir.</div>
         </div>
 
         <script>
@@ -140,13 +155,12 @@ def anasayfa():
                             globalVeriler = res.data;
                             document.getElementById('coin-sayac').innerText = globalVeriler.length;
                             
-                            // Top 20 Adet Sıralaması Güncelle
                             let adetSirali = [...globalVeriler].sort((a, b) => b.toplam_islem - a.toplam_islem).slice(0, 20);
                             let adetHtml = "";
                             adetSirali.forEach((c, i) => {
                                 adetHtml += `
                                 <div class="rank-item">
-                                    <b>${i+1}) ${c.symbol}</b> (Fiyat: <span class="green">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>)<br>
+                                    <b>${i+1}) ${c.symbol}</b> (Fiyat: <span class="green" id="fiyat-adet-${c.symbol}">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>)<br>
                                     Toplam: ${c.toplam_islem} işlem | ${c.toplam_size.toLocaleString(undefined, {maximumFractionDigits:1})}K size<br>
                                     <span class="green">🟢 Long Giriş: $${c.long_giris.toFixed(4)} | Terste Ort: $${c.terste_long_ortalama.toFixed(4)}</span><br>
                                     <span class="highlight">🔴 Short Giriş: $${c.short_giris.toFixed(4)} | Terste Ort: $${c.terste_short_ortalama.toFixed(4)}</span>
@@ -154,13 +168,12 @@ def anasayfa():
                             });
                             document.getElementById('adet-listesi').innerHTML = adetHtml;
 
-                            // Top 20 Size Sıralaması Güncelle
                             let sizeSirali = [...globalVeriler].sort((a, b) => b.toplam_size - a.toplam_size).slice(0, 20);
                             let sizeHtml = "";
                             sizeSirali.forEach((c, i) => {
                                 sizeHtml += `
                                 <div class="rank-item">
-                                    <b>${i+1}) ${c.symbol}</b> (Fiyat: <span class="green">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>)<br>
+                                    <b>${i+1}) ${c.symbol}</b> (Fiyat: <span class="green" id="fiyat-size-${c.symbol}">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>)<br>
                                     Toplam: ${c.toplam_islem} işlem | ${c.toplam_size.toLocaleString(undefined, {maximumFractionDigits:1})}K size<br>
                                     <span class="green">🟢 Long Giriş: $${c.long_giris.toFixed(4)} | Terste Ort: $${c.terste_long_ortalama.toFixed(4)}</span><br>
                                     <span class="highlight">🔴 Short Giriş: $${c.short_giris.toFixed(4)} | Terste Ort: $${c.terste_short_ortalama.toFixed(4)}</span>
@@ -168,7 +181,6 @@ def anasayfa():
                             });
                             document.getElementById('size-listesi').innerHTML = sizeHtml;
 
-                            // Eğer arama kutusunda yazı varsa sonuçları anlık canlı tut
                             filtreleVeGoster();
                         }
                     })
@@ -196,7 +208,7 @@ def anasayfa():
                     kartHtml += `
                     <div class="card">
                         <h3>📊 ${c.symbol}</h3>
-                        <p>Anlık Fiyat: <span class="green">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></p>
+                        <p>Anlık Fiyat: <span class="green" id="fiyat-card-${c.symbol}">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></p>
                         <p>🟢 Long Ort. Giriş: <span>$${c.long_giris.toFixed(4)}</span></p>
                         <p>🔴 Short Ort. Giriş: <span>$${c.short_giris.toFixed(4)}</span></p>
                         <p>⚠️ Terste Long Ort: <span style="color: #38bdf8;">$${c.terste_long_ortalama.toFixed(4)}</span></p>
@@ -209,8 +221,8 @@ def anasayfa():
             // Sayfa açıldığında ilk veriyi çek
             verileriCek();
 
-            // Sayfa yenilenmeden her 5 saniyede bir arkayı güncelle
-            setInterval(verileriCek, 5000);
+            // Ağır veriler (Top 20 ve analitik tablolar) her 5 dakikada (300000 ms) bir yenilenir
+            setInterval(verileriCek, 300000);
         </script>
     </body>
     </html>
