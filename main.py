@@ -2,7 +2,7 @@ import os
 import requests
 from flask import Flask, jsonify
 
-app = FlaskName := Flask(__name__)
+app = Flask(__name__)
 
 # Önbellek (Cache) için global değişkenler
 cache_verileri = {
@@ -19,7 +19,7 @@ def api_data():
     })
 
 def verileri_guncelle():
-    """Ağır analitik verileri ve hacimler 5 dakikada bir arka planda hesaplanır"""
+    """Ağır analitik veriler ve hacimler güncellenir"""
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
         r = requests.get("https://www.okx.com/api/v5/market/tickers?instType=SWAP", headers=headers, timeout=10)
@@ -119,7 +119,7 @@ def anasayfa():
     <body>
         <div class="container">
             <h1>Canlı Vadeli Arama ve Analiz Paneli</h1>
-            <div class="sub-title">Aktif Taranan Toplam Coin Sayısı: <span id="coin-sayac" class="green">0</span> | <span style="color:#38bdf8;">Fiyatlar: 5sn | Veriler: 5dk'da bir güncellenir</span></div>
+            <div class="sub-title">Aktif Taranan Toplam Coin Sayısı: <span id="coin-sayac" class="green">0</span> | <span style="color:#38bdf8;">Analiz verileri 5 dakikada bir güncellenir</span></div>
             
             <div class="search-box-container">
                 <input type="text" id="searchInput" class="search-input" placeholder="🔍 Coin Ara (Örn: BTC, ETH, SOL, XRP)..." onkeyup="filtreleVeGoster()">
@@ -141,7 +141,7 @@ def anasayfa():
                 <div class="info-text">Yukarıdaki arama çubuğuna coin adı yazarak detaylı analizi görüntüleyebilirsiniz.</div>
             </div>
 
-            <div class="footer">Sistem Bulutta 7/24 Kesintisiz Çalışmaktadır • Anlık fiyatlar her 5 saniyede, analiz verileri her 5 dakikada bir güncellenir.</div>
+            <div class="footer">Sistem Bulutta 7/24 Kesintisiz Çalışmaktadır • Analiz verileri her 5 dakikada bir güncellenir.</div>
         </div>
 
         <script>
@@ -160,7 +160,7 @@ def anasayfa():
                             adetSirali.forEach((c, i) => {
                                 adetHtml += `
                                 <div class="rank-item">
-                                    <b>${i+1}) ${c.symbol}</b> (Fiyat: <span class="green" id="fiyat-adet-${c.symbol}">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>)<br>
+                                    <b>${i+1}) ${c.symbol}</b> (Fiyat: <span class="green">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>)<br>
                                     Toplam: ${c.toplam_islem} işlem | ${c.toplam_size.toLocaleString(undefined, {maximumFractionDigits:1})}K size<br>
                                     <span class="green">🟢 Long Giriş: $${c.long_giris.toFixed(4)} | Terste Ort: $${c.terste_long_ortalama.toFixed(4)}</span><br>
                                     <span class="highlight">🔴 Short Giriş: $${c.short_giris.toFixed(4)} | Terste Ort: $${c.terste_short_ortalama.toFixed(4)}</span>
@@ -173,7 +173,7 @@ def anasayfa():
                             sizeSirali.forEach((c, i) => {
                                 sizeHtml += `
                                 <div class="rank-item">
-                                    <b>${i+1}) ${c.symbol}</b> (Fiyat: <span class="green" id="fiyat-size-${c.symbol}">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>)<br>
+                                    <b>${i+1}) ${c.symbol}</b> (Fiyat: <span class="green">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>)<br>
                                     Toplam: ${c.toplam_islem} işlem | ${c.toplam_size.toLocaleString(undefined, {maximumFractionDigits:1})}K size<br>
                                     <span class="green">🟢 Long Giriş: $${c.long_giris.toFixed(4)} | Terste Ort: $${c.terste_long_ortalama.toFixed(4)}</span><br>
                                     <span class="highlight">🔴 Short Giriş: $${c.short_giris.toFixed(4)} | Terste Ort: $${c.terste_short_ortalama.toFixed(4)}</span>
@@ -208,7 +208,7 @@ def anasayfa():
                     kartHtml += `
                     <div class="card">
                         <h3>📊 ${c.symbol}</h3>
-                        <p>Anlık Fiyat: <span class="green" id="fiyat-card-${c.symbol}">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></p>
+                        <p>Anlık Fiyat: <span class="green">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></p>
                         <p>🟢 Long Ort. Giriş: <span>$${c.long_giris.toFixed(4)}</span></p>
                         <p>🔴 Short Ort. Giriş: <span>$${c.short_giris.toFixed(4)}</span></p>
                         <p>⚠️ Terste Long Ort: <span style="color: #38bdf8;">$${c.terste_long_ortalama.toFixed(4)}</span></p>
@@ -221,7 +221,7 @@ def anasayfa():
             // Sayfa açıldığında ilk veriyi çek
             verileriCek();
 
-            // Ağır veriler (Top 20 ve analitik tablolar) her 5 dakikada (300000 ms) bir yenilenir
+            // Veriler her 5 dakikada (300000 ms) bir yenilenir
             setInterval(verileriCek, 300000);
         </script>
     </body>
