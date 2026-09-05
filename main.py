@@ -18,84 +18,29 @@ def api_data():
     })
 
 def verileri_guncelle():
-    """Borsalardan verileri çeker, ortalama girişleri long ve short ortalaması olarak günceller."""
+    """Binance Futures üzerinden tüm USDT paritelerini eksiksiz çeker."""
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
         tum_veriler = []
         
-        # 1. OKX Verilerini Çek
-        okx_Sozlugu = {}
-        try:
-            r_okx = requests.get("https://www.okx.com/api/v5/market/tickers?instType=SWAP", headers=headers, timeout=5)
-            if r_okx.status_code == 200:
-                for item in r_okx.json().get('data', []):
-                    inst_id = item.get('instId', '')
-                    if inst_id.endswith('-USDT-SWAP'):
-                        symbol = inst_id.replace('-SWAP', '').replace('-USDT', '')
-                        okx_Sozlugu[symbol] = {
-                            'fiyat': float(item.get('last', 0)),
-                            'hacim': float(item.get('volCcy24h', 0))
-                        }
-        except Exception as e:
-            print("OKX veri çekme uyarısı:", e)
-
-        # 2. Bybit Verilerini Çek
-        bybit_sozlugu = {}
-        try:
-            r_bybit = requests.get("https://api.bybit.com/v5/market/tickers?category=linear", headers=headers, timeout=5)
-            if r_bybit.status_code == 200:
-                for item in r_bybit.json().get('result', {}).get('list', []):
-                    symbol = item.get('symbol', '')
-                    if symbol.endswith('USDT'):
-                        base_symbol = symbol.replace('USDT', '')
-                        bybit_sozlugu[base_symbol] = {
-                            'fiyat': float(item.get('lastPrice', 0)),
-                            'hacim': float(item.get('turnover24h', 0))
-                        }
-        except Exception as e:
-            print("Bybit veri çekme uyarısı:", e)
-
-        # 3. Binance Futures Verilerini Çek (Ana Kaynak)
-        try:
-            r_binance = requests.get("https://fapi.binance.com/fapi/v1/ticker/24hr", headers=headers, timeout=5)
-            if r_binance.status_code == 200:
-                binance_data = r_binance.json()
-                for item in binance_data:
-                    symbol = item.get('symbol', '')
-                    if symbol.endswith('USDT'):
-                        base_symbol = symbol.replace('USDT', '')
-                        b_fiyat = float(item.get('lastPrice', 0))
-                        b_hacim = float(item.get('quoteVolume', 0))
-                        
-                        fiyat = b_fiyat
-                        hacim = b_hacim
-
-                        if base_symbol in bybit_sozlugu:
-                            bybit_veri = bybit_sozlugu[base_symbol]
-                            fiyat = (b_fiyat + bybit_veri['fiyat']) / 2
-                            hacim += bybit_veri['hacim']
-
-                        if base_symbol in okx_Sozlugu:
-                            hacim += okx_Sozlugu[base_symbol]['hacim'] * 0.5
-
+        # Sadece Binance Futures 24hr ticker endpoint'i yüzlerce coini tek seferde verir.
+        r = requests.get("https://fapi.binance.com/fapi/v1/ticker/24hr", headers=headers, timeout=10)
+        
+        if r.status_code == 200:
+            binance_data = r.json()
+            for item in binance_data:
+                symbol = item.get('symbol', '')
+                if symbol.endswith('USDT'):
+                    base_symbol = symbol.replace('USDT', '')
+                    fiyat = float(item.get('lastPrice', 0))
+                    hacim = float(item.get('quoteVolume', 0))
+                    
+                    if fiyat > 0 and hacim > 0:
                         tum_veriler.append({
                             'symbol': base_symbol,
                             'fiyat': fiyat,
                             'hacim': hacim
                         })
-        except Exception as e:
-            print("Binance veri çekme hatası:", e)
-
-        if len(tum_veriler) == 0:
-            print("API'lerden veri alınamadı, yedek statik veriler yükleniyor...")
-            yedekler = [
-                {'symbol': 'BTC', 'fiyat': 65000.0, 'hacim': 5000000000.0},
-                {'symbol': 'ETH', 'fiyat': 3500.0, 'hacim': 3000000000.0},
-                {'symbol': 'SOL', 'fiyat': 150.0, 'hacim': 1500000000.0},
-                {'symbol': 'PEPE', 'fiyat': 0.000012, 'hacim': 800000000.0},
-                {'symbol': 'AVAX', 'fiyat': 25.0, 'hacim': 500000000.0}
-            ]
-            tum_veriler = yedekler
 
         islenmis_coinler = []
         fiyat_sozlugu = {}
@@ -105,9 +50,6 @@ def verileri_guncelle():
             fiyat = item['fiyat']
             hacim = item['hacim']
             
-            if fiyat <= 0 or hacim <= 0:
-                continue
-                
             fiyat_sozlugu[symbol] = fiyat
             
             # 1. Copy Liderler
@@ -140,7 +82,7 @@ def verileri_guncelle():
                 'toplam_islem': b_l_islem + b_s_islem, 'toplam_size': b_l_size + b_s_size
             }
 
-            # 3. Tümü (Long ve Short Ortalamaları Dikkate Alındı)
+            # 3. Tümü
             t_long_giris = (l_giris + b_l_giris) / 2
             t_short_giris = (s_giris + b_s_giris) / 2
             tumu = {
@@ -155,7 +97,7 @@ def verileri_guncelle():
                 'toplam_size': liderler['toplam_size'] + balinalar['toplam_size']
             }
 
-            # 4. Genel Terste Kalanlar (Long ve Short Ortalamaları Dikkate Alındı)
+            # 4. Genel Terste Kalanlar
             tr_long_giris = fiyat * 0.88
             tr_short_giris = fiyat * 1.12
             terste = {
@@ -183,8 +125,10 @@ def verileri_guncelle():
                 }
             })
         
-        cache_verileri['analiz'] = islenmis_coinler
-        cache_verileri['fiyatlar'] = fiyat_sozlugu
+        if len(islenmis_coinler) > 0:
+            cache_verileri['analiz'] = islenmis_coinler
+            cache_verileri['fiyatlar'] = fiyat_sozlugu
+            print(f"Başarıyla {len(islenmis_coinler)} coin güncellendi.")
     except Exception as e:
         print("Genel veri güncelleme hatası:", e)
 
