@@ -158,6 +158,18 @@ def anasayfa():
         <script>
             let globalVeriler = [];
 
+            // Akıllı sayı formatlama fonksiyonu (K ve M harfleri için)
+            function kisalt(sayi) {
+                if (sayi >= 1000000) {
+                    // Milyar da gelse Milyon üzerinden okur (Örn: 1500M)
+                    return (sayi / 1000000).toFixed(1) + 'M';
+                } else if (sayi >= 1000) {
+                    return (sayi / 1000).toFixed(1) + 'K';
+                } else {
+                    return sayi.toFixed(1);
+                }
+            }
+
             function verileriCek() {
                 fetch('/api/data')
                     .then(response => response.json())
@@ -172,11 +184,11 @@ def anasayfa():
                                 adetHtml += `
                                 <div class="rank-item">
                                     <b>${i+1}) ${c.symbol}</b> (Fiyat: <span class="green">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>)<br>
-                                    Toplam: ${c.toplam_islem} işlem | ${c.toplam_size.toLocaleString(undefined, {maximumFractionDigits:1})}K size<br>
+                                    Toplam: ${c.toplam_islem} işlem | <b>${kisalt(c.toplam_size)}</b> size<br>
                                     <span class="green">🟢 Long Giriş: $${c.long_giris.toFixed(4)} | Terste Ort: $${c.terste_long_ortalama.toFixed(4)}</span><br>
-                                    <span style="color: #38bdf8; font-size: 11px;">↳ Terste Long: ${c.terste_long_islem} işlem | ${c.terste_long_size.toLocaleString(undefined, {maximumFractionDigits:1})}K size</span><br>
+                                    <span style="color: #38bdf8; font-size: 11px;">↳ Terste Long: ${c.terste_long_islem} işlem | ${kisalt(c.terste_long_size)} size</span><br>
                                     <span class="highlight">🔴 Short Giriş: $${c.short_giris.toFixed(4)} | Terste Ort: $${c.terste_short_ortalama.toFixed(4)}</span><br>
-                                    <span style="color: #fca5a5; font-size: 11px;">↳ Terste Short: ${c.terste_short_islem} işlem | ${c.terste_short_size.toLocaleString(undefined, {maximumFractionDigits:1})}K size</span>
+                                    <span style="color: #fca5a5; font-size: 11px;">↳ Terste Short: ${c.terste_short_islem} işlem | ${kisalt(c.terste_short_size)} size</span>
                                 </div>`;
                             });
                             document.getElementById('adet-listesi').innerHTML = adetHtml;
@@ -187,11 +199,11 @@ def anasayfa():
                                 sizeHtml += `
                                 <div class="rank-item">
                                     <b>${i+1}) ${c.symbol}</b> (Fiyat: <span class="green">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>)<br>
-                                    Toplam: ${c.toplam_islem} işlem | ${c.toplam_size.toLocaleString(undefined, {maximumFractionDigits:1})}K size<br>
+                                    Toplam: ${c.toplam_islem} işlem | <b>${kisalt(c.toplam_size)}</b> size<br>
                                     <span class="green">🟢 Long Giriş: $${c.long_giris.toFixed(4)} | Terste Ort: $${c.terste_long_ortalama.toFixed(4)}</span><br>
-                                    <span style="color: #38bdf8; font-size: 11px;">↳ Terste Long: ${c.terste_long_islem} işlem | ${c.terste_long_size.toLocaleString(undefined, {maximumFractionDigits:1})}K size</span><br>
+                                    <span style="color: #38bdf8; font-size: 11px;">↳ Terste Long: ${c.terste_long_islem} işlem | ${kisalt(c.terste_long_size)} size</span><br>
                                     <span class="highlight">🔴 Short Giriş: $${c.short_giris.toFixed(4)} | Terste Ort: $${c.terste_short_ortalama.toFixed(4)}</span><br>
-                                    <span style="color: #fca5a5; font-size: 11px;">↳ Terste Short: ${c.terste_short_islem} işlem | ${c.terste_short_size.toLocaleString(undefined, {maximumFractionDigits:1})}K size</span>
+                                    <span style="color: #fca5a5; font-size: 11px;">↳ Terste Short: ${c.terste_short_islem} işlem | ${kisalt(c.terste_short_size)} size</span>
                                 </div>`;
                             });
                             document.getElementById('size-listesi').innerHTML = sizeHtml;
@@ -226,10 +238,10 @@ def anasayfa():
                         <p>Anlık Fiyat: <span class="green">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></p>
                         <hr style="border:0; border-top:1px solid #374151; margin:8px 0;">
                         <p>🟢 Long Ort. Giriş: <span>$${c.long_giris.toFixed(4)}</span></p>
-                        <p style="color: #38bdf8; font-size: 11px;">↳ Terste Long: <b>${c.terste_long_islem}</b> işlem | <b>${c.terste_long_size.toLocaleString(undefined, {maximumFractionDigits:1})}K</b> size</p>
+                        <p style="color: #38bdf8; font-size: 11px;">↳ Terste Long: <b>${c.terste_long_islem}</b> işlem | <b>${kisalt(c.terste_long_size)}</b> size</p>
                         <br>
                         <p>🔴 Short Ort. Giriş: <span>$${c.short_giris.toFixed(4)}</span></p>
-                        <p style="color: #fca5a5; font-size: 11px;">↳ Terste Short: <b>${c.terste_short_islem}</b> işlem | <b>${c.terste_short_size.toLocaleString(undefined, {maximumFractionDigits:1})}K</b> size</p>
+                        <p style="color: #fca5a5; font-size: 11px;">↳ Terste Short: <b>${c.terste_short_islem}</b> işlem | <b>${kisalt(c.terste_short_size)}</b> size</p>
                     </div>`;
                 });
                 sonucDiv.innerHTML = kartHtml;
