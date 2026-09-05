@@ -7,10 +7,12 @@ app = Flask(__name__)
 @app.route('/')
 def anasayfa():
     try:
-        # Binance Futures tüm ticker verilerini çekmeyi dene
-        r = requests.get("https://fapi.binance.com/fapi/v1/ticker/price", timeout=10)
+        # Binance'in bot korumasını aşmak için tarayıcı kimliği (headers) ekliyoruz
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
         
-        # Eğer Binance engellerse HTTP hatası fırlatsın
+        r = requests.get("https://fapi.binance.com/fapi/v1/ticker/price", headers=headers, timeout=10)
         r.raise_for_status()
         
         tum_veriler = r.json()
@@ -38,8 +40,7 @@ def anasayfa():
                     continue
                     
     except Exception as e:
-        # Hatanın detayını doğrudan ekrana yazdıralım
-        coin_kartlari = f"<p style='color: #ef4444; grid-column: 1 / -1; font-size: 16px; background: #1f2937; padding: 20px; border-radius: 8px;'><b>Binance API Hatası:</b> {e}</p>"
+        coin_kartlari = f"<p style='color: #ef4444; grid-column: 1 / -1; font-size: 16px; background: #1f2937; padding: 20px; border-radius: 8px;'><b>Bağlantı Hatası:</b> {e}</p>"
         sayac = 0
 
     html_icerik = f"""
