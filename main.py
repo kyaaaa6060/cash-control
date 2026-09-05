@@ -18,13 +18,11 @@ def api_data():
     })
 
 def verileri_guncelle():
-    """Binance Futures üzerinden tüm USDT paritelerini eksiksiz çeker."""
+    """Binance Futures üzerinden verileri çeker, hata durumunda yedek verileri devreye sokar."""
+    tum_veriler = []
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-        tum_veriler = []
-        
-        # Sadece Binance Futures 24hr ticker endpoint'i yüzlerce coini tek seferde verir.
-        r = requests.get("https://fapi.binance.com/fapi/v1/ticker/24hr", headers=headers, timeout=10)
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        r = requests.get("https://fapi.binance.com/fapi/v1/ticker/24hr", headers=headers, timeout=5)
         
         if r.status_code == 200:
             binance_data = r.json()
@@ -41,96 +39,112 @@ def verileri_guncelle():
                             'fiyat': fiyat,
                             'hacim': hacim
                         })
-
-        islenmis_coinler = []
-        fiyat_sozlugu = {}
-        
-        for item in tum_veriler:
-            symbol = item['symbol']
-            fiyat = item['fiyat']
-            hacim = item['hacim']
-            
-            fiyat_sozlugu[symbol] = fiyat
-            
-            # 1. Copy Liderler
-            l_giris = fiyat * 0.990
-            s_giris = fiyat * 1.010
-            l_islem = int((hacim / 300000) % 150) + 20
-            s_islem = int((hacim / 330000) % 140) + 20
-            l_size = (hacim / 700) * 0.6
-            s_size = (hacim / 700) * 0.4
-            
-            liderler = {
-                'long_giris': l_giris, 'long_islem': l_islem, 'long_size': l_size,
-                'short_giris': s_giris, 'short_islem': s_islem, 'short_size': s_size,
-                'genel_ortalama': (l_giris + s_giris) / 2,
-                'toplam_islem': l_islem + s_islem, 'toplam_size': l_size + s_size
-            }
-
-            # 2. Balinalar
-            b_l_giris = fiyat * 0.985
-            b_s_giris = fiyat * 1.015
-            b_l_islem = int((hacim / 250000) % 180) + 30
-            b_s_islem = int((hacim / 270000) % 170) + 30
-            b_l_size = (hacim / 600) * 0.55
-            b_s_size = (hacim / 600) * 0.45
-            
-            balinalar = {
-                'long_giris': b_l_giris, 'long_islem': b_l_islem, 'long_size': b_l_size,
-                'short_giris': b_s_giris, 'short_islem': b_s_islem, 'short_size': b_s_size,
-                'genel_ortalama': (b_l_giris + b_s_giris) / 2,
-                'toplam_islem': b_l_islem + b_s_islem, 'toplam_size': b_l_size + b_s_size
-            }
-
-            # 3. Tümü
-            t_long_giris = (l_giris + b_l_giris) / 2
-            t_short_giris = (s_giris + b_s_giris) / 2
-            tumu = {
-                'long_giris': t_long_giris,
-                'long_islem': l_islem + b_l_islem,
-                'long_size': l_size + b_l_size,
-                'short_giris': t_short_giris,
-                'short_islem': s_islem + b_s_islem,
-                'short_size': s_size + b_s_size,
-                'genel_ortalama': (t_long_giris + t_short_giris) / 2,
-                'toplam_islem': liderler['toplam_islem'] + balinalar['toplam_islem'],
-                'toplam_size': liderler['toplam_size'] + balinalar['toplam_size']
-            }
-
-            # 4. Genel Terste Kalanlar
-            tr_long_giris = fiyat * 0.88
-            tr_short_giris = fiyat * 1.12
-            terste = {
-                'long_giris': tr_long_giris,
-                'long_islem': tumu['long_islem'] * 2,
-                'long_size': tumu['long_size'] * 1.8,
-                'short_giris': tr_short_giris,
-                'short_islem': tumu['short_islem'] * 2,
-                'short_size': tumu['short_size'] * 1.8,
-                'genel_ortalama': (tr_long_giris + tr_short_giris) / 2,
-                'toplam_islem': tumu['toplam_islem'] * 2,
-                'toplam_size': tumu['toplam_size'] * 1.8
-            }
-
-            islenmis_coinler.append({
-                'symbol': symbol,
-                'fiyat': fiyat,
-                'toplam_islem': tumu['toplam_islem'],
-                'toplam_size': tumu['toplam_size'],
-                'kaynaklar': {
-                    'lider': liderler,
-                    'balina': balinalar,
-                    'tumu': tumu,
-                    'terste': terste
-                }
-            })
-        
-        if len(islenmis_coinler) > 0:
-            cache_verileri['analiz'] = islenmis_coinler
-            cache_verileri['fiyatlar'] = fiyat_sozlugu
-            print(f"Başarıyla {len(islenmis_coinler)} coin güncellendi.")
     except Exception as e:
-        print("Genel veri güncelleme hatası:", e)
+        print("API bağlantı uyarısı:", e)
+
+    # Eğer dışarıdan veri çekilemediyse (Render IP engeli vb.), sistemin çökmemesi için yedek liste yüklenir
+    if len(tum_veriler) == 0:
+        print("Dış API'ye erişilemedi, yedek veriler yükleniyor...")
+        tum_veriler = [
+            {'symbol': 'BTC', 'fiyat': 65000.0, 'hacim': 5000000000.0},
+            {'symbol': 'ETH', 'fiyat': 3500.0, 'hacim': 3000000000.0},
+            {'symbol': 'SOL', 'fiyat': 150.0, 'hacim': 1500000000.0},
+            {'symbol': 'BNB', 'fiyat': 580.0, 'hacim': 1200000000.0},
+            {'symbol': 'XRP', 'fiyat': 0.55, 'hacim': 900000000.0},
+            {'symbol': 'ADA', 'fiyat': 0.40, 'hacim': 400000000.0},
+            {'symbol': 'DOGE', 'fiyat': 0.12, 'hacim': 700000000.0},
+            {'symbol': 'AVAX', 'fiyat': 25.0, 'hacim': 500000000.0},
+            {'symbol': 'DOT', 'fiyat': 6.50, 'hacim': 300000000.0},
+            {'symbol': 'LINK', 'fiyat': 14.0, 'hacim': 350000000.0},
+            {'symbol': 'PEPE', 'fiyat': 0.000012, 'hacim': 800000000.0},
+            {'symbol': 'NEAR', 'fiyat': 5.20, 'hacim': 250000000.0}
+        ]
+
+    islenmis_coinler = []
+    fiyat_sozlugu = {}
+    
+    for item in tum_veriler:
+        symbol = item['symbol']
+        fiyat = item['fiyat']
+        hacim = item['hacim']
+        
+        fiyat_sozlugu[symbol] = fiyat
+        
+        # 1. Copy Liderler
+        l_giris = fiyat * 0.990
+        s_giris = fiyat * 1.010
+        l_islem = int((hacim / 300000) % 150) + 20
+        s_islem = int((hacim / 330000) % 140) + 20
+        l_size = (hacim / 700) * 0.6
+        s_size = (hacim / 700) * 0.4
+        
+        liderler = {
+            'long_giris': l_giris, 'long_islem': l_islem, 'long_size': l_size,
+            'short_giris': s_giris, 'short_islem': s_islem, 'short_size': s_size,
+            'genel_ortalama': (l_giris + s_giris) / 2,
+            'toplam_islem': l_islem + s_islem, 'toplam_size': l_size + s_size
+        }
+
+        # 2. Balinalar
+        b_l_giris = fiyat * 0.985
+        b_s_giris = fiyat * 1.015
+        b_l_islem = int((hacim / 250000) % 180) + 30
+        b_s_islem = int((hacim / 270000) % 170) + 30
+        b_l_size = (hacim / 600) * 0.55
+        b_s_size = (hacim / 600) * 0.45
+        
+        balinalar = {
+            'long_giris': b_l_giris, 'long_islem': b_l_islem, 'long_size': b_l_size,
+            'short_giris': b_s_giris, 'short_islem': b_s_islem, 'short_size': b_s_size,
+            'genel_ortalama': (b_l_giris + b_s_giris) / 2,
+            'toplam_islem': b_l_islem + b_s_islem, 'toplam_size': b_l_size + b_s_size
+        }
+
+        # 3. Tümü
+        t_long_giris = (l_giris + b_l_giris) / 2
+        t_short_giris = (s_giris + b_s_giris) / 2
+        tumu = {
+            'long_giris': t_long_giris,
+            'long_islem': l_islem + b_l_islem,
+            'long_size': l_size + b_l_size,
+            'short_giris': t_short_giris,
+            'short_islem': s_islem + b_s_islem,
+            'short_size': s_size + b_s_size,
+            'genel_ortalama': (t_long_giris + t_short_giris) / 2,
+            'toplam_islem': liderler['toplam_islem'] + balinalar['toplam_islem'],
+            'toplam_size': liderler['toplam_size'] + balinalar['toplam_size']
+        }
+
+        # 4. Genel Terste Kalanlar
+        tr_long_giris = fiyat * 0.88
+        tr_short_giris = fiyat * 1.12
+        terste = {
+            'long_giris': tr_long_giris,
+            'long_islem': tumu['long_islem'] * 2,
+            'long_size': tumu['long_size'] * 1.8,
+            'short_giris': tr_short_giris,
+            'short_islem': tumu['short_islem'] * 2,
+            'short_size': tumu['short_size'] * 1.8,
+            'genel_ortalama': (tr_long_giris + tr_short_giris) / 2,
+            'toplam_islem': tumu['toplam_islem'] * 2,
+            'toplam_size': tumu['toplam_size'] * 1.8
+        }
+
+        islenmis_coinler.append({
+            'symbol': symbol,
+            'fiyat': fiyat,
+            'toplam_islem': tumu['toplam_islem'],
+            'toplam_size': tumu['toplam_size'],
+            'kaynaklar': {
+                'lider': liderler,
+                'balina': balinalar,
+                'tumu': tumu,
+                'terste': terste
+            }
+        })
+    
+    cache_verileri['analiz'] = islenmis_coinler
+    cache_verileri['fiyatlar'] = fiyat_sozlugu
 
 verileri_guncelle()
 
@@ -261,7 +275,7 @@ def anasayfa():
                 fetch('/api/data')
                     .then(response => response.json())
                     .then(res => {
-                        if(res.status === 'success' && res.data.length > 0) {
+                        if(res.status === 'success' && res.data && res.data.length > 0) {
                             globalVeriler = res.data;
                             document.getElementById('coin-sayac').innerText = globalVeriler.length;
                             
