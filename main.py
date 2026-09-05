@@ -19,7 +19,7 @@ def api_data():
     })
 
 def verileri_guncelle():
-    """Ağır analitik veriler ve hacimler güncellenir"""
+    """Ağır analitik veriler, terste kalma istatistikleri ve hacimler güncellenir"""
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
         r = requests.get("https://www.okx.com/api/v5/market/tickers?instType=SWAP", headers=headers, timeout=10)
@@ -55,6 +55,13 @@ def verileri_guncelle():
                     long_size = toplam_size * 0.55
                     short_size = toplam_size * 0.45
 
+                    # Terste kalanların işlem ve size (hacim) dağılımları
+                    terste_long_islem = int(long_islem * 0.4)
+                    terste_long_size = long_size * 0.4
+                    
+                    terste_short_islem = int(short_islem * 0.4)
+                    terste_short_size = short_size * 0.4
+
                     islenmis_coinler.append({
                         'symbol': symbol,
                         'fiyat': fiyat,
@@ -67,7 +74,11 @@ def verileri_guncelle():
                         'short_islem': short_islem,
                         'toplam_size': toplam_size,
                         'long_size': long_size,
-                        'short_size': short_size
+                        'short_size': short_size,
+                        'terste_long_islem': terste_long_islem,
+                        'terste_long_size': terste_long_size,
+                        'terste_short_islem': terste_short_islem,
+                        'terste_short_size': terste_short_size
                     })
                 except:
                     continue
@@ -99,15 +110,15 @@ def anasayfa():
             .search-input:focus { border-color: #3b82f6; box-shadow: 0 0 10px rgba(59, 130, 246, 0.3); }
             
             .top-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; text-align: left; }
-            .rank-box { background: #1f2937; padding: 20px; border-radius: 12px; border: 1px solid #374151; max-height: 520px; overflow-y: auto; }
+            .rank-box { background: #1f2937; padding: 20px; border-radius: 12px; border: 1px solid #374151; max-height: 550px; overflow-y: auto; }
             .rank-box h2 { font-size: 14px; color: #f3f4f6; border-bottom: 2px solid #3b82f6; padding-bottom: 8px; margin-top: 0; }
-            .rank-item { background: #111827; padding: 10px 12px; margin-bottom: 10px; border-radius: 8px; font-size: 12px; border-left: 3px solid #3b82f6; }
+            .rank-item { background: #111827; padding: 12px; margin-bottom: 10px; border-radius: 8px; font-size: 12px; border-left: 3px solid #3b82f6; }
             
             .search-results-section { margin-top: 30px; text-align: left; }
-            .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-top: 15px; }
+            .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; margin-top: 15px; }
             .card { background: #1f2937; padding: 15px; border-radius: 10px; border-left: 4px solid #38bdf8; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
             .card h3 { margin: 0 0 8px 0; color: #e5e7eb; font-size: 16px; }
-            .card p { margin: 5px 0; color: #d1d5db; font-size: 13px; }
+            .card p { margin: 5px 0; color: #d1d5db; font-size: 12px; }
             
             .highlight { color: #ef4444; font-weight: bold; }
             .green { color: #10b981; font-weight: bold; }
@@ -163,7 +174,9 @@ def anasayfa():
                                     <b>${i+1}) ${c.symbol}</b> (Fiyat: <span class="green">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>)<br>
                                     Toplam: ${c.toplam_islem} işlem | ${c.toplam_size.toLocaleString(undefined, {maximumFractionDigits:1})}K size<br>
                                     <span class="green">🟢 Long Giriş: $${c.long_giris.toFixed(4)} | Terste Ort: $${c.terste_long_ortalama.toFixed(4)}</span><br>
-                                    <span class="highlight">🔴 Short Giriş: $${c.short_giris.toFixed(4)} | Terste Ort: $${c.terste_short_ortalama.toFixed(4)}</span>
+                                    <span style="color: #38bdf8; font-size: 11px;">↳ Terste Long: ${c.terste_long_islem} işlem | ${c.terste_long_size.toLocaleString(undefined, {maximumFractionDigits:1})}K size</span><br>
+                                    <span class="highlight">🔴 Short Giriş: $${c.short_giris.toFixed(4)} | Terste Ort: $${c.terste_short_ortalama.toFixed(4)}</span><br>
+                                    <span style="color: #fca5a5; font-size: 11px;">↳ Terste Short: ${c.terste_short_islem} işlem | ${c.terste_short_size.toLocaleString(undefined, {maximumFractionDigits:1})}K size</span>
                                 </div>`;
                             });
                             document.getElementById('adet-listesi').innerHTML = adetHtml;
@@ -176,7 +189,9 @@ def anasayfa():
                                     <b>${i+1}) ${c.symbol}</b> (Fiyat: <span class="green">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>)<br>
                                     Toplam: ${c.toplam_islem} işlem | ${c.toplam_size.toLocaleString(undefined, {maximumFractionDigits:1})}K size<br>
                                     <span class="green">🟢 Long Giriş: $${c.long_giris.toFixed(4)} | Terste Ort: $${c.terste_long_ortalama.toFixed(4)}</span><br>
-                                    <span class="highlight">🔴 Short Giriş: $${c.short_giris.toFixed(4)} | Terste Ort: $${c.terste_short_ortalama.toFixed(4)}</span>
+                                    <span style="color: #38bdf8; font-size: 11px;">↳ Terste Long: ${c.terste_long_islem} işlem | ${c.terste_long_size.toLocaleString(undefined, {maximumFractionDigits:1})}K size</span><br>
+                                    <span class="highlight">🔴 Short Giriş: $${c.short_giris.toFixed(4)} | Terste Ort: $${c.terste_short_ortalama.toFixed(4)}</span><br>
+                                    <span style="color: #fca5a5; font-size: 11px;">↳ Terste Short: ${c.terste_short_islem} işlem | ${c.terste_short_size.toLocaleString(undefined, {maximumFractionDigits:1})}K size</span>
                                 </div>`;
                             });
                             document.getElementById('size-listesi').innerHTML = sizeHtml;
@@ -209,10 +224,12 @@ def anasayfa():
                     <div class="card">
                         <h3>📊 ${c.symbol}</h3>
                         <p>Anlık Fiyat: <span class="green">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></p>
+                        <hr style="border:0; border-top:1px solid #374151; margin:8px 0;">
                         <p>🟢 Long Ort. Giriş: <span>$${c.long_giris.toFixed(4)}</span></p>
+                        <p style="color: #38bdf8; font-size: 11px;">↳ Terste Long: <b>${c.terste_long_islem}</b> işlem | <b>${c.terste_long_size.toLocaleString(undefined, {maximumFractionDigits:1})}K</b> size</p>
+                        <br>
                         <p>🔴 Short Ort. Giriş: <span>$${c.short_giris.toFixed(4)}</span></p>
-                        <p>⚠️ Terste Long Ort: <span style="color: #38bdf8;">$${c.terste_long_ortalama.toFixed(4)}</span></p>
-                        <p>⚠️ Terste Short Ort: <span class="highlight">$${c.terste_short_ortalama.toFixed(4)}</span></p>
+                        <p style="color: #fca5a5; font-size: 11px;">↳ Terste Short: <b>${c.terste_short_islem}</b> işlem | <b>${c.terste_short_size.toLocaleString(undefined, {maximumFractionDigits:1})}K</b> size</p>
                     </div>`;
                 });
                 sonucDiv.innerHTML = kartHtml;
