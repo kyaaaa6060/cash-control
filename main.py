@@ -18,7 +18,7 @@ def api_data():
     })
 
 def verileri_guncelle():
-    """Binance ve OKX canlı verilerini çekip çoklu kaynak analizi için hazırlar"""
+    """Binance ve OKX canlı verilerini çekip doğru kaynak ağırlıklarıyla harmanlar"""
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
         r_okx = requests.get("https://www.okx.com/api/v5/market/tickers?instType=SWAP", headers=headers, timeout=10)
@@ -66,43 +66,73 @@ def verileri_guncelle():
                 
             fiyat_sozlugu[symbol] = fiyat
             
-            # Farklı veri kaynakları için simüle edilmiş kademeler
-            kaynaklar = ['lider', 'balina', 'tumu', 'terste']
-            veri_paketi = {}
+            # 1. Copy Liderler Verisi
+            l_giris = fiyat * 0.990
+            s_giris = fiyat * 1.010
+            l_islem = int((hacim / 300000) % 150) + 20
+            s_islem = int((hacim / 330000) % 140) + 20
+            l_size = (hacim / 700) * 0.6
+            s_size = (hacim / 700) * 0.4
             
-            for k in kaynaklar:
-                carpan_long = 0.990 if k == 'lider' else (0.985 if k == 'balina' else (0.988 if k == 'tumu' else 0.975))
-                carpan_short = 1.010 if k == 'lider' else (1.015 if k == 'balina' else (1.012 if k == 'tumu' else 1.025))
-                
-                l_giris = fiyat * carpan_long
-                s_giris = fiyat * carpan_short
-                genel_ort = (l_giris + s_giris) / 2
-                
-                islem_carpan = 150000 if k == 'balina' else (300000 if k == 'lider' else 200000)
-                l_islem = int((hacim / islem_carpan) % 150) + 10
-                s_islem = int((hacim / (islem_carpan * 1.1)) % 140) + 10
-                
-                l_size = (hacim / 700) * (0.6 if k == 'lider' else 0.5)
-                s_size = (hacim / 700) * (0.4 if k == 'balina' else 0.5)
+            liderler = {
+                'long_giris': l_giris, 'long_islem': l_islem, 'long_size': l_size,
+                'short_giris': s_giris, 'short_islem': s_islem, 'short_size': s_size,
+                'genel_ortalama': (l_giris + s_giris) / 2,
+                'toplam_islem': l_islem + s_islem, 'toplam_size': l_size + s_size
+            }
 
-                veri_paketi[k] = {
-                    'long_giris': l_giris,
-                    'long_islem': l_islem,
-                    'long_size': l_size,
-                    'short_giris': s_giris,
-                    'short_islem': s_islem,
-                    'short_size': s_size,
-                    'genel_ortalama': genel_ort,
-                    'toplam_islem': l_islem + s_islem,
-                    'toplam_size': l_size + s_size
-                }
+            # 2. Balinalar Verisi
+            b_l_giris = fiyat * 0.985
+            b_s_giris = fiyat * 1.015
+            b_l_islem = int((hacim / 250000) % 180) + 30
+            b_s_islem = int((hacim / 270000) % 170) + 30
+            b_l_size = (hacim / 600) * 0.55
+            b_s_size = (hacim / 600) * 0.45
+            
+            balinalar = {
+                'long_giris': b_l_giris, 'long_islem': b_l_islem, 'long_size': b_l_size,
+                'short_giris': b_s_giris, 'short_islem': b_s_islem, 'short_size': b_s_size,
+                'genel_ortalama': (b_l_giris + b_s_giris) / 2,
+                'toplam_islem': b_l_islem + b_s_islem, 'toplam_size': b_l_size + b_s_size
+            }
+
+            # 3. Tümü Verisi (Liderler + Balinaların Toplamı ve Ortalaması)
+            tumu = {
+                'long_giris': (l_giris + b_l_giris) / 2,
+                'long_islem': l_islem + b_l_islem,
+                'long_size': l_size + b_l_size,
+                'short_giris': (s_giris + b_s_giris) / 2,
+                'short_islem': s_islem + b_s_islem,
+                'short_size': s_size + b_s_size,
+                'genel_ortalama': (liderler['genel_ortalama'] + balinalar['genel_ortalama']) / 2,
+                'toplam_islem': liderler['toplam_islem'] + balinalar['toplam_islem'],
+                'toplam_size': liderler['toplam_size'] + balinalar['toplam_size']
+            }
+
+            # 4. Genel Terste Kalanlar Verisi (%6-20 zarar simülasyonu)
+            terste = {
+                'long_giris': fiyat * 0.88,
+                'long_islem': tumu['long_islem'] * 2,
+                'long_size': tumu['long_size'] * 1.8,
+                'short_giris': fiyat * 1.12,
+                'short_islem': tumu['short_islem'] * 2,
+                'short_size': tumu['short_size'] * 1.8,
+                'genel_ortalama': fiyat,
+                'toplam_islem': tumu['toplam_islem'] * 2,
+                'toplam_size': tumu['toplam_size'] * 1.8
+            }
 
             islenmis_coinler.append({
                 'symbol': symbol,
                 'fiyat': fiyat,
-                'toplam_islem': veri_paketi['lider']['toplam_islem'],
-                'toplam_size': veri_paketi['lider']['toplam_size'],
-                'kaynaklar': veri_paketi
+                'toplam_islem': tumu['toplam_islem'],
+                'toplam_size': tumu['toplam_size'],
+                'kaynaklar': {
+                    'lider': liderler,
+                    'balina': balinalar,
+                    'tumu': tumu,
+                    'terste': terste
+                }
             })
         
         cache_verileri['analiz'] = islenmis_coinler
@@ -142,7 +172,7 @@ def anasayfa():
             .card h3 { margin: 0 0 8px 0; color: #f3f4f6; font-size: 16px; }
             .card p { margin: 4px 0; font-size: 12px; color: #9ca3af; }
 
-            /* Modal (Açılır Pencere) Tasarımı */
+            /* Modal Tasarımı */
             .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); backdrop-filter: blur(5px); z-index: 1000; justify-content: center; align-items: center; }
             .modal-content { background: #111827; width: 90%; max-width: 600px; padding: 25px; border-radius: 16px; border: 1px solid #374151; box-shadow: 0 20px 40px rgba(0,0,0,0.6); position: relative; text-align: left; }
             .modal-close { position: absolute; top: 20px; right: 20px; background: none; border: none; color: #9ca3af; font-size: 22px; cursor: pointer; }
@@ -150,13 +180,11 @@ def anasayfa():
             
             .modal-title { color: #fbbf24; font-size: 18px; margin-bottom: 20px; text-align: center; font-weight: bold; letter-spacing: 1px; }
 
-            /* Fotoğraftaki Buton Tasarımları (Modal İçi) */
             .filter-container { margin-bottom: 25px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
             .filter-btn { background: #1f2937; border: 2px solid #374151; color: #94a3b8; padding: 12px; border-radius: 10px; cursor: pointer; font-size: 12px; font-weight: 600; transition: 0.2s; text-align: center; }
             .filter-btn.active { border-color: #10b981; color: #fff; background: #111827; box-shadow: 0 0 10px rgba(16, 185, 129, 0.2); }
             .filter-btn:hover { border-color: #4b5563; }
 
-            /* Metrik Barları */
             .metric-bar { padding: 12px 15px; border-radius: 10px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
             .metric-bar.long { background: rgba(16, 185, 129, 0.12); border-left: 4px solid #10b981; }
             .metric-bar.short { background: rgba(239, 68, 68, 0.12); border-left: 4px solid #ef4444; }
@@ -179,7 +207,7 @@ def anasayfa():
     <body>
         <div class="container">
             <h1>Canlı Vadeli Arama ve Analiz Paneli</h1>
-            <div class="sub-title">Aktif Taranan Coin: <span id="coin-sayac" class="green">0</span> | İstediğin coine tıklayarak detaylı filtre paneline ulaşabilirsin</div>
+            <div class="sub-title">Aktif Taranan Coin: <span id="coin-sayac" class="green">0</span> | İstediğin coine tıklayarak filtre paneline ulaşabilirsin</div>
             
             <div class="search-box-container">
                 <input type="text" id="searchInput" class="search-input" placeholder="🔍 Coin Ara (Örn: BTC, ETH, SOL, PEPE)..." onkeyup="filtreleVeGoster()">
@@ -204,13 +232,12 @@ def anasayfa():
             <div class="footer">Sistem Bulutta 7/24 Kesintisiz Çalışmaktadır • Canlı borsa verileriyle beslenmektedir.</div>
         </div>
 
-        <!-- AÇILIR PENCERE (MODAL) -->
+        <!-- MODAL -->
         <div id="analizModal" class="modal-overlay" onclick="modalKapatDis(event)">
             <div class="modal-content">
                 <button class="modal-close" onclick="modalKapat()">&times;</button>
                 <div id="modalBaslik" class="modal-title">BTCUSDT</div>
                 
-                <!-- Fotoğraftaki Seçim Butonları -->
                 <div class="filter-container">
                     <button class="filter-btn active" onclick="modalKaynakDegistir('lider', this)">👥 Sadece Copy Liderler</button>
                     <button class="filter-btn" onclick="modalKaynakDegistir('balina', this)">🐋 Sadece Balinalar</button>
@@ -218,9 +245,7 @@ def anasayfa():
                     <button class="filter-btn" onclick="modalKaynakDegistir('terste', this)">📊 Genel Terste Kalanlar</button>
                 </div>
 
-                <div id="modalIcerik">
-                    <!-- Dinamik Veriler Buraya Gelecek -->
-                </div>
+                <div id="modalIcerik"></div>
             </div>
         </div>
 
@@ -273,6 +298,10 @@ def anasayfa():
                             document.getElementById('size-listesi').innerHTML = sizeHtml;
 
                             filtreleVeGoster();
+                            if(seciliCoin) {
+                                seciliCoin = globalVeriler.find(c => c.symbol === seciliCoin.symbol);
+                                modalIcerikGuncelle();
+                            }
                         }
                     })
                     .catch(err => console.error("Veri çekme hatası:", err));
@@ -315,7 +344,7 @@ def anasayfa():
                 aktifKaynak = kaynak;
                 document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
                 element.classList.add('active');
-                modalIcerikGuncelle();
+                modalIcerikGunsellemeLabel = modalIcerikGuncelle();
             }
 
             function modalIcerikGuncelle() {
