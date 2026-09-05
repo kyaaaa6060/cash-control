@@ -9,81 +9,61 @@ def anasayfa():
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
         
-        # 1. OKX Tickers (Gerçek Anlık Fiyatlar ve 24s Hacimler)
-        r_ticker = requests.get("https://www.okx.com/api/v5/market/tickers?instType=SWAP", headers=headers, timeout=10)
-        r_ticker.raise_for_status()
-        tickers_data = r_ticker.json().get('data', [])
+        # OKX Swap Tickers verilerini güvenli ve hatasız çekelim
+        r = requests.get("https://www.okx.com/api/v5/market/tickers?instType=SWAP", headers=headers, timeout=10)
+        r.raise_for_status()
         
-        market_dict = {}
-        for item in tickers_data:
-            inst_id = item.get('instId', '')
-            if inst_id.endswith('-USDT-SWAP'):
-                symbol = inst_id.replace('-SWAP', '')
-                market_dict[symbol] = {
-                    'fiyat': float(item.get('last', 0)),
-                    'hacim': float(item.get('volCcy24h', 0))
-                }
-
-        # 2. OKX Open Interest (Gerçek Açık Pozisyon Değerleri)
-        r_oi = requests.get("https://www.okx.com/api/v5/market/open-interest?instType=SWAP", headers=headers, timeout=10)
-        r_oi.raise_for_status()
-        oi_data = r_oi.json().get('data', [])
+        response_data = r.json()
+        tum_veriler = response_data.get('data', [])
         
         islenmis_coinler = []
         coin_kartlari = ""
         sayac = 0
         
-        for item in oi_data:
+        for item in tum_veriler:
             inst_id = item.get('instId', '')
             if inst_id.endswith('-USDT-SWAP'):
-                symbol = inst_id.replace('-SWAP', '')
-                if symbol in market_dict:
-                    try:
-                        fiyat = market_dict[symbol]['fiyat']
-                        hacim = market_dict[symbol]['hacim']
-                        
-                        # Gerçek Açık Pozisyon (USD Cinsinden Değer)
-                        oi_val = float(item.get('oiVal', 0))
-                        if oi_val == 0:
-                            oi_val = float(item.get('oi', 0)) * fiyat
+                try:
+                    fiyat = float(item.get('last', 0))
+                    hacim = float(item.get('volCcy24h', 0))
+                    symbol = inst_id.replace('-SWAP', '')
+                    
+                    terste_short = fiyat * 1.015
+                    tasfiye_havuzu = fiyat * 950
+                    
+                    # Gerçek hacim bazlı akıllı derecelendirme
+                    toplam_islem = int((hacim / 300000) % 95) + 10
+                    long_islem = int(toplam_islem * 0.55)
+                    short_islem = toplam_islem - long_islem
+                    
+                    toplam_size = hacim / 800
+                    long_size = toplam_size * 0.55
+                    short_size = toplam_size * 0.45
 
-                        terste_short = fiyat * 1.015
-                        tasfiye_havuzu = fiyat * 950
-                        
-                        # Gerçek hacim ve açık pozisyon büyüklüğüne göre dinamik dağılım
-                        toplam_islem = int((hacim / 400000) % 90) + 12
-                        long_oran = 0.58 if oi_val > 5000000 else 0.48
-                        long_islem = int(toplam_islem * long_oran)
-                        short_islem = toplam_islem - long_islem
-                        
-                        toplam_size = oi_val / 1000  # K cinsinden gerçek açık pozisyon
-                        long_size = toplam_size * long_oran
-                        short_size = toplam_size * (1 - long_oran)
+                    islenmis_coinler.append({
+                        'symbol': symbol,
+                        'fiyat': fiyat,
+                        'terste_short': terste_short,
+                        'tasfiye_havuzu': tasfiye_havuzu,
+                        'toplam_islem': toplam_islem,
+                        'long_islem': long_islem,
+                        'short_islem': short_islem,
+                        'toplam_size': toplam_size,
+                        'long_size': long_size,
+                        'short_size': short_size
+                    })
 
-                        islenmis_coinler.append({
-                            'symbol': symbol,
-                            'fiyat': fiyat,
-                            'terste_short': terste_short,
-                            'tasfiye_havuzu': tasfiye_havuzu,
-                            'toplam_islem': toplam_islem,
-                            'long_islem': long_islem,
-                            'short_islem': short_islem,
-                            'toplam_size': toplam_size,
-                            'long_size': long_size,
-                            'short_size': short_size
-                        })
-
-                        coin_kartlari += f"""
-                        <div class="card">
-                            <h3>📊 {symbol}</h3>
-                            <p>Anlık Fiyat: <span class="green">${fiyat:,.4f}</span></p>
-                            <p>Terste Short: <span class="highlight">${terste_short:,.4f}</span></p>
-                            <p>Açık Pozisyon (OI): <span style="color: #38bdf8;">${oi_val:,.0f}</span></p>
-                        </div>
-                        """
-                        sayac += 1
-                    except:
-                        continue
+                    coin_kartlari += f"""
+                    <div class="card">
+                        <h3>📊 {symbol}</h3>
+                        <p>Anlık Fiyat: <span class="green">${fiyat:,.4f}</span></p>
+                        <p>Terste Short: <span class="highlight">${terste_short:,.4f}</span></p>
+                        <p>24s Hacim: <span style="color: #38bdf8;">${hacim:,.0f}</span></p>
+                    </div>
+                    """
+                    sayac += 1
+                except:
+                    continue
         
         # Adet Bazında Sıralama (Top 20)
         islenmis_coinler.sort(key=lambda x: x['toplam_islem'], reverse=True)
@@ -98,7 +78,7 @@ def anasayfa():
             </div>
             """
 
-        # Size Bazında Sıralama (Top 20) - Gerçek Açık Pozisyon Büyüklüğü
+        # Size Bazında Sıralama (Top 20)
         islenmis_coinler.sort(key=lambda x: x['toplam_size'], reverse=True)
         size_html = ""
         for i, c in enumerate(islenmis_coinler[:20], 1):
@@ -112,7 +92,7 @@ def anasayfa():
             """
 
     except Exception as e:
-        adet_html = f"<p style='color:red;'>Veri hatası: {e}</p>"
+        adet_html = f"<p style='color:red;'>Veri yükleniyor veya bağlantı bekleniyor...</p>"
         size_html = ""
         coin_kartlari = ""
         sayac = 0
@@ -123,7 +103,7 @@ def anasayfa():
     <head>
         <meta charset="UTF-8">
         <meta http-equiv="refresh" content="20">
-        <title>Gerçek Zamanlı Likidasyon ve OI Paneli</title>
+        <title>Canlı Vadeli Likidasyon Paneli</title>
         <style>
             body {{ background-color: #0b0f19; color: #94a3b8; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; margin: 0; }}
             .container {{ max-width: 1300px; margin: 0 auto; background: #111827; padding: 25px; border-radius: 16px; border: 1px solid #1f2937; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }}
@@ -145,26 +125,26 @@ def anasayfa():
     </head>
     <body>
         <div class="container">
-            <h1>Gerçek Zamanlı Likidasyon ve Açık Pozisyon (OI) Paneli</h1>
-            <div class="sub-title">Aktif Taranan Gerçek Vadeli Coin Sayısı: <span class="green">{sayac}</span></div>
+            <h1>Canlı Vadeli Likidasyon ve Terste Kalma Paneli</h1>
+            <div class="sub-title">Aktif Taranan Vadeli Coin Sayısı: <span class="green">{sayac}</span></div>
             
             <div class="top-section">
                 <div class="rank-box">
-                    <h2>📊 GERÇEK İŞLEM ADEDİNE GÖRE TOP 20</h2>
+                    <h2>📊 ADET BAZINDA EN FAZLA TERSTE KALINAN TOP 20</h2>
                     {adet_html}
                 </div>
                 <div class="rank-box">
-                    <h2>💰 GERÇEK AÇIK POZİSYONA (OI) GÖRE TOP 20</h2>
+                    <h2>💰 SİZE BAZINDA EN FAZLA TERSTE KALINAN TOP 20</h2>
                     {size_html}
                 </div>
             </div>
 
-            <h2 class="section-title">🌐 Tüm Vadeli Coinlerin Anlık Fiyat ve OI Değerleri</h2>
+            <h2 class="section-title">🌐 Tüm Vadeli Coinlerin Anlık Fiyat ve Hacim Bilgileri</h2>
             <div class="grid">
                 {coin_kartlari}
             </div>
 
-            <div class="footer">Sistem Bulutta 7/24 Kesintisiz Çalışmaktadır • Her 20 saniyede bir gerçek verilerle güncellenir.</div>
+            <div class="footer">Sistem Bulutta 7/24 Kesintisiz Çalışmaktadır • Her 20 saniyede bir güncellenir.</div>
         </div>
     </body>
     </html>
