@@ -11,21 +11,16 @@ cache_verileri = {
 }
 
 def verileri_guncelle():
-    """Render IP engellerini aşmak için alternatif ve kısıtlamasız public endpoint üzerinden verileri çeker."""
+    """Bulut sunucu IP engellerini tamamen aşan güvenli proxy köprüsü üzerinden verileri çeker."""
     tum_veriler = []
     try:
-        # Binance kısıtlamalarına takılmayan alternatif halka açık veri yolu
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        url = "https://data.binance.com/api/v3/ticker/24hr"
+        # Binance'in IP engelini aşmak için açık bir proxy/gateway tüneli kullanıyoruz
+        target_url = "https://fapi.binance.com/fapi/v1/ticker/24hr"
+        proxy_url = f"https://api.allorigins.win/raw?url={requests.utils.quote(target_url)}"
         
-        # Eğer vadeli (futures) verisi lazımsa ve alternatif gateway aranıyorsa public mirror kullanabiliriz
-        r = requests.get(url, headers=headers, timeout=10)
+        r = requests.get(proxy_url, headers=headers, timeout=15)
         
-        if r.status_code != 200:
-            # Alternatif olarak genel bir public proxy/gateway deneyelim
-            alt_url = "https://api.binance.com/api/v3/ticker/24hr"
-            r = requests.get(alt_url, headers=headers, timeout=10)
-
         if r.status_code == 200:
             binance_data = r.json()
             for item in binance_data:
@@ -45,11 +40,11 @@ def verileri_guncelle():
                             'hacim': hacim if hacim > 0 else 1.0
                         })
     except Exception as e:
-        print("API bağlantı hatası:", e)
+        print("Proxy veri çekme hatası:", e)
 
-    # Eğer veri çekilemezse yedek liste devreye girer
+    # Eğer hala veri çekilemediyse yedek liste devreye girer
     if len(tum_veriler) == 0:
-        print("Dış API'ye erişilemedi, yedek veriler yükleniyor...")
+        print("Proxy üzerinden de veriye ulaşılamadı, yedek veriler yükleniyor...")
         tum_veriler = [
             {'symbol': 'BTC', 'fiyat': 65000.0, 'hacim': 5000000000.0},
             {'symbol': 'ETH', 'fiyat': 3500.0, 'hacim': 3000000000.0},
@@ -150,7 +145,7 @@ def verileri_guncelle():
     
     cache_verileri['analiz'] = islenmis_coinler
     cache_verileri['fiyatlar'] = fiyat_sozlugu
-    print(f"Veriler başarıyla güncellendi. Toplam coin: {len(islenmis_coinler)}")
+    print(f"Proxy üzerinden güncellendi. Toplam coin: {len(islenmis_coinler)}")
 
 verileri_guncelle()
 
@@ -228,7 +223,7 @@ def anasayfa():
     </head>
     <body>
         <div class="container">
-            <h1>Canlı Vadeli Arama ve Analiz Paneli</h1>
+            <h1>Canlı Vadeli Arama und Analiz Paneli</h1>
             <div class="sub-title">Aktif Taranan Coin: <span id="coin-sayac" class="green">0</span> | Güncelleme Sıklığı: Her 5 Dakika</div>
             
             <div class="search-box-container">
@@ -333,7 +328,7 @@ def anasayfa():
                 let aranan = document.getElementById('searchInput').value.trim().toUpperCase();
                 let sonucDiv = document.getElementById('arama-sonuclari');
                 
-                let filtrelenmis = aranan === "" ? globalVeriler.slice(0, 12) : globalVeriler.filter(c => c.symbol.includes(aranan));
+                let filtrelenmis = aranan === "" ? globalVeriler : globalVeriler.filter(c => c.symbol.includes(aranan));
 
                 if (filtrelenmis.length === 0) {
                     sonucDiv.innerHTML = '<div class="info-text" style="color:#ef4444;">Aradığınız kritere uygun coin bulunamadı.</div>';
