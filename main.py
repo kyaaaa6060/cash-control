@@ -16,7 +16,9 @@ def verileri_guncelle():
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
         # Cloudflare Worker proxy adresimiz üzerinden verileri çekiyoruz
-        r = requests.get("https://super-cake-7cf3.ismkya3458.workers.dev/", headers=headers, timeout=10)
+        proxy_url = "https://corsproxy.io/?https%3A%2F%2Ffapi.binance.com%2Ffapi%2Fv1%2Fticker%2F24hr"
+r = requests.get(proxy_url, headers=headers, timeout=10)
+
         
         if r.status_code == 200:
             binance_data = r.json()
