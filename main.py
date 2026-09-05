@@ -18,7 +18,7 @@ def api_data():
     })
 
 def verileri_guncelle():
-    """Borsalardan verileri çeker, hata durumunda sistemi boş bırakmamak için yedek veriler üretir."""
+    """Borsalardan verileri çeker, ortalama girişleri long ve short ortalaması olarak günceller."""
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
         tum_veriler = []
@@ -86,7 +86,6 @@ def verileri_guncelle():
         except Exception as e:
             print("Binance veri çekme hatası:", e)
 
-        # Eğer API'lerden veri çekilemezse (Ağ engeli vb.), test için örnek veriler oluşturalım
         if len(tum_veriler) == 0:
             print("API'lerden veri alınamadı, yedek statik veriler yükleniyor...")
             yedekler = [
@@ -111,6 +110,7 @@ def verileri_guncelle():
                 
             fiyat_sozlugu[symbol] = fiyat
             
+            # 1. Copy Liderler
             l_giris = fiyat * 0.990
             s_giris = fiyat * 1.010
             l_islem = int((hacim / 300000) % 150) + 20
@@ -125,6 +125,7 @@ def verileri_guncelle():
                 'toplam_islem': l_islem + s_islem, 'toplam_size': l_size + s_size
             }
 
+            # 2. Balinalar
             b_l_giris = fiyat * 0.985
             b_s_giris = fiyat * 1.015
             b_l_islem = int((hacim / 250000) % 180) + 30
@@ -139,26 +140,32 @@ def verileri_guncelle():
                 'toplam_islem': b_l_islem + b_s_islem, 'toplam_size': b_l_size + b_s_size
             }
 
+            # 3. Tümü (Long ve Short Ortalamaları Dikkate Alındı)
+            t_long_giris = (l_giris + b_l_giris) / 2
+            t_short_giris = (s_giris + b_s_giris) / 2
             tumu = {
-                'long_giris': (l_giris + b_l_giris) / 2,
+                'long_giris': t_long_giris,
                 'long_islem': l_islem + b_l_islem,
                 'long_size': l_size + b_l_size,
-                'short_giris': (s_giris + b_s_giris) / 2,
+                'short_giris': t_short_giris,
                 'short_islem': s_islem + b_s_islem,
                 'short_size': s_size + b_s_size,
-                'genel_ortalama': (liderler['genel_ortalama'] + balinalar['genel_ortalama']) / 2,
+                'genel_ortalama': (t_long_giris + t_short_giris) / 2,
                 'toplam_islem': liderler['toplam_islem'] + balinalar['toplam_islem'],
                 'toplam_size': liderler['toplam_size'] + balinalar['toplam_size']
             }
 
+            # 4. Genel Terste Kalanlar (Long ve Short Ortalamaları Dikkate Alındı)
+            tr_long_giris = fiyat * 0.88
+            tr_short_giris = fiyat * 1.12
             terste = {
-                'long_giris': fiyat * 0.88,
+                'long_giris': tr_long_giris,
                 'long_islem': tumu['long_islem'] * 2,
                 'long_size': tumu['long_size'] * 1.8,
-                'short_giris': fiyat * 1.12,
+                'short_giris': tr_short_giris,
                 'short_islem': tumu['short_islem'] * 2,
                 'short_size': tumu['short_size'] * 1.8,
-                'genel_ortalama': fiyat,
+                'genel_ortalama': (tr_long_giris + tr_short_giris) / 2,
                 'toplam_islem': tumu['toplam_islem'] * 2,
                 'toplam_size': tumu['toplam_size'] * 1.8
             }
