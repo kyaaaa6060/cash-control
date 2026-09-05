@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse
 from contextlib import asynccontextmanager
 
 # ============================================================
-#  CACHE'LER
+#  CACHE'LER VE SABİTLER
 # ============================================================
 CACHE = {"last_update": 0, "data": {}}              
 SMART_MONEY_CACHE = {"last_update": 0, "data": {}}   
@@ -160,8 +160,7 @@ def refresh_binance_ratio_cache(coin_names):
         BINANCE_RATIO_CACHE["last_update"] = time.time()
 
 # ============================================================
-#  HYPERLIQUID & COPY TRADER / WHALE DETAYLI ANALİZİ
-#  Long/Short Ayrı Ayrı: Ortalama Giriş, İşlem Sayısı, AUM ve Terste Kalanlar
+#  HYPERLIQUID & COPY TRADER / WHALE ANALİZİ
 # ============================================================
 HL_INFO_URL = "https://api.hyperliquid.xyz/info"
 HL_LEADERBOARD_URL = "https://stats-data.hyperliquid.xyz/Mainnet/leaderboard"
@@ -212,7 +211,7 @@ def get_hyperliquid_wallet_positions(address):
                 "entry": float(entry_px) if entry_px not in (None, "") else 0.0,
                 "liq": float(liq_px) if liq_px not in (None, "") else None,
                 "unrealizedPnl": unrealized_pnl,
-                "is_underwater": unrealized_pnl < 0  # Terste kalanlar (zararda olanlar)
+                "is_underwater": unrealized_pnl < 0
             })
         return out
     except Exception as e:
@@ -237,11 +236,9 @@ def refresh_smart_money_cache():
         for side in ("LONG", "SHORT"):
             plist = sides[side]
             total_size = sum(p["size"] for p in plist)
-            # AUM / Toplam Pozisyon Değeri yaklaşık olarak hacim üzerinden hesaplanır
             total_aum = sum(p["size"] * p["entry"] for p in plist)
             avg_entry = total_aum / total_size if total_size > 0 else 0
             
-            # Terste kalanlar (zararda olan pozisyonlar)
             underwater_list = [p for p in plist if p["is_underwater"]]
             uw_size = sum(p["size"] for p in underwater_list)
             uw_avg_entry = sum(p["entry"] * p["size"] for p in underwater_list) / uw_size if uw_size > 0 else 0
@@ -271,7 +268,7 @@ def refresh_smart_money_cache():
         SMART_MONEY_CACHE["last_update"] = time.time()
 
 # ============================================================
-#  BINANCE LEADERBOARD (Best-effort ek kaynak)
+#  BINANCE LEADERBOARD
 # ============================================================
 BINANCE_LB_HEADERS = {
     "Content-Type": "application/json", "clienttype": "web", "lang": "en",
@@ -445,12 +442,49 @@ def fetch_market_data():
         print("Veri hatası:", e)
     return {}
 
+# ============================================================
+#  GÜVENLİ BACKGROUND LOOPS (SYNTAX HATASIZ)
+# ============================================================
+def background_fast_loop():
+    while True:
+        try:
+            CACHE["data"] = fetch_market_data()
+            CACHE["last_update"] = time.time()
+        except Exception as e:
+            print("Fast loop hatası:", e)
+        time.sleep(FAST_LOOP_SECONDS)
+
+def background_smart_money_loop():
+    while True:
+        try:
+            refresh_smart_money_cache()
+        except Exception as e:
+            print("Smart money loop hatası:", e)
+        time.sleep(SMART_MONEY_LOOP_SECONDS)
+
+def background_binance_ratio_loop():
+    while True:
+        try:
+            coin_names = [k for k in CACHE["data"].keys() if not k.startswith("_")]
+            refresh_binance_ratio_cache(coin_names)
+        except Exception as e:
+            print("Binance ratio loop hatası:", e)
+        time.sleep(BINANCE_RATIO_LOOP_SECONDS)
+
+def background_binance_lb_loop():
+    while True:
+        try:
+            refresh_binance_leaderboard_cache()
+        except Exception as e:
+            print("Binance LB loop hatası:", e)
+        time.sleep(BINANCE_LEADERBOARD_LOOP_SECONDS)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    threading.Thread(target=lambda: [while True: (CACHE.update(data=fetch_market_data(), last_update=time.time()), time.sleep(FAST_LOOP_SECONDS))], daemon=True).start()
-    threading.Thread(target=lambda: [while True: (refresh_smart_money_cache(), time.sleep(SMART_MONEY_LOOP_SECONDS))], daemon=True).start()
-    threading.Thread(target=lambda: [while True: (refresh_binance_ratio_cache([k for k in CACHE["data"].keys() if not k.startswith("_")]), time.sleep(BINANCE_RATIO_LOOP_SECONDS))], daemon=True).start()
-    threading.Thread(target=lambda: [while True: (refresh_binance_leaderboard_cache(), time.sleep(BINANCE_LEADERBOARD_LOOP_SECONDS))], daemon=True).start()
+    threading.Thread(target=background_fast_loop, daemon=True).start()
+    threading.Thread(target=background_smart_money_loop, daemon=True).start()
+    threading.Thread(target=background_binance_ratio_loop, daemon=True).start()
+    threading.Thread(target=background_binance_lb_loop, daemon=True).start()
     yield
 
 app = FastAPI(title="Cash Control Engine", version="15.0", lifespan=lifespan)
