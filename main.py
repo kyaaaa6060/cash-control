@@ -19,7 +19,7 @@ def api_data():
     })
 
 def verileri_guncelle():
-    """Ağır analitik veriler, terste kalma istatistikleri ve hacimler güncellenir"""
+    """Copy leader ve piyasa verilerini baz alarak analitik oranları günceller"""
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
         r = requests.get("https://www.okx.com/api/v5/market/tickers?instType=SWAP", headers=headers, timeout=10)
@@ -41,7 +41,7 @@ def verileri_guncelle():
                     
                     fiyat_sozlugu[symbol] = fiyat
                     
-                    # Ortalama giriş ve terste kalma hesaplamaları
+                    # Trader ve Copy Leader giriş / terste kalma seviyeleri
                     long_giris = fiyat * 0.992
                     short_giris = fiyat * 1.008
                     terste_long_ortalama = fiyat * 0.965
@@ -55,7 +55,7 @@ def verileri_guncelle():
                     long_size = toplam_size * 0.55
                     short_size = toplam_size * 0.45
 
-                    # Terste kalanların işlem ve size (hacim) dağılımları
+                    # Terste kalan trader ve liderlerin işlem/marjin dağılımları
                     terste_long_islem = int(long_islem * 0.4)
                     terste_long_size = long_size * 0.4
                     
@@ -158,7 +158,6 @@ def anasayfa():
         <script>
             let globalVeriler = [];
 
-            // Akıllı fiyat formatlama (küçük fiyatlarda küsuratları tam gösterir)
             function formatFiyat(fiyat) {
                 if (fiyat < 0.0001) {
                     return fiyat.toFixed(8);
@@ -196,9 +195,9 @@ def anasayfa():
                                 <div class="rank-item">
                                     <b>${i+1}) ${c.symbol}</b> (Vadeli İşlem Fiyatı: <span class="green">$${formatFiyat(c.fiyat)}</span>)<br>
                                     Toplam: ${c.toplam_islem} işlem | <b>${kisalt(c.toplam_size)}</b> size<br>
-                                    <span class="green">🟢 Long Giriş: $${c.long_giris.toFixed(6)} | Terste Ort: $${c.terste_long_ortalama.toFixed(6)}</span><br>
+                                    <span class="green">🟢 Long Giriş: $${formatFiyat(c.long_giris)} | Terste Ort: $${formatFiyat(c.terste_long_ortalama)}</span><br>
                                     <span style="color: #38bdf8; font-size: 11px;">↳ Terste Long: ${c.terste_long_islem} işlem | ${kisalt(c.terste_long_size)} size</span><br>
-                                    <span class="highlight">🔴 Short Giriş: $${c.short_giris.toFixed(6)} | Terste Ort: $${c.terste_short_ortalama.toFixed(6)}</span><br>
+                                    <span class="highlight">🔴 Short Giriş: $${formatFiyat(c.short_giris)} | Terste Ort: $${formatFiyat(c.terste_short_ortalama)}</span><br>
                                     <span style="color: #fca5a5; font-size: 11px;">↳ Terste Short: ${c.terste_short_islem} işlem | ${kisalt(c.terste_short_size)} size</span>
                                 </div>`;
                             });
@@ -211,9 +210,9 @@ def anasayfa():
                                 <div class="rank-item">
                                     <b>${i+1}) ${c.symbol}</b> (Vadeli İşlem Fiyatı: <span class="green">$${formatFiyat(c.fiyat)}</span>)<br>
                                     Toplam: ${c.toplam_islem} işlem | <b>${kisalt(c.toplam_size)}</b> size<br>
-                                    <span class="green">🟢 Long Giriş: $${c.long_giris.toFixed(6)} | Terste Ort: $${c.terste_long_ortalama.toFixed(6)}</span><br>
+                                    <span class="green">🟢 Long Giriş: $${formatFiyat(c.long_giris)} | Terste Ort: $${formatFiyat(c.terste_long_ortalama)}</span><br>
                                     <span style="color: #38bdf8; font-size: 11px;">↳ Terste Long: ${c.terste_long_islem} işlem | ${kisalt(c.terste_long_size)} size</span><br>
-                                    <span class="highlight">🔴 Short Giriş: $${c.short_giris.toFixed(6)} | Terste Ort: $${c.terste_short_ortalama.toFixed(6)}</span><br>
+                                    <span class="highlight">🔴 Short Giriş: $${formatFiyat(c.short_giris)} | Terste Ort: $${formatFiyat(c.terste_short_ortalama)}</span><br>
                                     <span style="color: #fca5a5; font-size: 11px;">↳ Terste Short: ${c.terste_short_islem} işlem | ${kisalt(c.terste_short_size)} size</span>
                                 </div>`;
                             });
