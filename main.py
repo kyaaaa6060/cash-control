@@ -11,14 +11,21 @@ cache_verileri = {
 }
 
 def verileri_guncelle():
-    """Binance Futures verilerini corsproxy üzerinden engelsiz çeker, hata durumunda yedek listeyi devreye sokar."""
+    """Render IP engellerini aşmak için alternatif ve kısıtlamasız public endpoint üzerinden verileri çeker."""
     tum_veriler = []
     try:
+        # Binance kısıtlamalarına takılmayan alternatif halka açık veri yolu
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        # Doğrudan engelsiz proxy köprüsü üzerinden Binance verilerini çekiyoruz
-        proxy_url = "https://corsproxy.io/?https%3A%2F%2Ffapi.binance.com%2Ffapi%2Fv1%2Fticker%2F24hr"
-        r = requests.get(proxy_url, headers=headers, timeout=10)
+        url = "https://data.binance.com/api/v3/ticker/24hr"
         
+        # Eğer vadeli (futures) verisi lazımsa ve alternatif gateway aranıyorsa public mirror kullanabiliriz
+        r = requests.get(url, headers=headers, timeout=10)
+        
+        if r.status_code != 200:
+            # Alternatif olarak genel bir public proxy/gateway deneyelim
+            alt_url = "https://api.binance.com/api/v3/ticker/24hr"
+            r = requests.get(alt_url, headers=headers, timeout=10)
+
         if r.status_code == 200:
             binance_data = r.json()
             for item in binance_data:
@@ -38,9 +45,9 @@ def verileri_guncelle():
                             'hacim': hacim if hacim > 0 else 1.0
                         })
     except Exception as e:
-        print("API bağlantı uyarısı:", e)
+        print("API bağlantı hatası:", e)
 
-    # Eğer dışarıdan veri çekilemediyse yedek liste yüklenir
+    # Eğer veri çekilemezse yedek liste devreye girer
     if len(tum_veriler) == 0:
         print("Dış API'ye erişilemedi, yedek veriler yükleniyor...")
         tum_veriler = [
@@ -143,12 +150,10 @@ def verileri_guncelle():
     
     cache_verileri['analiz'] = islenmis_coinler
     cache_verileri['fiyatlar'] = fiyat_sozlugu
-    print("Veriler başarıyla güncellendi.")
+    print(f"Veriler başarıyla güncellendi. Toplam coin: {len(islenmis_coinler)}")
 
-# İlk açılışta hemen verileri çek
 verileri_guncelle()
 
-# Arka plan zamanlayıcısını başlat (Her 5 dakikada bir çalışacak)
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=verileri_guncelle, trigger="interval", minutes=5)
 scheduler.start()
