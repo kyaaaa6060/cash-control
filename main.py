@@ -1,6 +1,7 @@
 import os
 import requests
 from flask import Flask, jsonify
+from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
 
@@ -9,20 +10,12 @@ cache_verileri = {
     'fiyatlar': {}
 }
 
-@app.route('/api/data')
-def api_data():
-    return jsonify({
-        'status': 'success', 
-        'data': cache_verileri['analiz'],
-        'fiyatlar': cache_verileri['fiyatlar']
-    })
-
 def verileri_guncelle():
     """Binance Futures üzerinden verileri çeker, hata durumunda yedek verileri devreye sokar."""
     tum_veriler = []
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        r = requests.get("https://fapi.binance.com/fapi/v1/ticker/24hr", headers=headers, timeout=5)
+        r = requests.get("https://fapi.binance.com/fapi/v1/ticker/24hr", headers=headers, timeout=10)
         
         if r.status_code == 200:
             binance_data = r.json()
@@ -42,7 +35,7 @@ def verileri_guncelle():
     except Exception as e:
         print("API bağlantı uyarısı:", e)
 
-    # Eğer dışarıdan veri çekilemediyse (Render IP engeli vb.), sistemin çökmemesi için yedek liste yüklenir
+    # Eğer dışarıdan veri çekilemediyse (Render IP engeli vb.), yedek liste yüklenir
     if len(tum_veriler) == 0:
         print("Dış API'ye erişilemedi, yedek veriler yükleniyor...")
         tum_veriler = [
@@ -145,8 +138,23 @@ def verileri_guncelle():
     
     cache_verileri['analiz'] = islenmis_coinler
     cache_verileri['fiyatlar'] = fiyat_sozlugu
+    print("Veriler başarıyla güncellendi.")
 
+# İlk açılışta hemen verileri çek
 verileri_guncelle()
+
+# Arka plan zamanlayıcısını başlat (Her 5 dakikada bir çalışacak)
+scheduler = BackgroundScheduler()
+scheduler.add_job(func=verileri_guncelle, trigger="interval", minutes=5)
+scheduler.start()
+
+@app.route('/api/data')
+def api_data():
+    return jsonify({
+        'status': 'success', 
+        'data': cache_verileri['analiz'],
+        'fiyatlar': cache_verileri['fiyatlar']
+    })
 
 @app.route('/')
 def anasayfa():
@@ -211,7 +219,7 @@ def anasayfa():
     <body>
         <div class="container">
             <h1>Canlı Vadeli Arama ve Analiz Paneli</h1>
-            <div class="sub-title">Aktif Taranan Coin: <span id="coin-sayac" class="green">0</span></div>
+            <div class="sub-title">Aktif Taranan Coin: <span id="coin-sayac" class="green">0</span> | Güncelleme Sıklığı: Her 5 Dakika</div>
             
             <div class="search-box-container">
                 <input type="text" id="searchInput" class="search-input" placeholder="🔍 Coin Ara (Örn: BTC, ETH, SOL, PEPE)..." onkeyup="filtreleVeGoster()">
@@ -233,7 +241,7 @@ def anasayfa():
                 <div class="info-text">Yükleniyor...</div>
             </div>
 
-            <div class="footer">Sistem Çoklu Borsa Verileriyle Beslenmektedir.</div>
+            <div class="footer">Sistem Arka Planda Otomatik Olarak Güncellenmektedir.</div>
         </div>
 
         <!-- MODAL -->
@@ -306,8 +314,6 @@ def anasayfa():
                                 seciliCoin = globalVeriler.find(c => c.symbol === seciliCoin.symbol);
                                 modalIcerikGuncelle();
                             }
-                        } else {
-                            document.getElementById('arama-sonuclari').innerHTML = '<div class="info-text" style="color:#ef4444;">Veriler yükleniyor veya sunucu yanıtı boş döndü. Lütfen sayfayı yenileyin.</div>';
                         }
                     })
                     .catch(err => console.error("Veri çekme hatası:", err));
@@ -395,8 +401,10 @@ def anasayfa():
                 }
             }
 
+            // Sayfa ilk açıldığında verileri yükle
             verileriCek();
-            setInterval(verileriCek, 300000);
+            // Kullanıcı sayfada açık kalırsa verileri her 30 saniyede bir taze cache'den çeksin
+            setInterval(verileriCek, 30000);
         </script>
     </body>
     </html>
