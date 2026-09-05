@@ -1,15 +1,14 @@
 import os
 import requests
-from flask import Flask
+from flask import Flask, jsonify
 
 app = Flask(__name__)
 
-@app.route('/')
-def anasayfa():
+# Canlı verileri JSON olarak döndüren API uç noktası (Sayfa yenilenmeden buradan veri çekecek)
+@app.route('/api/data')
+def api_data():
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        
-        # OKX Swap Tickers verilerini çekiyoruz
         r = requests.get("https://www.okx.com/api/v5/market/tickers?instType=SWAP", headers=headers, timeout=10)
         r.raise_for_status()
         
@@ -17,8 +16,6 @@ def anasayfa():
         tum_veriler = response_data.get('data', [])
         
         islenmis_coinler = []
-        coin_kartlari = ""
-        sayac = 0
         
         for item in tum_veriler:
             inst_id = item.get('instId', '')
@@ -26,15 +23,13 @@ def anasayfa():
                 try:
                     fiyat = float(item.get('last', 0))
                     hacim = float(item.get('volCcy24h', 0))
-                    symbol = inst_id.replace('-SWAP', '')
+                    symbol = inst_id.replace('-SWAP', '').replace('-USDT', '')
                     
-                    # Ortalama giriş ve terste kalma hesaplamaları (Piyasa Dinamiklerine Göre)
-                    long_giris = fiyat * 0.992  # Longların ortalama maliyeti hafif altta
-                    short_giris = fiyat * 1.008 # Shortların ortalama maliyeti hafif üstte
-                    
-                    # Terste kalan tarafın ortalama giriş/maliyet bölgesi
-                    terste_long_ortalama = fiyat * 0.965  # Fiyat düşünce terste kalan longlar
-                    terste_short_ortalama = fiyat * 1.035 # Fiyat yükselince terste kalan shortlar
+                    # Ortalama giriş ve terste kalma hesaplamaları
+                    long_giris = fiyat * 0.992
+                    short_giris = fiyat * 1.008
+                    terste_long_ortalama = fiyat * 0.965
+                    terste_short_ortalama = fiyat * 1.035
                     
                     toplam_islem = int((hacim / 300000) % 95) + 10
                     long_islem = int(toplam_islem * 0.55)
@@ -58,102 +53,165 @@ def anasayfa():
                         'long_size': long_size,
                         'short_size': short_size
                     })
-
-                    coin_kartlari += f"""
-                    <div class="card">
-                        <h3>📊 {symbol}</h3>
-                        <p>Anlık Fiyat: <span class="green">${fiyat:,.4f}</span></p>
-                        <p>🟢 Long Ort. Giriş: <span>${long_giris:,.4f}</span></p>
-                        <p>🔴 Short Ort. Giriş: <span>${short_giris:,.4f}</span></p>
-                        <p>⚠️ Terste Long Ort: <span style="color: #38bdf8;">${terste_long_ortalama:,.4f}</span></p>
-                        <p>⚠️ Terste Short Ort: <span class="highlight">${terste_short_ortalama:,.4f}</span></p>
-                    </div>
-                    """
-                    sayac += 1
                 except:
                     continue
         
-        # Adet Bazında Sıralama (Top 20)
-        islenmis_coinler.sort(key=lambda x: x['toplam_islem'], reverse=True)
-        adet_html = ""
-        for i, c in enumerate(islenmis_coinler[:20], 1):
-            adet_html += f"""
-            <div class="rank-item">
-                <b>{i}) {c['symbol']}</b> (Fiyat: <span class="green">${c['fiyat']:,.4f}</span>)<br>
-                Toplam: {c['toplam_islem']} işlem | {c['toplam_size']:,.1f}K size<br>
-                <span class="green">🟢 Long Giriş: ${c['long_giris']:,.4f} | Terste Ort: ${c['terste_long_ortalama']:,.4f}</span><br>
-                <span class="highlight">🔴 Short Giriş: ${c['short_giris']:,.4f} | Terste Ort: ${c['terste_short_ortalama']:,.4f}</span>
-            </div>
-            """
-
-        # Size Bazında Sıralama (Top 20)
-        islenmis_coinler.sort(key=lambda x: x['toplam_size'], reverse=True)
-        size_html = ""
-        for i, c in enumerate(islenmis_coinler[:20], 1):
-            size_html += f"""
-            <div class="rank-item">
-                <b>{i}) {c['symbol']}</b> (Fiyat: <span class="green">${c['fiyat']:,.4f}</span>)<br>
-                Toplam: {c['toplam_islem']} işlem | {c['toplam_size']:,.1f}K size<br>
-                <span class="green">🟢 Long Giriş: ${c['long_giris']:,.4f} | Terste Ort: ${c['terste_long_ortalama']:,.4f}</span><br>
-                <span class="highlight">🔴 Short Giriş: ${c['short_giris']:,.4f} | Terste Ort: ${c['terste_short_ortalama']:,.4f}</span>
-            </div>
-            """
-
+        return jsonify({'status': 'success', 'data': islenmis_coinler})
     except Exception as e:
-        adet_html = f"<p style='color:red;'>Veriler yükleniyor...</p>"
-        size_html = ""
-        coin_kartlari = ""
-        sayac = 0
+        return jsonify({'status': 'error', 'message': str(e)})
 
-    html_icerik = f"""
+@app.route('/')
+def anasayfa():
+    html_icerik = """
     <!DOCTYPE html>
     <html lang="tr">
     <head>
         <meta charset="UTF-8">
-        <meta http-equiv="refresh" content="20">
-        <title>Gelişmiş Likidasyon ve Ortalama Maliyet Paneli</title>
+        <title>Canlı Vadeli Arama ve Analiz Paneli</title>
         <style>
-            body {{ background-color: #0b0f19; color: #94a3b8; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; margin: 0; }}
-            .container {{ max-width: 1300px; margin: 0 auto; background: #111827; padding: 25px; border-radius: 16px; border: 1px solid #1f2937; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }}
-            h1 {{ color: #f3f4f6; font-size: 24px; margin-bottom: 5px; }}
-            .sub-title {{ color: #6b7280; font-size: 14px; margin-bottom: 25px; }}
-            .top-section {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; text-align: left; }}
-            .rank-box {{ background: #1f2937; padding: 20px; border-radius: 12px; border: 1px solid #374151; max-height: 520px; overflow-y: auto; }}
-            .rank-box h2 {{ font-size: 14px; color: #f3f4f6; border-bottom: 2px solid #3b82f6; padding-bottom: 8px; margin-top: 0; }}
-            .rank-item {{ background: #111827; padding: 10px 12px; margin-bottom: 10px; border-radius: 8px; font-size: 12px; border-left: 3px solid #3b82f6; }}
-            .grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-top: 15px; text-align: left; }}
-            .card {{ background: #1f2937; padding: 15px; border-radius: 10px; border-left: 4px solid #38bdf8; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }}
-            .card h3 {{ margin: 0 0 8px 0; color: #e5e7eb; font-size: 15px; }}
-            .card p {{ margin: 4px 0; color: #d1d5db; font-size: 12px; }}
-            .highlight {{ color: #ef4444; font-weight: bold; }}
-            .green {{ color: #10b981; font-weight: bold; }}
-            .footer {{ margin-top: 25px; font-size: 12px; color: #4b5563; }}
-            h2.section-title {{ color: #f3f4f6; text-align: left; border-bottom: 1px solid #374151; padding-bottom: 10px; margin-top: 40px; }}
+            body { background-color: #0b0f19; color: #94a3b8; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; margin: 0; }
+            .container { max-width: 1300px; margin: 0 auto; background: #111827; padding: 25px; border-radius: 16px; border: 1px solid #1f2937; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+            h1 { color: #f3f4f6; font-size: 24px; margin-bottom: 5px; }
+            .sub-title { color: #6b7280; font-size: 14px; margin-bottom: 25px; }
+            
+            /* Arama Kutusu Stili */
+            .search-box-container { margin-bottom: 30px; }
+            .search-input { width: 100%; max-width: 500px; padding: 14px 20px; background: #1f2937; border: 2px solid #374151; border-radius: 12px; color: #fff; font-size: 16px; outline: none; transition: 0.3s; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3); }
+            .search-input:focus { border-color: #3b82f6; box-shadow: 0 0 10px rgba(59, 130, 246, 0.3); }
+            
+            .top-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; text-align: left; }
+            .rank-box { background: #1f2937; padding: 20px; border-radius: 12px; border: 1px solid #374151; max-height: 520px; overflow-y: auto; }
+            .rank-box h2 { font-size: 14px; color: #f3f4f6; border-bottom: 2px solid #3b82f6; padding-bottom: 8px; margin-top: 0; }
+            .rank-item { background: #111827; padding: 10px 12px; margin-bottom: 10px; border-radius: 8px; font-size: 12px; border-left: 3px solid #3b82f6; }
+            
+            /* Arama Sonuç Alanı */
+            .search-results-section { margin-top: 30px; text-align: left; }
+            .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-top: 15px; }
+            .card { background: #1f2937; padding: 15px; border-radius: 10px; border-left: 4px solid #38bdf8; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+            .card h3 { margin: 0 0 8px 0; color: #e5e7eb; font-size: 16px; }
+            .card p { margin: 5px 0; color: #d1d5db; font-size: 13px; }
+            
+            .highlight { color: #ef4444; font-weight: bold; }
+            .green { color: #10b981; font-weight: bold; }
+            .footer { margin-top: 25px; font-size: 12px; color: #4b5563; }
+            h2.section-title { color: #f3f4f6; text-align: left; border-bottom: 1px solid #374151; padding-bottom: 10px; margin-top: 40px; }
+            .info-text { color: #6b7280; font-style: italic; font-size: 13px; }
         </style>
     </head>
     <body>
         <div class="container">
-            <h1>Gelişmiş Likidasyon ve Ortalama Maliyet Paneli</h1>
-            <div class="sub-title">Aktif Taranan Vadeli Coin Sayısı: <span class="green">{sayac}</span></div>
+            <h1>Canlı Vadeli Arama ve Analiz Paneli</h1>
+            <div class="sub-title">Aktif Taranan Toplam Coin Sayısı: <span id="coin-sayac" class="green">0</span></div>
             
+            <!-- Arama Kutusu -->
+            <div class="search-box-container">
+                <input type="text" id="searchInput" class="search-input" placeholder="🔍 Coin Ara (Örn: BTC, ETH, SOL, XRP)..." onkeyup="filtreleVeGoster()">
+            </div>
+
+            <!-- Top 20 Tabloları -->
             <div class="top-section">
                 <div class="rank-box">
-                    <h2>📊 ADET BAZINDA EN FAZLA TERSTE KALINAN TOP 20</h2>
-                    {adet_html}
+                    <h2>📊 ADET BAZINDA EN FAZLA İŞLEM GÖREN TOP 20</h2>
+                    <div id="adet-listesi">Yükleniyor...</div>
                 </div>
                 <div class="rank-box">
-                    <h2>💰 SİZE BAZINDA EN FAZLA TERSTE KALINAN TOP 20</h2>
-                    {size_html}
+                    <h2>💰 SİZE BAZINDA EN FAZLA İŞLEM GÖREN TOP 20</h2>
+                    <div id="size-listesi">Yükleniyor...</div>
                 </div>
             </div>
 
-            <h2 class="section-title">🌐 Tüm Vadeli Coinlerin Anlık Fiyat ve Ortalama Giriş Seviyeleri</h2>
-            <div class="grid">
-                {coin_kartlari}
+            <!-- Aratılan Coinlerin Kart Görünümü -->
+            <h2 class="section-title">🔎 Arama Sonuçları</h2>
+            <div id="arama-sonuclari" class="grid">
+                <div class="info-text">Yukarıdaki arama çubuğuna coin adı yazarak detaylı analizi görüntüleyebilirsiniz.</div>
             </div>
 
-            <div class="footer">Sistem Bulutta 7/24 Kesintisiz Çalışmaktadır • Her 20 saniyede bir güncellenir.</div>
+            <div class="footer">Sistem Bulutta 7/24 Kesintisiz Çalışmaktadır • Sayfa yenilenmeden her 5 saniyede bir otomatik güncellenir.</div>
         </div>
+
+        <script>
+            let globalVeriler = [];
+
+            function verileriCek() {
+                fetch('/api/data')
+                    .then(response => response.json())
+                    .then(res => {
+                        if(res.status === 'success') {
+                            globalVeriler = res.data;
+                            document.getElementById('coin-sayac').innerText = globalVeriler.length;
+                            
+                            // Top 20 Adet Sıralaması Güncelle
+                            let adetSirali = [...globalVeriler].sort((a, b) => b.toplam_islem - a.toplam_islem).slice(0, 20);
+                            let adetHtml = "";
+                            adetSirali.forEach((c, i) => {
+                                adetHtml += `
+                                <div class="rank-item">
+                                    <b>${i+1}) ${c.symbol}</b> (Fiyat: <span class="green">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>)<br>
+                                    Toplam: ${c.toplam_islem} işlem | ${c.toplam_size.toLocaleString(undefined, {maximumFractionDigits:1})}K size<br>
+                                    <span class="green">🟢 Long Giriş: $${c.long_giris.toFixed(4)} | Terste Ort: $${c.terste_long_ortalama.toFixed(4)}</span><br>
+                                    <span class="highlight">🔴 Short Giriş: $${c.short_giris.toFixed(4)} | Terste Ort: $${c.terste_short_ortalama.toFixed(4)}</span>
+                                </div>`;
+                            });
+                            document.getElementById('adet-listesi').innerHTML = adetHtml;
+
+                            // Top 20 Size Sıralaması Güncelle
+                            let sizeSirali = [...globalVeriler].sort((a, b) => b.toplam_size - a.toplam_size).slice(0, 20);
+                            let sizeHtml = "";
+                            sizeSirali.forEach((c, i) => {
+                                sizeHtml += `
+                                <div class="rank-item">
+                                    <b>${i+1}) ${c.symbol}</b> (Fiyat: <span class="green">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>)<br>
+                                    Toplam: ${c.toplam_islem} işlem | ${c.toplam_size.toLocaleString(undefined, {maximumFractionDigits:1})}K size<br>
+                                    <span class="green">🟢 Long Giriş: $${c.long_giris.toFixed(4)} | Terste Ort: $${c.terste_long_ortalama.toFixed(4)}</span><br>
+                                    <span class="highlight">🔴 Short Giriş: $${c.short_giris.toFixed(4)} | Terste Ort: $${c.terste_short_ortalama.toFixed(4)}</span>
+                                </div>`;
+                            });
+                            document.getElementById('size-listesi').innerHTML = sizeHtml;
+
+                            // Eğer arama kutusunda yazı varsa sonuçları anlık canlı tut
+                            filtreleVeGoster();
+                        }
+                    })
+                    .catch(err => console.error("Veri çekme hatası:", err));
+            }
+
+            function filtreleVeGoster() {
+                let aranan = document.getElementById('searchInput').value.trim().toUpperCase();
+                let sonucDiv = document.getElementById('arama-sonuclari');
+                
+                if (aranan === "") {
+                    sonucDiv.innerHTML = '<div class="info-text">Yukarıdaki arama çubuğuna coin adı yazarak detaylı analizi görüntüleyebilirsiniz.</div>';
+                    return;
+                }
+
+                let filtrelenmis = globalVeriler.filter(c => c.symbol.includes(aranan));
+
+                if (filtrelenmis.length === 0) {
+                    sonucDiv.innerHTML = '<div class="info-text" style="color:#ef4444;">Aradığınız kritere uygun coin bulunamadı.</div>';
+                    return;
+                }
+
+                let kartHtml = "";
+                filtrelenmis.forEach(c => {
+                    kartHtml += `
+                    <div class="card">
+                        <h3>📊 ${c.symbol}</h3>
+                        <p>Anlık Fiyat: <span class="green">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></p>
+                        <p>🟢 Long Ort. Giriş: <span>$${c.long_giris.toFixed(4)}</span></p>
+                        <p>🔴 Short Ort. Giriş: <span>$${c.short_giris.toFixed(4)}</span></p>
+                        <p>⚠️ Terste Long Ort: <span style="color: #38bdf8;">$${c.terste_long_ortalama.toFixed(4)}</span></p>
+                        <p>⚠️ Terste Short Ort: <span class="highlight">$${c.terste_short_ortalama.toFixed(4)}</span></p>
+                    </div>`;
+                });
+                sonucDiv.innerHTML = kartHtml;
+            }
+
+            // Sayfa açıldığında ilk veriyi çek
+            verileriCek();
+
+            // Sayfa yenilenmeden her 5 saniyede bir arkayı güncelle
+            setInterval(verileriCek, 5000);
+        </script>
     </body>
     </html>
     """
