@@ -7,11 +7,13 @@ app = Flask(__name__)
 @app.route('/')
 def anasayfa():
     try:
-        # Binance Futures üzerindeki tüm ticker (fiyat) verilerini çekelim
-        r = requests.get("https://fapi.binance.com/fapi/v1/ticker/price", timeout=5)
-        tum_veriler = r.json()
+        # Binance Futures tüm ticker verilerini çekmeyi dene
+        r = requests.get("https://fapi.binance.com/fapi/v1/ticker/price", timeout=10)
         
-        # Sadece USDT ile biten vadeli coinleri filtreleyelim
+        # Eğer Binance engellerse HTTP hatası fırlatsın
+        r.raise_for_status()
+        
+        tum_veriler = r.json()
         coin_kartlari = ""
         sayac = 0
         
@@ -20,7 +22,6 @@ def anasayfa():
             if symbol.endswith('USDT'):
                 try:
                     fiyat = float(item['price'])
-                    # Fiyata göre basit bir terste kalma ve tasfiye simülasyonu
                     terste_short = fiyat * 1.015
                     tasfiye_havuzu = fiyat * 950
                     
@@ -37,17 +38,17 @@ def anasayfa():
                     continue
                     
     except Exception as e:
-        coin_kartlari = f"<p style='color: red;'>Veriler çekilirken hata oluştu: {e}</p>"
+        # Hatanın detayını doğrudan ekrana yazdıralım
+        coin_kartlari = f"<p style='color: #ef4444; grid-column: 1 / -1; font-size: 16px; background: #1f2937; padding: 20px; border-radius: 8px;'><b>Binance API Hatası:</b> {e}</p>"
         sayac = 0
 
-    # Modern ve çoklu coin destekli arayüz
     html_icerik = f"""
     <!DOCTYPE html>
     <html lang="tr">
     <head>
         <meta charset="UTF-8">
         <meta http-equiv="refresh" content="15">
-        <title>Binance Futures - Tüm Vadeli Coinler Paneli</title>
+        <title>Binance Futures Paneli</title>
         <style>
             body {{ background-color: #0b0f19; color: #94a3b8; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; margin: 0; }}
             .container {{ max-width: 1200px; margin: 0 auto; background: #111827; padding: 25px; border-radius: 16px; border: 1px solid #1f2937; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }}
