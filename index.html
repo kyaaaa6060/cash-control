@@ -74,7 +74,6 @@
         </div>
 
         <div class="right-panel">
-            <!-- Smart Money / Hyperliquid Analiz Paneli -->
             <div class="card">
                 <div class="card-title">🐋 Hyperliquid Smart Money (Top Whale Dağılımı)</div>
                 <div class="grid-2" style="margin-bottom: 10px;">
@@ -93,13 +92,11 @@
                 </div>
             </div>
 
-            <!-- Binance Leaderboard Ek Paneli -->
             <div class="card">
                 <div class="card-title">🏆 Binance Leaderboard Verileri</div>
                 <div id="binance-lb-content" style="font-size: 12px; color: var(--text-secondary);">Binance Leaderboard verileri çekiliyor...</div>
             </div>
 
-            <!-- Pivot ve Sinyal Detayları -->
             <div class="card">
                 <div class="card-title">🎯 Teknik Pivot & AI Sinyal</div>
                 <div id="ai-signal-box" style="font-size: 12px; line-height: 1.5;">Bekleniyor...</div>
@@ -159,14 +156,12 @@
         }
 
         async function updateData() {
-            // Klines
             const kRes = await fetch(`/api/klines/${currentCoin}?timeframe=${currentTimeframe}`);
             const kData = await kRes.json();
             if(kData.candles) {
                 candleSeries.setData(kData.candles);
             }
 
-            // Market Stats & Smart Money
             const sRes = await fetch(`/api/market-stats/${currentCoin}?timeframe=${currentTimeframe}`);
             const sData = await sRes.json();
             if(sData.status === 'success') {
@@ -174,7 +169,6 @@
                 document.getElementById('current-price').innerText = `$${d.markPrice.toLocaleString()}`;
                 document.getElementById('global-stats').innerText = `Aktif Coin: ${sData.global.totalActiveCoins} | Toplam Açık Pozisyon (AUM/OI): $${(sData.global.totalAUM_OI/1e6).toFixed(2)}M`;
 
-                // Smart Money Details
                 const sm = d.smart_money;
                 document.getElementById('hl-long-val').innerHTML = `Giriş: <b>$${sm.LONG.avg_entry.toFixed(2)}</b><br>Adet: ${sm.LONG.count} | AUM: $${(sm.LONG.total_aum_usd/1e3).toFixed(1)}k`;
                 document.getElementById('hl-short-val').innerHTML = `Giriş: <b>$${sm.SHORT.avg_entry.toFixed(2)}</b><br>Adet: ${sm.SHORT.count} | AUM: $${(sm.SHORT.total_aum_usd/1e3).toFixed(1)}k`;
@@ -184,7 +178,6 @@
                     Short Terste: ${sm.SHORT.underwater.count} cüzdan (Ort. Giriş: $${sm.SHORT.underwater.avg_entry.toFixed(2)})
                 `;
 
-                // Binance Leaderboard
                 const lb = d.binance_leaderboard;
                 if(d.binance_leaderboard_working && lb) {
                     document.getElementById('binance-lb-content').innerHTML = `
@@ -195,7 +188,6 @@
                     document.getElementById('binance-lb-content').innerText = "Binance Leaderboard aktif veri döndürmüyor (Limit veya CORS engeli).";
                 }
 
-                // AI & Pivot
                 const ai = d.ai_analysis;
                 document.getElementById('ai-signal-box').innerHTML = `
                     <b>Sinyal:</b> ${ai.signal}<br>
@@ -208,7 +200,7 @@
         window.onload = async () => {
             initChart();
             await loadCoins();
-            setInterval(updateData, 6000); // 6 saniyede bir verileri tazele
+            setInterval(updateData, 6000);
         };
     </script>
 </body>
