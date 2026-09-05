@@ -11,14 +11,13 @@ cache_verileri = {
 }
 
 def verileri_guncelle():
-    """Binance Futures üzerinden verileri çeker, hata durumunda yedek verileri devreye sokar."""
+    """Binance Futures verilerini corsproxy üzerinden engelsiz çeker, hata durumunda yedek listeyi devreye sokar."""
     tum_veriler = []
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        # Cloudflare Worker proxy adresimiz üzerinden verileri çekiyoruz
+        # Doğrudan engelsiz proxy köprüsü üzerinden Binance verilerini çekiyoruz
         proxy_url = "https://corsproxy.io/?https%3A%2F%2Ffapi.binance.com%2Ffapi%2Fv1%2Fticker%2F24hr"
-r = requests.get(proxy_url, headers=headers, timeout=10)
-
+        r = requests.get(proxy_url, headers=headers, timeout=10)
         
         if r.status_code == 200:
             binance_data = r.json()
@@ -41,7 +40,7 @@ r = requests.get(proxy_url, headers=headers, timeout=10)
     except Exception as e:
         print("API bağlantı uyarısı:", e)
 
-    # Eğer dışarıdan veri çekilemediyse (Render IP engeli vb.), yedek liste yüklenir
+    # Eğer dışarıdan veri çekilemediyse yedek liste yüklenir
     if len(tum_veriler) == 0:
         print("Dış API'ye erişilemedi, yedek veriler yükleniyor...")
         tum_veriler = [
@@ -407,9 +406,7 @@ def anasayfa():
                 }
             }
 
-            // Sayfa ilk açıldığında verileri yükle
             verileriCek();
-            // Kullanıcı sayfada açık kalırsa verileri her 30 saniyede bir taze cache'den çeksin
             setInterval(verileriCek, 30000);
         </script>
     </body>
