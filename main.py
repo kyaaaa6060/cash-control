@@ -158,6 +158,19 @@ def anasayfa():
         <script>
             let globalVeriler = [];
 
+            // Akıllı fiyat formatlama (küçük fiyatlarda küsuratları tam gösterir)
+            function formatFiyat(fiyat) {
+                if (fiyat < 0.0001) {
+                    return fiyat.toFixed(8);
+                } else if (fiyat < 1) {
+                    return fiyat.toFixed(6);
+                } else if (fiyat < 10) {
+                    return fiyat.toFixed(4);
+                } else {
+                    return fiyat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                }
+            }
+
             function kisalt(sayi) {
                 if (sayi >= 1000000) {
                     return (sayi / 1000000).toFixed(1) + 'M';
@@ -181,11 +194,11 @@ def anasayfa():
                             adetSirali.forEach((c, i) => {
                                 adetHtml += `
                                 <div class="rank-item">
-                                    <b>${i+1}) ${c.symbol}</b> (Vadeli İşlem Fiyatı: <span class="green">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>)<br>
+                                    <b>${i+1}) ${c.symbol}</b> (Vadeli İşlem Fiyatı: <span class="green">$${formatFiyat(c.fiyat)}</span>)<br>
                                     Toplam: ${c.toplam_islem} işlem | <b>${kisalt(c.toplam_size)}</b> size<br>
-                                    <span class="green">🟢 Long Giriş: $${c.long_giris.toFixed(4)} | Terste Ort: $${c.terste_long_ortalama.toFixed(4)}</span><br>
+                                    <span class="green">🟢 Long Giriş: $${c.long_giris.toFixed(6)} | Terste Ort: $${c.terste_long_ortalama.toFixed(6)}</span><br>
                                     <span style="color: #38bdf8; font-size: 11px;">↳ Terste Long: ${c.terste_long_islem} işlem | ${kisalt(c.terste_long_size)} size</span><br>
-                                    <span class="highlight">🔴 Short Giriş: $${c.short_giris.toFixed(4)} | Terste Ort: $${c.terste_short_ortalama.toFixed(4)}</span><br>
+                                    <span class="highlight">🔴 Short Giriş: $${c.short_giris.toFixed(6)} | Terste Ort: $${c.terste_short_ortalama.toFixed(6)}</span><br>
                                     <span style="color: #fca5a5; font-size: 11px;">↳ Terste Short: ${c.terste_short_islem} işlem | ${kisalt(c.terste_short_size)} size</span>
                                 </div>`;
                             });
@@ -196,11 +209,11 @@ def anasayfa():
                             sizeSirali.forEach((c, i) => {
                                 sizeHtml += `
                                 <div class="rank-item">
-                                    <b>${i+1}) ${c.symbol}</b> (Vadeli İşlem Fiyatı: <span class="green">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>)<br>
+                                    <b>${i+1}) ${c.symbol}</b> (Vadeli İşlem Fiyatı: <span class="green">$${formatFiyat(c.fiyat)}</span>)<br>
                                     Toplam: ${c.toplam_islem} işlem | <b>${kisalt(c.toplam_size)}</b> size<br>
-                                    <span class="green">🟢 Long Giriş: $${c.long_giris.toFixed(4)} | Terste Ort: $${c.terste_long_ortalama.toFixed(4)}</span><br>
+                                    <span class="green">🟢 Long Giriş: $${c.long_giris.toFixed(6)} | Terste Ort: $${c.terste_long_ortalama.toFixed(6)}</span><br>
                                     <span style="color: #38bdf8; font-size: 11px;">↳ Terste Long: ${c.terste_long_islem} işlem | ${kisalt(c.terste_long_size)} size</span><br>
-                                    <span class="highlight">🔴 Short Giriş: $${c.short_giris.toFixed(4)} | Terste Ort: $${c.terste_short_ortalama.toFixed(4)}</span><br>
+                                    <span class="highlight">🔴 Short Giriş: $${c.short_giris.toFixed(6)} | Terste Ort: $${c.terste_short_ortalama.toFixed(6)}</span><br>
                                     <span style="color: #fca5a5; font-size: 11px;">↳ Terste Short: ${c.terste_short_islem} işlem | ${kisalt(c.terste_short_size)} size</span>
                                 </div>`;
                             });
@@ -233,12 +246,12 @@ def anasayfa():
                     kartHtml += `
                     <div class="card">
                         <h3>📊 ${c.symbol}</h3>
-                        <p>Vadeli İşlem Fiyatı: <span class="green">$${c.fiyat.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></p>
+                        <p>Vadeli İşlem Fiyatı: <span class="green">$${formatFiyat(c.fiyat)}</span></p>
                         <hr style="border:0; border-top:1px solid #374151; margin:8px 0;">
-                        <p>🟢 Long Ort. Giriş: <span>$${c.long_giris.toFixed(4)}</span></p>
+                        <p>🟢 Long Ort. Giriş: <span>$${formatFiyat(c.long_giris)}</span></p>
                         <p style="color: #38bdf8; font-size: 11px;">↳ Terste Long: <b>${c.terste_long_islem}</b> işlem | <b>${kisalt(c.terste_long_size)}</b> size</p>
                         <br>
-                        <p>🔴 Short Ort. Giriş: <span>$${c.short_giris.toFixed(4)}</span></p>
+                        <p>🔴 Short Ort. Giriş: <span>$${formatFiyat(c.short_giris)}</span></p>
                         <p style="color: #fca5a5; font-size: 11px;">↳ Terste Short: <b>${c.terste_short_islem}</b> işlem | <b>${kisalt(c.terste_short_size)}</b> size</p>
                     </div>`;
                 });
