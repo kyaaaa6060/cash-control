@@ -18,40 +18,67 @@ def api_data():
     })
 
 def verileri_guncelle():
-    """Binance ve OKX canlı verilerini çekip doğru kaynak ağırlıklarıyla harmanlar"""
+    """Binance, OKX ve Bybit verilerini harmanlayarak çoklu borsa analizi yapar"""
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        r_okx = requests.get("https://www.okx.com/api/v5/market/tickers?instType=SWAP", headers=headers, timeout=10)
         tum_veriler = []
         
+        # 1. OKX Verilerini Çek
+        r_okx = requests.get("https://www.okx.com/api/v5/market/tickers?instType=SWAP", headers=headers, timeout=10)
+        okx_Sozlugu = {}
         if r_okx.status_code == 200:
-            okx_data = r_okx.json().get('data', [])
-            for item in okx_data:
+            for item in r_okx.json().get('data', []):
                 inst_id = item.get('instId', '')
                 if inst_id.endswith('-USDT-SWAP'):
-                    tum_veriler.append({
-                        'symbol': inst_id.replace('-SWAP', '').replace('-USDT', ''),
+                    symbol = inst_id.replace('-SWAP', '').replace('-USDT', '')
+                    okx_Sozlugu[symbol] = {
                         'fiyat': float(item.get('last', 0)),
                         'hacim': float(item.get('volCcy24h', 0))
-                    })
-        
+                    }
+
+        # 2. Bybit Verilerini Çek (Ekstra Güç ve Derinlik için)
+        r_bybit = requests.get("https://api.bybit.com/v5/market/tickers?category=linear", headers=headers, timeout=10)
+        bybit_sozlugu = {}
+        if r_bybit.status_code == 200:
+            for item in r_bybit.json().get('result', {}).get('list', []):
+                symbol = item.get('symbol', '')
+                if symbol.endswith('USDT'):
+                    base_symbol = symbol.replace('USDT', '')
+                    bybit_sozlugu[base_symbol] = {
+                        'fiyat': float(item.get('lastPrice', 0)),
+                        'hacim': float(item.get('turnover24h', 0)) # Bybit ciro bazlı hacim
+                    }
+
+        # 3. Binance Futures Verilerini Çek (Ana Kaynak)
         r_binance = requests.get("https://fapi.binance.com/fapi/v1/ticker/24hr", headers=headers, timeout=10)
         if r_binance.status_code == 200:
             binance_data = r_binance.json()
-            existing_symbols = {c['symbol'] for c in tum_veriler}
             for item in binance_data:
                 symbol = item.get('symbol', '')
                 if symbol.endswith('USDT'):
                     base_symbol = symbol.replace('USDT', '')
-                    if base_symbol not in existing_symbols:
-                        try:
-                            tum_veriler.append({
-                                'symbol': base_symbol,
-                                'fiyat': float(item.get('lastPrice', 0)),
-                                'hacim': float(item.get('quoteVolume', 0))
-                            })
-                        except:
-                            continue
+                    b_fiyat = float(item.get('lastPrice', 0))
+                    b_hacim = float(item.get('quoteVolume', 0))
+                    
+                    # Eğer coin Bybit'te de varsa, hacimleri ve fiyatları harmanla (Ek Veri Katkısı)
+                    if base_symbol in bybit_sozlugu:
+                        bybit_veri = bybit_sozlugu[base_symbol]
+                        # Fiyatların ortalamasını al, hacimleri topla (Derinlik artırımı)
+                        fiyat = (b_fiyat + bybit_veri['fiyat']) / 2
+                        hacim = b_hacim + bybit_veri['hacim']
+                    else:
+                        fiyat = b_fiyat
+                        hacim = b_hacim
+
+                    # OKX'te olup olmadığını kontrol edip veriyi zenginleştirebiliriz
+                    if base_symbol in okx_Sozlugu:
+                        hacim += okx_Sozlugu[base_symbol]['hacim'] * 0.5 # Ağırlıklı toplama
+
+                    tum_veriler.append({
+                        'symbol': base_symbol,
+                        'fiyat': fiyat,
+                        'hacim': hacim
+                    })
 
         islenmis_coinler = []
         fiyat_sozlugu = {}
@@ -66,7 +93,7 @@ def verileri_guncelle():
                 
             fiyat_sozlugu[symbol] = fiyat
             
-            # 1. Copy Liderler Verisi
+            # Kaynak Ağırlıkları ve Simülasyon Hesaplamaları
             l_giris = fiyat * 0.990
             s_giris = fiyat * 1.010
             l_islem = int((hacim / 300000) % 150) + 20
@@ -81,7 +108,6 @@ def verileri_guncelle():
                 'toplam_islem': l_islem + s_islem, 'toplam_size': l_size + s_size
             }
 
-            # 2. Balinalar Verisi
             b_l_giris = fiyat * 0.985
             b_s_giris = fiyat * 1.015
             b_l_islem = int((hacim / 250000) % 180) + 30
@@ -96,7 +122,6 @@ def verileri_guncelle():
                 'toplam_islem': b_l_islem + b_s_islem, 'toplam_size': b_l_size + b_s_size
             }
 
-            # 3. Tümü Verisi (Liderler + Balinaların Toplamı ve Ortalaması)
             tumu = {
                 'long_giris': (l_giris + b_l_giris) / 2,
                 'long_islem': l_islem + b_l_islem,
@@ -109,7 +134,6 @@ def verileri_guncelle():
                 'toplam_size': liderler['toplam_size'] + balinalar['toplam_size']
             }
 
-            # 4. Genel Terste Kalanlar Verisi (%6-20 zarar simülasyonu)
             terste = {
                 'long_giris': fiyat * 0.88,
                 'long_islem': tumu['long_islem'] * 2,
@@ -172,7 +196,6 @@ def anasayfa():
             .card h3 { margin: 0 0 8px 0; color: #f3f4f6; font-size: 16px; }
             .card p { margin: 4px 0; font-size: 12px; color: #9ca3af; }
 
-            /* Modal Tasarımı */
             .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); backdrop-filter: blur(5px); z-index: 1000; justify-content: center; align-items: center; }
             .modal-content { background: #111827; width: 90%; max-width: 600px; padding: 25px; border-radius: 16px; border: 1px solid #374151; box-shadow: 0 20px 40px rgba(0,0,0,0.6); position: relative; text-align: left; }
             .modal-close { position: absolute; top: 20px; right: 20px; background: none; border: none; color: #9ca3af; font-size: 22px; cursor: pointer; }
@@ -198,7 +221,6 @@ def anasayfa():
             .metric-bar.ortalama .metric-right { color: #f3f4f6; }
 
             .green { color: #10b981; font-weight: bold; }
-            .highlight { color: #ef4444; font-weight: bold; }
             .footer { margin-top: 30px; font-size: 12px; color: #4b5563; }
             h2.section-title { color: #f3f4f6; text-align: left; border-bottom: 1px solid #374151; padding-bottom: 10px; margin-top: 40px; }
             .info-text { color: #6b7280; font-style: italic; font-size: 13px; text-align: center; padding: 20px; }
@@ -207,7 +229,7 @@ def anasayfa():
     <body>
         <div class="container">
             <h1>Canlı Vadeli Arama ve Analiz Paneli</h1>
-            <div class="sub-title">Aktif Taranan Coin: <span id="coin-sayac" class="green">0</span> | İstediğin coine tıklayarak filtre paneline ulaşabilirsin</div>
+            <div class="sub-title">Aktif Taranan Coin (Binance + Bybit Entegre): <span id="coin-sayac" class="green">0</span></div>
             
             <div class="search-box-container">
                 <input type="text" id="searchInput" class="search-input" placeholder="🔍 Coin Ara (Örn: BTC, ETH, SOL, PEPE)..." onkeyup="filtreleVeGoster()">
@@ -229,7 +251,7 @@ def anasayfa():
                 <div class="info-text">Yükleniyor...</div>
             </div>
 
-            <div class="footer">Sistem Bulutta 7/24 Kesintisiz Çalışmaktadır • Canlı borsa verileriyle beslenmektedir.</div>
+            <div class="footer">Sistem Çoklu Borsa (Binance & Bybit) Verileriyle Beslenmektedir.</div>
         </div>
 
         <!-- MODAL -->
@@ -344,7 +366,7 @@ def anasayfa():
                 aktifKaynak = kaynak;
                 document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
                 element.classList.add('active');
-                modalIcerikGunsellemeLabel = modalIcerikGuncelle();
+                modalIcerikGuncelle();
             }
 
             function modalIcerikGuncelle() {
