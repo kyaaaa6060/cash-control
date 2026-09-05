@@ -52,7 +52,7 @@
 <body>
 
     <header>
-        <div class="logo">⚡ Cash Control Engine <span style="font-size:12px; color:var(--text-secondary)">v15.0 (Long/Short Detaylı)</span></div>
+        <div class="logo">⚡ Cash Control Engine <span style="font-size:12px; color:var(--text-secondary)">v15.0</span></div>
         <div id="global-stats" style="font-size: 13px; color: var(--text-secondary);">Yükleniyor...</div>
     </header>
 
@@ -100,6 +100,14 @@
             <div class="card">
                 <div class="card-title">🎯 Teknik Pivot & AI Sinyal</div>
                 <div id="ai-signal-box" style="font-size: 12px; line-height: 1.5;">Bekleniyor...</div>
+            </div>
+
+            <!-- 2. Modülün Arayüze Entegre Edilmiş Hâli (Backtest / Geçmiş Saatlik Veriler) -->
+            <div class="card">
+                <div class="card-title">📊 Geçmiş Saatlik Sinyal Arşivi (Backtest Verisi)</div>
+                <div id="hourly-history-box" style="font-size: 11px; max-height: 140px; overflow-y: auto; color: var(--text-secondary);">
+                    Geçmiş kayıtlar yükleniyor...
+                </div>
             </div>
         </div>
     </div>
@@ -155,6 +163,26 @@
             await updateData();
         }
 
+        async function loadHourlyHistory() {
+            try {
+                const res = await fetch('/api/hourly-history');
+                const data = await res.json();
+                const box = document.getElementById('hourly-history-box');
+                if(data.hourly_history && data.hourly_history.length > 0) {
+                    let html = "<ul style='padding-left: 15px;'>";
+                    data.hourly_history.slice(0, 10).forEach(item => {
+                        html += `<li><b>${item.timestamp}</b> - Kaydedilen Coin Sayısı: ${Object.keys(item.coins).length}</li>`;
+                    });
+                    html += "</ul>";
+                    box.innerHTML = html;
+                } else {
+                    box.innerHTML = "Henüz saatlik kayıt oluşturulmadı (Her saatin başında otomatik kaydedilir).";
+                }
+            } catch(e) {
+                document.getElementById('hourly-history-box').innerText = "Geçmiş veriler alınamadı.";
+            }
+        }
+
         async function updateData() {
             const kRes = await fetch(`/api/klines/${currentCoin}?timeframe=${currentTimeframe}`);
             const kData = await kRes.json();
@@ -200,6 +228,7 @@
         window.onload = async () => {
             initChart();
             await loadCoins();
+            await loadHourlyHistory();
             setInterval(updateData, 6000);
         };
     </script>
