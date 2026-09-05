@@ -15,7 +15,7 @@ def verileri_guncelle():
     tum_veriler = []
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        # Doğrudan Binance yerine Cloudflare Worker proxy adresimiz kullanılıyor:
+        # Cloudflare Worker proxy adresimiz üzerinden verileri çekiyoruz
         r = requests.get("https://super-cake-7cf3.ismkya3458.workers.dev/", headers=headers, timeout=10)
         
         if r.status_code == 200:
@@ -24,14 +24,17 @@ def verileri_guncelle():
                 symbol = item.get('symbol', '')
                 if symbol.endswith('USDT'):
                     base_symbol = symbol.replace('USDT', '')
-                    fiyat = float(item.get('lastPrice', 0))
-                    hacim = float(item.get('quoteVolume', 0))
+                    try:
+                        fiyat = float(item.get('lastPrice', 0))
+                        hacim = float(item.get('quoteVolume', 0))
+                    except (ValueError, TypeError):
+                        continue
                     
-                    if fiyat > 0 and hacim > 0:
+                    if fiyat > 0:
                         tum_veriler.append({
                             'symbol': base_symbol,
                             'fiyat': fiyat,
-                            'hacim': hacim
+                            'hacim': hacim if hacim > 0 else 1.0
                         })
     except Exception as e:
         print("API bağlantı uyarısı:", e)
