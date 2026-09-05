@@ -7,23 +7,27 @@ app = Flask(__name__)
 @app.route('/')
 def anasayfa():
     try:
-        # Binance'in bot korumasını aşmak için tarayıcı kimliği (headers) ekliyoruz
+        # Binance bulut IP'lerini engellediği için bulut dostu OKX Swap API'sini kullanıyoruz
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
         
-        r = requests.get("https://fapi.binance.com/fapi/v1/ticker/price", headers=headers, timeout=10)
+        r = requests.get("https://www.okx.com/api/v5/market/tickers?instType=SWAP", headers=headers, timeout=10)
         r.raise_for_status()
         
-        tum_veriler = r.json()
+        response_data = r.json()
+        tum_veriler = response_data.get('data', [])
+        
         coin_kartlari = ""
         sayac = 0
         
         for item in tum_veriler:
-            symbol = item['symbol']
-            if symbol.endswith('USDT'):
+            inst_id = item.get('instId', '')
+            # Sadece USDT vadeli (swap) kontratları filtreleyelim
+            if inst_id.endswith('-USDT-SWAP'):
                 try:
-                    fiyat = float(item['price'])
+                    fiyat = float(item['last'])
+                    symbol = inst_id.replace('-SWAP', '') # Örn: BTC-USDT
                     terste_short = fiyat * 1.015
                     tasfiye_havuzu = fiyat * 950
                     
@@ -49,7 +53,7 @@ def anasayfa():
     <head>
         <meta charset="UTF-8">
         <meta http-equiv="refresh" content="15">
-        <title>Binance Futures Paneli</title>
+        <title>Tüm Vadeli Coinler Paneli</title>
         <style>
             body {{ background-color: #0b0f19; color: #94a3b8; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; margin: 0; }}
             .container {{ max-width: 1200px; margin: 0 auto; background: #111827; padding: 25px; border-radius: 16px; border: 1px solid #1f2937; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }}
@@ -66,7 +70,7 @@ def anasayfa():
     </head>
     <body>
         <div class="container">
-            <h1>Binance Futures - Tüm Vadeli Coinler Paneli</h1>
+            <h1>Tüm Vadeli Coinler Paneli (OKX Altyapısı)</h1>
             <div class="sub-title">Aktif Taranan Vadeli Coin Sayısı: <span class="green">{sayac}</span></div>
             
             <div class="grid">
