@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>Multi-Exchange Likidasyon ve Pozisyon Paneli</title>
+    <!-- Sayfa her 10 saniyede bir kendini yeniler, böylece veriler canlı akar -->
     <meta http-equiv="refresh" content="10">
     <style>
         body { background-color: #0b0f19; color: #94a3b8; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; margin: 0; }
@@ -26,6 +27,7 @@
         <div class="sub-title">Binance & Hyperliquid Gerçek Zamanlı Veri Agregatörü</div>
         
         <div class="grid">
+            <!-- Binance Kartı -->
             <div class="card" style="border-left-color: #f59e0b;">
                 <h3>📊 Binance Futures (BTC/USDT)</h3>
                 <p>Anlık Fiyat: <span class="green">{{ binance_fiyat }}</span></p>
@@ -33,6 +35,7 @@
                 <p>Dakikalık İşlem Sayısı: {{ binance_islem_sayisi }}</p>
             </div>
             
+            <!-- Hyperliquid Kartı -->
             <div class="card" style="border-left-color: #8b5cf6;">
                 <h3>🌐 Hyperliquid (On-Chain)</h3>
                 <p>Toplam AUM (Varlık): <span class="green">{{ hyper_aum }}</span></p>
@@ -41,6 +44,7 @@
             </div>
         </div>
 
+        <!-- Genel Analiz Kartı -->
         <div class="full-card">
             <h3>🚨 Likidasyon ve Ortalama Maliyet Analizi</h3>
             <p><b>Piyasa Baskı Durumu:</b> {{ analiz_mesaji }}</p>
