@@ -15,7 +15,8 @@ def verileri_guncelle():
     tum_veriler = []
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        r = requests.get("https://fapi.binance.com/fapi/v1/ticker/24hr", headers=headers, timeout=10)
+        # Doğrudan Binance yerine Cloudflare Worker proxy adresimiz kullanılıyor:
+        r = requests.get("https://super-cake-7cf3.ismkya3458.workers.dev/", headers=headers, timeout=10)
         
         if r.status_code == 200:
             binance_data = r.json()
