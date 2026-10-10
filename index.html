@@ -334,8 +334,6 @@
                         if (coinData) {
                             foundAny = true;
                             let srcData = coinData[currentSource] || coinData['trak'] || {};
-                            
-                            // Parantez içindeki K size değerlerini güvenli bir şekilde ekliyoruz
                             let longSize = (srcData.long_size !== undefined) ? srcData.long_size.toFixed(1) : "0.0";
                             let shortSize = (srcData.short_size !== undefined) ? srcData.short_size.toFixed(1) : "0.0";
 
@@ -428,12 +426,13 @@
                     }
 
                     document.getElementById('patternsContainer').innerHTML = `<div class="no-pattern">Aktif Formasyon Bulunamadı</div>`;
-                    let srcData = d.sources[currentSource] || d.sources["trak"];
-                    document.getElementById('longVal').innerText = "$" + formatPrice(srcData.long_avg);
-                    document.getElementById('longSub').innerText = `(${srcData.long_count} işlem, $${srcData.long_size.toFixed(1)}K size)`;
-                    document.getElementById('shortVal').innerText = "$" + formatPrice(srcData.short_avg);
-                    document.getElementById('shortSub').innerText = `(${srcData.short_count} işlem, $${srcData.short_size.toFixed(1)}K size)`;
-                    document.getElementById('avgVal').innerText = "$" + formatPrice(srcData.general_avg);
+                    let srcData = (d.sources && d.sources[currentSource]) ? d.sources[currentSource] : (d.sources ? d.sources["trak"] : {});
+                    
+                    document.getElementById('longVal').innerText = "$" + formatPrice(srcData.long_avg || 0);
+                    document.getElementById('longSub').innerText = `(${srcData.long_count || 0} işlem, $${(srcData.long_size || 0).toFixed(1)}K size)`;
+                    document.getElementById('shortVal').innerText = "$" + formatPrice(srcData.short_avg || 0);
+                    document.getElementById('shortSub').innerText = `(${srcData.short_count || 0} işlem, $${(srcData.short_size || 0).toFixed(1)}K size)`;
+                    document.getElementById('avgVal').innerText = "$" + formatPrice(srcData.general_avg || 0);
                     
                     let now = new Date();
                     document.getElementById('currentTime').innerText = now.toLocaleDateString('tr-TR') + " " + now.toLocaleTimeString('tr-TR') + " (TRT)";
