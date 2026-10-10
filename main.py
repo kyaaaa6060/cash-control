@@ -8,23 +8,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from contextlib import asynccontextmanager
 
-CACHE = {
-    "last_update": 0,
-    "data": {}
-}
-
 HISTORY_FILE = "trade_history.json"
 HOURLY_HISTORY_FILE = "hourly_history.json"
 
 TF_MAP = {
-    "5": "5",
-    "15": "15",
-    "30": "30",
-    "60": "60",
-    "120": "120",
-    "240": "240",
-    "D": "D",
-    "W": "W"
+    "5": "5m",
+    "15": "15m",
+    "30": "30m",
+    "60": "1h",
+    "120": "2h",
+    "240": "4h",
+    "D": "1d",
+    "W": "1w"
 }
 
 def load_trade_history():
@@ -62,10 +57,10 @@ def save_hourly_history(history_data):
 TRADE_STORE = load_trade_history()
 ACTIVE_TRADES = TRADE_STORE.get("active", {})
 CLOSED_TRADES = TRADE_STORE.get("closed", [])
-
 HOURLY_RECORDS = load_hourly_history()
 LAST_RECORDED_HOUR = -1
 
+# Varsayılan Fallback Verileri (API bağlantı sorunlarında sitenin çökmesini engeller)
 DEFAULT_COINS = {
     "BTC": 68000.0, "ETH": 3500.0, "SOL": 180.0, "XRP": 0.60, "AVAX": 35.0,
     "BNB": 600.0, "DOGE": 0.12, "ADA": 0.45, "LINK": 18.0, "NEAR": 6.5
@@ -126,59 +121,49 @@ def generate_fallback_data():
     }
     return processed
 
-def get_market_tickers():
+CACHE = {
+    "last_update": time.time(),
+    "data": generate_fallback_data()
+}
+
+def get_binance_futures_tickers():
     try:
-        url = "https://api.bybit.com/v5/market/tickers?category=linear"
-        res = requests.get(url, timeout=4)
+        url = "https://fapi.binance.com/fapi/v1/premiumIndex"
+        res = requests.get(url, timeout=3)
         if res.status_code == 200:
-            data = res.json()
-            if data.get("retCode") == 0:
-                tickers = {}
-                for item in data.get("result", {}).get("list", []):
-                    symbol = item.get("symbol", "")
-                    if symbol.endswith("USDT"):
-                        base_name = symbol.replace("USDT", "")
-                        tickers[base_name] = {
-                            "markPrice": float(item.get("markPrice", item.get("lastPrice", 0))),
-                            "fundingRate": float(item.get("fundingRate", 0)) * 100
-                        }
-                if tickers:
-                    return tickers
+            tickers = {}
+            for item in res.json():
+                symbol = item.get("symbol", "")
+                if symbol.endswith("USDT"):
+                    base_name = symbol.replace("USDT", "")
+                    tickers[base_name] = {
+                        "markPrice": float(item.get("markPrice", 0)),
+                        "fundingRate": float(item.get("lastFundingRate", 0)) * 100
+                    }
+            return tickers
     except Exception as e:
-        print("Bybit tickers error:", e)
+        print("Binance API uyarısı (Fallback kullanılacak):", e)
     return {}
 
 def get_pivot_levels(symbol: str, timeframe: str):
-    tf = TF_MAP.get(timeframe, "15")
-    url = f"https://api.bybit.com/v5/market/kline?category=linear&symbol={symbol}USDT&interval={tf}&limit=2"
+    binance_tf = TF_MAP.get(timeframe, "15m")
+    url = f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}USDT&interval={binance_tf}&limit=2"
     try:
         res = requests.get(url, timeout=3)
         if res.status_code == 200:
-            data = res.json()
-            if data.get("retCode") == 0:
-                klines = data.get("result", {}).get("list", [])
-                if klines and len(klines) > 0:
-                    candle = klines[0]
-                    high = float(candle[2])
-                    low = float(candle[3])
-                    close = float(candle[4])
-                    
-                    pivot = (high + low + close) / 3
-                    r1 = (2 * pivot) - low
-                    s1 = (2 * pivot) - high
-                    r2 = pivot + (high - low)
-                    s2 = pivot - (high - low)
-                    r3 = high + 2 * (pivot - low)
-                    s3 = low - 2 * (high - pivot)
-                    
-                    return {
-                        "res3": r3, "res2": r2, "res1": r1,
-                        "pivot": pivot,
-                        "sup1": s1, "sup2": s2, "sup3": s3
-                    }
-    except Exception as e:
-        print(f"Pivot hesaplama hatası ({symbol} {timeframe}):", e)
-    
+            klines = res.json()
+            if klines and len(klines) > 0:
+                candle = klines[-2] if len(klines) >= 2 else klines[-1]
+                high, low, close = float(candle[2]), float(candle[3]), float(candle[4])
+                pivot = (high + low + close) / 3
+                return {
+                    "res3": high + 2 * (pivot - low), "res2": pivot + (high - low), "res1": (2 * pivot) - low,
+                    "pivot": pivot,
+                    "sup1": (2 * pivot) - high, "sup2": pivot - (high - low), "sup3": low - 2 * (high - pivot)
+                }
+    except:
+        pass
+    # Pivot hesaplanamazsa mevcut fiyata göre tahmini pivot üret
     base_px = DEFAULT_COINS.get(symbol, 100.0)
     high, low = base_px * 1.012, base_px * 0.988
     pivot = (high + low + base_px) / 3
@@ -200,7 +185,7 @@ def fetch_karma_market_data():
     total_open_interest_usd = 0
     all_prices = []
     
-    market_data = get_market_tickers()
+    binance_data = get_binance_futures_tickers()
     hl_url = "https://api.hyperliquid.xyz/info"
     payload = {"type": "metaAndAssetCtxs"}
     
@@ -217,9 +202,9 @@ def fetch_karma_market_data():
                 ctx = ctxs[i]
                 open_interest = float(ctx.get("openInterest", 0))
                 
-                if name in market_data and market_data[name]["markPrice"] > 0:
-                    mark_px = market_data[name]["markPrice"]
-                    funding = market_data[name]["fundingRate"]
+                if name in binance_data and binance_data[name]["markPrice"] > 0:
+                    mark_px = binance_data[name]["markPrice"]
+                    funding = binance_data[name]["fundingRate"]
                 else:
                     mark_px = float(ctx.get("markPx", 0))
                     funding = float(ctx.get("funding", 0)) * 100
@@ -283,7 +268,7 @@ def fetch_karma_market_data():
                     "symbol": f"{name}USDT", "markPrice": mark_px, "fundingRate": funding,
                     "openInterestUSD": oi_usd, "sources": coin_sources_data, "ai_analysis": ai_report
                 }
-            
+
             current_hour = time.localtime().tm_hour
             if current_hour != LAST_RECORDED_HOUR:
                 hourly_snapshot = {
@@ -307,7 +292,8 @@ def fetch_karma_market_data():
             }
             return processed_coins
     except Exception as e:
-        print("Veri hatası:", e)
+        print("API veri çekme hatası (Fallback verileri devrede):", e)
+    
     return generate_fallback_data()
 
 def background_market_worker():
@@ -328,7 +314,7 @@ async def lifespan(app: FastAPI):
     threading.Thread(target=background_market_worker, daemon=True).start()
     yield
 
-app = FastAPI(title="Cash Control Engine", version="13.12", lifespan=lifespan)
+app = FastAPI(title="Cash Control Engine", version="13.7", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 @app.get("/", response_class=HTMLResponse)
@@ -337,7 +323,7 @@ def read_index():
         with open("index.html", "r", encoding="utf-8") as f:
             return f.read()
     except FileNotFoundError:
-        return "<h3>index.html dosyası bulunamadı!</h3>"
+        return "<h3>index.html dosyası ana dizinde bulunamadı!</h3>"
 
 @app.get("/api/coins")
 def get_all_coins():
@@ -352,6 +338,7 @@ def get_coin_stats(symbol: str, timeframe: str = "15"):
     symbol = symbol.upper()
     coin_data = CACHE["data"].get(symbol)
     if not coin_data:
+        # Eğer coin önbellekte yoksa varsayılan fallback oluştur
         fallback = generate_fallback_data()
         coin_data = fallback.get(symbol, fallback["BTC"])
 
@@ -359,43 +346,6 @@ def get_coin_stats(symbol: str, timeframe: str = "15"):
     response_data = dict(coin_data)
     response_data["pivots"] = pivots
     return {"status": "success", "data": response_data, "global": CACHE["data"].get("_GLOBAL_SUMMARY_", {})}
-
-# Bybit v5 Klines Proxy Endpoint (Bulut sunucularda %100 canlı, kesintisiz ve engelsiz grafik verisi)
-@app.get("/api/klines/{symbol}")
-def get_klines(symbol: str, timeframe: str = "15"):
-    symbol = symbol.upper()
-    tf = TF_MAP.get(timeframe, "15")
-    url = f"https://api.bybit.com/v5/market/kline?category=linear&symbol={symbol}USDT&interval={tf}&limit=200"
-    try:
-        res = requests.get(url, timeout=5)
-        if res.status_code == 200:
-            json_data = res.json()
-            if json_data.get("retCode") == 0:
-                raw_list = json_data.get("result", {}).get("list", [])
-                if raw_list:
-                    raw_list.reverse()
-                    formatted_data = []
-                    for item in raw_list:
-                        formatted_data.append([int(item[0]), item[1], item[2], item[3], item[4]])
-                    return {"status": "success", "data": formatted_data}
-    except Exception as e:
-        print("Bybit klines proxy error:", e)
-    
-    # Güvenli Yedek Mum Üreticisi
-    base_px = DEFAULT_COINS.get(symbol, 100.0)
-    now_ts = int(time.time() * 1000)
-    step = 15 * 60 * 1000 
-    dummy_data = []
-    cur = base_px * 0.95
-    for i in range(200):
-        t = now_ts - (200 - i) * step
-        o = cur
-        h = cur * 1.012
-        l = cur * 0.988
-        c = cur * (1.003 if i % 2 == 0 else 0.997)
-        cur = c
-        dummy_data.append([t, str(o), str(h), str(l), str(c)])
-    return {"status": "success", "data": dummy_data}
 
 @app.get("/api/trade-history")
 def get_trade_history():
@@ -407,5 +357,4 @@ def get_hourly_history():
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
