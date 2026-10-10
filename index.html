@@ -263,14 +263,19 @@
                 resetBtn.style.opacity = "0.5";
                 resetBtn.style.pointerEvents = "none";
             }
-            initLightweightChart();
-            loadCoins();
+            
+            // Şifre geçildikten hemen sonra grafik kutusunun boyut alabilmesi için kısa bir gecikme ile başlatıyoruz
+            setTimeout(() => {
+                initLightweightChart();
+                loadCoins();
+            }, 50);
+
             loadTradeHistory();
             startLiveClock();
             startFastPriceTicker();
         }
 
-        // Güvenli Grafik Başlatma (Hata yakalamalı)
+        // Güvenli ve Boyut Fallback'li Grafik Başlatma
         function initLightweightChart() {
             try {
                 const container = document.getElementById('tradingview-container');
@@ -281,9 +286,13 @@
                     return;
                 }
 
+                // Genişlik ve yükseklik 0 gelirse ekran boyutlarını baz al (Fallback)
+                const chartWidth = container.clientWidth || window.innerWidth;
+                const chartHeight = container.clientHeight || window.innerHeight;
+
                 chart = LightweightCharts.createChart(container, {
-                    width: container.clientWidth,
-                    height: container.clientHeight,
+                    width: chartWidth,
+                    height: chartHeight,
                     layout: {
                         background: { type: 'solid', color: '#0b0e11' },
                         textColor: '#eaeaea',
@@ -315,7 +324,10 @@
 
                 window.addEventListener('resize', () => {
                     if(container && chart) {
-                        chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+                        chart.applyOptions({ 
+                            width: container.clientWidth || window.innerWidth, 
+                            height: container.clientHeight || window.innerHeight 
+                        });
                     }
                 });
             } catch (e) {
