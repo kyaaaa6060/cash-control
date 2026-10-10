@@ -375,11 +375,30 @@
         function updateTradingViewChart(symbol, timeframe) {
             document.getElementById('tradingview-container').innerHTML = '';
             tvWidget = new TradingView.widget({
-                "autosize": true, "symbol": "BINANCE:" + symbol + "USDT", "interval": timeframe,
-                "timezone": "Europe/Istanbul", "theme": "dark", "style": "1", "locale": "tr",
-                "toolbar_bg": "#1e2329", "enable_publishing": false, "hide_side_toolbar": false,
-                "hide_top_toolbar": false, "save_image": false, "container_id": "tradingview-container"
+                "autosize": true, 
+                "symbol": "BINANCE:" + symbol + "USDT", 
+                "interval": timeframe,
+                "timezone": "Europe/Istanbul", 
+                "theme": "dark", 
+                "style": "1", 
+                "locale": "tr",
+                "toolbar_bg": "#1e2329", 
+                "enable_publishing": false, 
+                "hide_side_toolbar": false,
+                "hide_top_toolbar": false, 
+                "save_image": true, // Grafik ekran görüntüsü alma aktif
+                "container_id": "tradingview-container"
             });
+        }
+
+        function getPnlStatusText(markPrice, longAvg, shortAvg) {
+            if (markPrice > longAvg && markPrice > shortAvg) {
+                return `🔴 Shortcu Zararı | 🟢 Longcu Kârı`;
+            } else if (markPrice < longAvg && markPrice < shortAvg) {
+                return `🟢 Shortcu Kârı | 🔴 Longcu Zararı`;
+            } else {
+                return `⚖️ Karışık Bölge (Nötr)`;
+            }
         }
 
         async function loadCoins() {
@@ -409,7 +428,9 @@
                 if(json.status === 'success') {
                     let d = json.data;
                     let ai = d.ai_analysis;
-                    document.getElementById('markPrice').innerText = "$" + formatPrice(d.markPrice);
+                    let markPx = parseFloat(d.markPrice);
+
+                    document.getElementById('markPrice').innerText = "$" + formatPrice(markPx);
                     document.getElementById('aiComment').innerText = `[${timeframe} Periyot] ` + ai.comment;
                     document.getElementById('valEntry').innerText = "$" + formatPrice(ai.entry);
                     document.getElementById('valTP').innerText = "$" + formatPrice(ai.tp);
@@ -428,11 +449,28 @@
                     document.getElementById('patternsContainer').innerHTML = `<div class="no-pattern">Aktif Formasyon Bulunamadı</div>`;
                     let srcData = (d.sources && d.sources[currentSource]) ? d.sources[currentSource] : (d.sources ? d.sources["trak"] : {});
                     
-                    document.getElementById('longVal').innerText = "$" + formatPrice(srcData.long_avg || 0);
+                    let longAvg = parseFloat(srcData.long_avg || 0);
+                    let shortAvg = parseFloat(srcData.short_avg || 0);
+
+                    document.getElementById('longVal').innerText = "$" + formatPrice(longAvg);
                     document.getElementById('longSub').innerText = `(${srcData.long_count || 0} işlem, $${(srcData.long_size || 0).toFixed(1)}K size)`;
-                    document.getElementById('shortVal').innerText = "$" + formatPrice(srcData.short_avg || 0);
+                    document.getElementById('shortVal').innerText = "$" + formatPrice(shortAvg);
                     document.getElementById('shortSub').innerText = `(${srcData.short_count || 0} işlem, $${(srcData.short_size || 0).toFixed(1)}K size)`;
                     document.getElementById('avgVal').innerText = "$" + formatPrice(srcData.general_avg || 0);
+
+                    // Kâr/Zarar etiket durumunu üst rozet paneline güncel olarak ekleme
+                    let pnlBadgeHtml = getPnlStatusText(markPx, longAvg, shortAvg);
+                    let badgeContainer = document.querySelector('.ivme-top div');
+                    if (badgeContainer) {
+                        let existingPnl = document.getElementById('pnlStatusBadge');
+                        if (existingPnl) existingPnl.remove();
+                        
+                        let newBadge = document.createElement('span');
+                        newBadge.id = 'pnlStatusBadge';
+                        newBadge.style.cssText = "background: rgba(255, 255, 255, 0.1); border: 1px solid #3a4149; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: bold; color: #f0b90b;";
+                        newBadge.innerText = pnlBadgeHtml;
+                        badgeContainer.appendChild(newBadge);
+                    }
                     
                     let now = new Date();
                     document.getElementById('currentTime').innerText = now.toLocaleDateString('tr-TR') + " " + now.toLocaleTimeString('tr-TR') + " (TRT)";
