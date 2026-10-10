@@ -8,6 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from contextlib import asynccontextmanager
 
+CACHE = {
+    "last_update": 0,
+    "data": {}
+}
+
 HISTORY_FILE = "trade_history.json"
 HOURLY_HISTORY_FILE = "hourly_history.json"
 
@@ -57,10 +62,10 @@ def save_hourly_history(history_data):
 TRADE_STORE = load_trade_history()
 ACTIVE_TRADES = TRADE_STORE.get("active", {})
 CLOSED_TRADES = TRADE_STORE.get("closed", [])
+
 HOURLY_RECORDS = load_hourly_history()
 LAST_RECORDED_HOUR = -1
 
-# Varsayılan Fallback Verileri (API bağlantı sorunlarında sitenin çökmesini engeller)
 DEFAULT_COINS = {
     "BTC": 68000.0, "ETH": 3500.0, "SOL": 180.0, "XRP": 0.60, "AVAX": 35.0,
     "BNB": 600.0, "DOGE": 0.12, "ADA": 0.45, "LINK": 18.0, "NEAR": 6.5
@@ -121,11 +126,6 @@ def generate_fallback_data():
     }
     return processed
 
-CACHE = {
-    "last_update": time.time(),
-    "data": generate_fallback_data()
-}
-
 def get_binance_futures_tickers():
     try:
         url = "https://fapi.binance.com/fapi/v1/premiumIndex"
@@ -142,7 +142,7 @@ def get_binance_futures_tickers():
                     }
             return tickers
     except Exception as e:
-        print("Binance API uyarısı (Fallback kullanılacak):", e)
+        print("Binance Mark Price hatası:", e)
     return {}
 
 def get_pivot_levels(symbol: str, timeframe: str):
@@ -154,16 +154,26 @@ def get_pivot_levels(symbol: str, timeframe: str):
             klines = res.json()
             if klines and len(klines) > 0:
                 candle = klines[-2] if len(klines) >= 2 else klines[-1]
-                high, low, close = float(candle[2]), float(candle[3]), float(candle[4])
+                high = float(candle[2])
+                low = float(candle[3])
+                close = float(candle[4])
+                
                 pivot = (high + low + close) / 3
+                r1 = (2 * pivot) - low
+                s1 = (2 * pivot) - high
+                r2 = pivot + (high - low)
+                s2 = pivot - (high - low)
+                r3 = high + 2 * (pivot - low)
+                s3 = low - 2 * (high - pivot)
+                
                 return {
-                    "res3": high + 2 * (pivot - low), "res2": pivot + (high - low), "res1": (2 * pivot) - low,
+                    "res3": r3, "res2": r2, "res1": r1,
                     "pivot": pivot,
-                    "sup1": (2 * pivot) - high, "sup2": pivot - (high - low), "sup3": low - 2 * (high - pivot)
+                    "sup1": s1, "sup2": s2, "sup3": s3
                 }
-    except:
-        pass
-    # Pivot hesaplanamazsa mevcut fiyata göre tahmini pivot üret
+    except Exception as e:
+        print(f"Pivot hesaplama hatası ({symbol} {timeframe}):", e)
+    
     base_px = DEFAULT_COINS.get(symbol, 100.0)
     high, low = base_px * 1.012, base_px * 0.988
     pivot = (high + low + base_px) / 3
@@ -217,6 +227,7 @@ def fetch_karma_market_data():
                 
                 coin_sources_data = {}
                 for src in sources:
+                    # Standart oran hesaplaması (özel kısıtlama olmadan)
                     multiplier = 1.0 if src == "trak" else (0.98 if "whale" in src else 1.01)
                     long_avg = mark_px * 0.995 * multiplier
                     short_avg = mark_px * 1.008 * multiplier
@@ -268,7 +279,7 @@ def fetch_karma_market_data():
                     "symbol": f"{name}USDT", "markPrice": mark_px, "fundingRate": funding,
                     "openInterestUSD": oi_usd, "sources": coin_sources_data, "ai_analysis": ai_report
                 }
-
+            
             current_hour = time.localtime().tm_hour
             if current_hour != LAST_RECORDED_HOUR:
                 hourly_snapshot = {
@@ -292,8 +303,7 @@ def fetch_karma_market_data():
             }
             return processed_coins
     except Exception as e:
-        print("API veri çekme hatası (Fallback verileri devrede):", e)
-    
+        print("Veri hatası:", e)
     return generate_fallback_data()
 
 def background_market_worker():
@@ -314,7 +324,7 @@ async def lifespan(app: FastAPI):
     threading.Thread(target=background_market_worker, daemon=True).start()
     yield
 
-app = FastAPI(title="Cash Control Engine", version="13.7", lifespan=lifespan)
+app = FastAPI(title="Cash Control Engine", version="13.9", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 @app.get("/", response_class=HTMLResponse)
@@ -323,7 +333,7 @@ def read_index():
         with open("index.html", "r", encoding="utf-8") as f:
             return f.read()
     except FileNotFoundError:
-        return "<h3>index.html dosyası ana dizinde bulunamadı!</h3>"
+        return "<h3>index.html dosyası bulunamadı!</h3>"
 
 @app.get("/api/coins")
 def get_all_coins():
@@ -338,7 +348,6 @@ def get_coin_stats(symbol: str, timeframe: str = "15"):
     symbol = symbol.upper()
     coin_data = CACHE["data"].get(symbol)
     if not coin_data:
-        # Eğer coin önbellekte yoksa varsayılan fallback oluştur
         fallback = generate_fallback_data()
         coin_data = fallback.get(symbol, fallback["BTC"])
 
@@ -357,4 +366,5 @@ def get_hourly_history():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
