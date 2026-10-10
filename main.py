@@ -227,7 +227,6 @@ def fetch_karma_market_data():
                 
                 coin_sources_data = {}
                 for src in sources:
-                    # Standart oran hesaplaması (özel kısıtlama olmadan)
                     multiplier = 1.0 if src == "trak" else (0.98 if "whale" in src else 1.01)
                     long_avg = mark_px * 0.995 * multiplier
                     short_avg = mark_px * 1.008 * multiplier
@@ -324,7 +323,7 @@ async def lifespan(app: FastAPI):
     threading.Thread(target=background_market_worker, daemon=True).start()
     yield
 
-app = FastAPI(title="Cash Control Engine", version="13.9", lifespan=lifespan)
+app = FastAPI(title="Cash Control Engine", version="13.10", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 @app.get("/", response_class=HTMLResponse)
@@ -355,6 +354,20 @@ def get_coin_stats(symbol: str, timeframe: str = "15"):
     response_data = dict(coin_data)
     response_data["pivots"] = pivots
     return {"status": "success", "data": response_data, "global": CACHE["data"].get("_GLOBAL_SUMMARY_", {})}
+
+# Frontend CORS engeline takılmasın diye Binance Klines Proxy Endpoint
+@app.get("/api/klines/{symbol}")
+def get_klines(symbol: str, timeframe: str = "15"):
+    symbol = symbol.upper()
+    binance_tf = TF_MAP.get(timeframe, "15m")
+    url = f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}USDT&interval={binance_tf}&limit=200"
+    try:
+        res = requests.get(url, timeout=5)
+        if res.status_code == 200:
+            return {"status": "success", "data": res.json()}
+    except Exception as e:
+        print("Klines proxy error:", e)
+    return {"status": "error", "data": []}
 
 @app.get("/api/trade-history")
 def get_trade_history():
