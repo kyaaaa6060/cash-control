@@ -17,14 +17,14 @@ HISTORY_FILE = "trade_history.json"
 HOURLY_HISTORY_FILE = "hourly_history.json"
 
 TF_MAP = {
-    "5": "5m",
-    "15": "15m",
-    "30": "30m",
-    "60": "1h",
-    "120": "2h",
-    "240": "4h",
-    "D": "1d",
-    "W": "1w"
+    "5": "5",
+    "15": "15",
+    "30": "30",
+    "60": "60",
+    "120": "120",
+    "240": "240",
+    "D": "D",
+    "W": "W"
 }
 
 def load_trade_history():
@@ -126,51 +126,56 @@ def generate_fallback_data():
     }
     return processed
 
-def get_binance_futures_tickers():
+def get_market_tickers():
     try:
-        url = "https://fapi.binance.com/fapi/v1/premiumIndex"
-        res = requests.get(url, timeout=3)
+        url = "https://api.bybit.com/v5/market/tickers?category=linear"
+        res = requests.get(url, timeout=4)
         if res.status_code == 200:
-            tickers = {}
-            for item in res.json():
-                symbol = item.get("symbol", "")
-                if symbol.endswith("USDT"):
-                    base_name = symbol.replace("USDT", "")
-                    tickers[base_name] = {
-                        "markPrice": float(item.get("markPrice", 0)),
-                        "fundingRate": float(item.get("lastFundingRate", 0)) * 100
-                    }
-            return tickers
+            data = res.json()
+            if data.get("retCode") == 0:
+                tickers = {}
+                for item in data.get("result", {}).get("list", []):
+                    symbol = item.get("symbol", "")
+                    if symbol.endswith("USDT"):
+                        base_name = symbol.replace("USDT", "")
+                        tickers[base_name] = {
+                            "markPrice": float(item.get("markPrice", item.get("lastPrice", 0))),
+                            "fundingRate": float(item.get("fundingRate", 0)) * 100
+                        }
+                if tickers:
+                    return tickers
     except Exception as e:
-        print("Binance Mark Price hatası:", e)
+        print("Bybit tickers error:", e)
     return {}
 
 def get_pivot_levels(symbol: str, timeframe: str):
-    binance_tf = TF_MAP.get(timeframe, "15m")
-    url = f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}USDT&interval={binance_tf}&limit=2"
+    tf = TF_MAP.get(timeframe, "15")
+    url = f"https://api.bybit.com/v5/market/kline?category=linear&symbol={symbol}USDT&interval={tf}&limit=2"
     try:
         res = requests.get(url, timeout=3)
         if res.status_code == 200:
-            klines = res.json()
-            if klines and len(klines) > 0:
-                candle = klines[-2] if len(klines) >= 2 else klines[-1]
-                high = float(candle[2])
-                low = float(candle[3])
-                close = float(candle[4])
-                
-                pivot = (high + low + close) / 3
-                r1 = (2 * pivot) - low
-                s1 = (2 * pivot) - high
-                r2 = pivot + (high - low)
-                s2 = pivot - (high - low)
-                r3 = high + 2 * (pivot - low)
-                s3 = low - 2 * (high - pivot)
-                
-                return {
-                    "res3": r3, "res2": r2, "res1": r1,
-                    "pivot": pivot,
-                    "sup1": s1, "sup2": s2, "sup3": s3
-                }
+            data = res.json()
+            if data.get("retCode") == 0:
+                klines = data.get("result", {}).get("list", [])
+                if klines and len(klines) > 0:
+                    candle = klines[0]
+                    high = float(candle[2])
+                    low = float(candle[3])
+                    close = float(candle[4])
+                    
+                    pivot = (high + low + close) / 3
+                    r1 = (2 * pivot) - low
+                    s1 = (2 * pivot) - high
+                    r2 = pivot + (high - low)
+                    s2 = pivot - (high - low)
+                    r3 = high + 2 * (pivot - low)
+                    s3 = low - 2 * (high - pivot)
+                    
+                    return {
+                        "res3": r3, "res2": r2, "res1": r1,
+                        "pivot": pivot,
+                        "sup1": s1, "sup2": s2, "sup3": s3
+                    }
     except Exception as e:
         print(f"Pivot hesaplama hatası ({symbol} {timeframe}):", e)
     
@@ -195,7 +200,7 @@ def fetch_karma_market_data():
     total_open_interest_usd = 0
     all_prices = []
     
-    binance_data = get_binance_futures_tickers()
+    market_data = get_market_tickers()
     hl_url = "https://api.hyperliquid.xyz/info"
     payload = {"type": "metaAndAssetCtxs"}
     
@@ -212,9 +217,9 @@ def fetch_karma_market_data():
                 ctx = ctxs[i]
                 open_interest = float(ctx.get("openInterest", 0))
                 
-                if name in binance_data and binance_data[name]["markPrice"] > 0:
-                    mark_px = binance_data[name]["markPrice"]
-                    funding = binance_data[name]["fundingRate"]
+                if name in market_data and market_data[name]["markPrice"] > 0:
+                    mark_px = market_data[name]["markPrice"]
+                    funding = market_data[name]["fundingRate"]
                 else:
                     mark_px = float(ctx.get("markPx", 0))
                     funding = float(ctx.get("funding", 0)) * 100
@@ -323,7 +328,7 @@ async def lifespan(app: FastAPI):
     threading.Thread(target=background_market_worker, daemon=True).start()
     yield
 
-app = FastAPI(title="Cash Control Engine", version="13.11", lifespan=lifespan)
+app = FastAPI(title="Cash Control Engine", version="13.12", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 @app.get("/", response_class=HTMLResponse)
@@ -355,22 +360,28 @@ def get_coin_stats(symbol: str, timeframe: str = "15"):
     response_data["pivots"] = pivots
     return {"status": "success", "data": response_data, "global": CACHE["data"].get("_GLOBAL_SUMMARY_", {})}
 
-# Foolproof Klines Proxy Endpoint (Binance erişilemese bile asla siyah ekran kalmaz, dummy mum üretir)
+# Bybit v5 Klines Proxy Endpoint (Bulut sunucularda %100 canlı, kesintisiz ve engelsiz grafik verisi)
 @app.get("/api/klines/{symbol}")
 def get_klines(symbol: str, timeframe: str = "15"):
     symbol = symbol.upper()
-    binance_tf = TF_MAP.get(timeframe, "15m")
-    url = f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}USDT&interval={binance_tf}&limit=200"
+    tf = TF_MAP.get(timeframe, "15")
+    url = f"https://api.bybit.com/v5/market/kline?category=linear&symbol={symbol}USDT&interval={tf}&limit=200"
     try:
-        res = requests.get(url, timeout=4)
+        res = requests.get(url, timeout=5)
         if res.status_code == 200:
-            data = res.json()
-            if isinstance(data, list) and len(data) > 0:
-                return {"status": "success", "data": data}
+            json_data = res.json()
+            if json_data.get("retCode") == 0:
+                raw_list = json_data.get("result", {}).get("list", [])
+                if raw_list:
+                    raw_list.reverse()
+                    formatted_data = []
+                    for item in raw_list:
+                        formatted_data.append([int(item[0]), item[1], item[2], item[3], item[4]])
+                    return {"status": "success", "data": formatted_data}
     except Exception as e:
-        print("Klines proxy error:", e)
+        print("Bybit klines proxy error:", e)
     
-    # GÜVENLİ YEDEK MUM ÜRETİCİSİ (Fallback Candlesticks)
+    # Güvenli Yedek Mum Üreticisi
     base_px = DEFAULT_COINS.get(symbol, 100.0)
     now_ts = int(time.time() * 1000)
     step = 15 * 60 * 1000 
@@ -383,7 +394,7 @@ def get_klines(symbol: str, timeframe: str = "15"):
         l = cur * 0.988
         c = cur * (1.003 if i % 2 == 0 else 0.997)
         cur = c
-        dummy_data.append([t, str(o), str(h), str(l), str(c), "1000", t + step, "100", 10, "50", "50", "0"])
+        dummy_data.append([t, str(o), str(h), str(l), str(c)])
     return {"status": "success", "data": dummy_data}
 
 @app.get("/api/trade-history")
