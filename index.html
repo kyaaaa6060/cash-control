@@ -4,18 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cash Control - Yetkili Panel Mimarisi</title>
-    <!-- Lightweight Charts Kütüphanesi -->
-    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
     <style>
-        body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; height: 100vh; overflow: hidden; position: relative; }
+        body { background-color: #0b0e11; color: #eaeaea; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; height: 100vh; overflow: auto; position: relative; }
+        #tradingview-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
         
-        /* Ana Fiyat Grafiği Konteyneri */
-        #tradingview-container { width: 100vw; height: 74vh; position: absolute; top: 0; left: 0; z-index: 1; }
-        
-        /* Alt İndikatör Konteyneri (Stoch RSI) */
-        #subchart-container { width: 100vw; height: 24vh; position: absolute; bottom: 0; left: 0; z-index: 2; background: #0b0e11; border-top: 1px solid #2f363d; }
-        
-        /* Grafik Üzerindeki Canlı Seviye & Durum Katmanı */
+        /* Grafiğin Üzerindeki Canlı Seviye & Durum Katmanı (Overlay) */
         .chart-overlay-panel {
             position: absolute;
             top: 70px;
@@ -23,16 +17,16 @@
             z-index: 5;
             background: rgba(24, 26, 32, 0.88);
             border: 1px solid #2f363d;
-            padding: 8px 12px;
+            padding: 10px 14px;
             border-radius: 8px;
             backdrop-filter: blur(6px);
-            min-width: 200px;
+            min-width: 220px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.6);
             font-size: 11px;
             pointer-events: none;
         }
-        .overlay-title { font-weight: bold; color: #f0b90b; margin-bottom: 4px; border-bottom: 1px solid #2f363d; padding-bottom: 3px; display: flex; justify-content: space-between; }
-        .overlay-row { display: flex; justify-content: space-between; margin-bottom: 3px; gap: 10px; }
+        .overlay-title { font-weight: bold; color: #f0b90b; margin-bottom: 6px; border-bottom: 1px solid #2f363d; padding-bottom: 4px; display: flex; justify-content: space-between; }
+        .overlay-row { display: flex; justify-content: space-between; margin-bottom: 4px; gap: 10px; }
         .overlay-val { font-weight: bold; }
 
         .top-control-bar { position: absolute; top: 15px; right: 20px; z-index: 10; display: flex; gap: 8px; align-items: center; }
@@ -121,12 +115,8 @@
         </div>
     </div>
 
-    <!-- Ana Fiyat Grafiği Konteyneri -->
+    <!-- TradingView Grafik Alanı -->
     <div id="tradingview-container"></div>
-    
-    <!-- Alt İndikatör (Stoch RSI) Paneli Konteyneri -->
-    <div id="subchart-container"></div>
-
     <div id="liveClockBadge" class="live-clock-badge">--:--:--</div>
 
     <!-- Grafik Üzeri Canlı Katman -->
@@ -134,7 +124,7 @@
         <div class="overlay-title"><span id="ovCoinTitle">BTCUSDT</span> <span>Canlı Analiz</span></div>
         <div class="overlay-row"><span style="color: #0ecb81;">🟢 LONG Ort:</span> <span id="ovLong" class="overlay-val" style="color: #0ecb81;">$-</span></div>
         <div class="overlay-row"><span style="color: #f6465d;">🔴 SHORT Ort:</span> <span id="ovShort" class="overlay-val" style="color: #f6465d;">$-</span></div>
-        <div class="overlay-row" style="margin-top: 3px; border-top: 1px dashed #2f363d; padding-top: 3px;"><span style="color: #848e9c;">Durum:</span></div>
+        <div class="overlay-row" style="margin-top: 4px; border-top: 1px dashed #2f363d; padding-top: 4px;"><span style="color: #848e9c;">Durum:</span></div>
         <div id="ovStatus" style="font-weight: bold; color: #f0b90b; text-align: center; margin-top: 2px;">Hesaplanıyor...</div>
     </div>
 
@@ -268,15 +258,7 @@
         let autoInterval = null;
         let clockInterval = null;
         let currentUserRole = null;
-
-        let chart = null;
-        let candleSeries = null;
-        let longPriceLine = null;
-        let shortPriceLine = null;
-
-        let subChart = null;
-        let stochKSeries = null;
-        let stochDSeries = null;
+        let tvWidget = null;
 
         let totalSyncSeconds = 300;
         let secondsLeft = 300;
@@ -307,157 +289,31 @@
                 resetBtn.style.pointerEvents = "none";
             }
             
-            setTimeout(() => {
-                initCharts();
-                loadCoins();
-            }, 50);
-
+            updateTradingViewChart(currentSymbol, currentTimeframe);
+            loadCoins();
             loadTradeHistory();
             startLiveClock();
             startFastPriceTicker();
         }
 
-        function initCharts() {
-            try {
-                const mainContainer = document.getElementById('tradingview-container');
-                const subContainer = document.getElementById('subchart-container');
-                mainContainer.innerHTML = '';
-                subContainer.innerHTML = '';
-
-                if (typeof LightweightCharts === 'undefined') return;
-
-                chart = LightweightCharts.createChart(mainContainer, {
-                    width: mainContainer.clientWidth || window.innerWidth,
-                    height: mainContainer.clientHeight || (window.innerHeight * 0.74),
-                    layout: { background: { type: 'solid', color: '#0b0e11' }, textColor: '#eaeaea' },
-                    grid: { vertLines: { color: '#161a1e' }, horzLines: { color: '#161a1e' } },
-                    timeScale: { visible: false },
-                    rightPriceScale: { borderColor: '#2f363d' }
-                });
-
-                candleSeries = chart.addCandlestickSeries({
-                    upColor: '#0ecb81', downColor: '#f6465d',
-                    borderVisible: false, wickUpColor: '#0ecb81', wickDownColor: '#f6465d',
-                });
-
-                subChart = LightweightCharts.createChart(subContainer, {
-                    width: subContainer.clientWidth || window.innerWidth,
-                    height: subContainer.clientHeight || (window.innerHeight * 0.24),
-                    layout: { background: { type: 'solid', color: '#0b0e11' }, textColor: '#848e9c' },
-                    grid: { vertLines: { color: '#161a1e' }, horzLines: { color: '#161a1e' } },
-                    timeScale: { timeVisible: true, secondsVisible: false, borderColor: '#2f363d' },
-                    rightPriceScale: { borderColor: '#2f363d', scaleMargins: { top: 0.1, bottom: 0.1 } }
-                });
-
-                stochKSeries = subChart.addLineSeries({ color: '#2962ff', lineWidth: 2, title: 'Stoch %K' });
-                stochDSeries = subChart.addLineSeries({ color: '#ff6d00', lineWidth: 2, title: 'Stoch %D' });
-
-                chart.timeScale().subscribeVisibleTimeRangeChange(range => {
-                    if (range) subChart.timeScale().setVisibleRange(range);
-                });
-                subChart.timeScale().subscribeVisibleTimeRangeChange(range => {
-                    if (range) chart.timeScale().setVisibleRange(range);
-                });
-
-                window.addEventListener('resize', () => {
-                    if (mainContainer && chart) {
-                        chart.applyOptions({ width: mainContainer.clientWidth, height: mainContainer.clientHeight });
-                    }
-                    if (subContainer && subChart) {
-                        subChart.applyOptions({ width: subContainer.clientWidth, height: subContainer.clientHeight });
-                    }
-                });
-            } catch (e) {
-                console.error("Grafik oluşturma hatası:", e);
-            }
-        }
-
-        // Proxy Üzerinden Güvenli Grafik Verisi Çekme (CORS Engeline Takılmaz)
-        async function loadChartData(symbol, timeframe) {
-            if (!chart || !candleSeries) return;
-            try {
-                let res = await fetch(`/api/klines/${symbol}?timeframe=${timeframe}`);
-                let json = await res.json();
-                if (json.status === 'success' && Array.isArray(json.data)) {
-                    let data = json.data;
-                    let candles = data.map(item => ({
-                        time: item[0] / 1000,
-                        open: parseFloat(item[1]),
-                        high: parseFloat(item[2]),
-                        low: parseFloat(item[3]),
-                        close: parseFloat(item[4]),
-                    }));
-                    candleSeries.setData(candles);
-
-                    let stochData = computeStochRSI(candles);
-                    stochKSeries.setData(stochData.k);
-                    stochDSeries.setData(stochData.d);
-
-                    // Grafiklerin ekrana düzgün oturmasını sağlar (Siyah ekranı önler)
-                    chart.timeScale().fitContent();
-                    subChart.timeScale().fitContent();
-                }
-            } catch (e) {
-                console.error("Grafik verileri alınamadı:", e);
-            }
-        }
-
-        function computeStochRSI(candles) {
-            let closes = candles.map(c => c.close);
-            let rsi = [];
-            for (let i = 0; i < closes.length; i++) {
-                if (i < 14) { rsi.push(50); continue; }
-                let gains = 0, losses = 0;
-                for (let j = i - 13; j <= i; j++) {
-                    let diff = closes[j] - closes[j-1];
-                    if (diff >= 0) gains += diff; else losses -= diff;
-                }
-                let avgGain = gains / 14;
-                let avgLoss = losses / 14;
-                let rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
-                rsi.push(100 - (100 / (1 + rs)));
-            }
-
-            let kData = [], dData = [];
-            for (let i = 0; i < rsi.length; i++) {
-                if (i < 27) {
-                    kData.push({ time: candles[i].time, value: 50 });
-                    dData.push({ time: candles[i].time, value: 50 });
-                    continue;
-                }
-                let rsiSlice = rsi.slice(i - 13, i + 1);
-                let highRsi = Math.max(...rsiSlice);
-                let lowRsi = Math.min(...rsiSlice);
-                let stoch = highRsi === lowRsi ? 50 : ((rsi[i] - lowRsi) / (highRsi - lowRsi)) * 100;
-                kData.push({ time: candles[i].time, value: stoch });
-            }
-
-            for (let i = 0; i < kData.length; i++) {
-                if (i < 2) {
-                    dData.push({ time: kData[i].time, value: kData[i].value });
-                } else {
-                    let avg = (kData[i].value + kData[i-1].value + kData[i-2].value) / 3;
-                    dData.push({ time: kData[i].time, value: avg });
-                }
-            }
-            return { k: kData, d: dData };
-        }
-
-        function updateChartLines(longAvg, shortAvg) {
-            if (!candleSeries) return;
-            if (longPriceLine) { candleSeries.removePriceLine(longPriceLine); longPriceLine = null; }
-            if (shortPriceLine) { candleSeries.removePriceLine(shortPriceLine); shortPriceLine = null; }
-
-            if (longAvg > 0) {
-                longPriceLine = candleSeries.createPriceLine({
-                    price: longAvg, color: '#0ecb81', lineWidth: 2,
-                    lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: '🟢 Long Ort. Giriş',
-                });
-            }
-            if (shortAvg > 0) {
-                shortPriceLine = candleSeries.createPriceLine({
-                    price: shortAvg, color: '#f6465d', lineWidth: 2,
-                    lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: '🔴 Short Ort. Giriş',
+        // TradingView Resmi Widget Çizimi (Ekran Görüntüsü Alma Aktif)
+        function updateTradingViewChart(symbol, timeframe) {
+            document.getElementById('tradingview-container').innerHTML = '';
+            if (typeof TradingView !== 'undefined') {
+                tvWidget = new TradingView.widget({
+                    "autosize": true, 
+                    "symbol": "BINANCE:" + symbol + "USDT", 
+                    "interval": timeframe,
+                    "timezone": "Europe/Istanbul", 
+                    "theme": "dark", 
+                    "style": "1", 
+                    "locale": "tr",
+                    "toolbar_bg": "#1e2329", 
+                    "enable_publishing": false, 
+                    "hide_side_toolbar": false,
+                    "hide_top_toolbar": false, 
+                    "save_image": true, // Fotoğraf kaydetme açık
+                    "container_id": "tradingview-container"
                 });
             }
         }
@@ -597,7 +453,7 @@
                     if (data.coins.includes(oldVal)) { select.value = oldVal; currentSymbol = oldVal; }
                     else if(data.coins.length > 0) { currentSymbol = data.coins[0]; select.value = currentSymbol; }
                     if(currentSymbol) { 
-                        loadChartData(currentSymbol, currentTimeframe); 
+                        updateTradingViewChart(currentSymbol, currentTimeframe); 
                         fetchStats(currentSymbol, currentTimeframe); 
                         startRealtimeSync(); 
                     }
@@ -642,13 +498,13 @@
                     document.getElementById('shortSub').innerText = `(${srcData.short_count || 0} işlem, $${(srcData.short_size || 0).toFixed(1)}K size)`;
                     document.getElementById('avgVal').innerText = "$" + formatPrice(srcData.general_avg || 0);
 
-                    updateChartLines(longAvg, shortAvg);
-
+                    // Grafik üzeri canlı katman verilerini güncelleme
                     document.getElementById('ovCoinTitle').innerText = symbol + "USDT";
                     document.getElementById('ovLong').innerText = "$" + formatPrice(longAvg);
                     document.getElementById('ovShort').innerText = "$" + formatPrice(shortAvg);
                     document.getElementById('ovStatus').innerText = getPnlStatusText(markPx, longAvg, shortAvg);
 
+                    // Panel içi duruma rozet ekleme
                     let pnlBadgeHtml = getPnlStatusText(markPx, longAvg, shortAvg);
                     let badgeContainer = document.querySelector('.ivme-top div');
                     if (badgeContainer) {
@@ -685,7 +541,7 @@
 
         function onCoinChange() {
             currentSymbol = document.getElementById('coinSelect').value;
-            loadChartData(currentSymbol, currentTimeframe);
+            updateTradingViewChart(currentSymbol, currentTimeframe);
             secondsLeft = totalSyncSeconds;
             fetchStats(currentSymbol, currentTimeframe);
             loadHourlyRecordsUI();
@@ -695,7 +551,7 @@
             currentTimeframe = tf;
             document.querySelectorAll('.quick-timeframes button').forEach(btn => btn.classList.remove('active'));
             if(buttonElement) buttonElement.classList.add('active');
-            loadChartData(currentSymbol, currentTimeframe);
+            updateTradingViewChart(currentSymbol, currentTimeframe);
             secondsLeft = totalSyncSeconds;
             fetchStats(currentSymbol, currentTimeframe);
         }
